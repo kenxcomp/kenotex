@@ -56,30 +56,142 @@ impl Default for GeneralConfig {
 pub struct KeyboardConfig {
     #[serde(default = "default_layout")]
     pub layout: String,
-    #[serde(default = "default_direction_up")]
-    pub direction_up: String,
-    #[serde(default = "default_direction_down")]
-    pub direction_down: String,
+
+    // Navigation
+    #[serde(default = "default_move_left")]
+    pub move_left: String,
+    #[serde(default = "default_move_down")]
+    pub move_down: String,
+    #[serde(default = "default_move_up")]
+    pub move_up: String,
+    #[serde(default = "default_move_right")]
+    pub move_right: String,
+    #[serde(default = "default_word_forward")]
+    pub word_forward: String,
+    #[serde(default = "default_word_backward")]
+    pub word_backward: String,
+    #[serde(default = "default_line_start")]
+    pub line_start: String,
+    #[serde(default = "default_line_end")]
+    pub line_end: String,
+    #[serde(default = "default_file_start")]
+    pub file_start: String,
+    #[serde(default = "default_file_end")]
+    pub file_end: String,
+
+    // Insert mode entry
+    #[serde(default = "default_insert")]
+    pub insert: String,
+    #[serde(default = "default_insert_append")]
+    pub insert_append: String,
+    #[serde(default = "default_insert_line_start")]
+    pub insert_line_start: String,
+    #[serde(default = "default_insert_line_end")]
+    pub insert_line_end: String,
+    #[serde(default = "default_insert_line_below")]
+    pub insert_line_below: String,
+    #[serde(default = "default_insert_line_above")]
+    pub insert_line_above: String,
+
+    // Editing
+    #[serde(default = "default_delete_char")]
+    pub delete_char: String,
+    #[serde(default = "default_delete_line")]
+    pub delete_line: String,
+    #[serde(default = "default_undo")]
+    pub undo: String,
+
+    // Modes
+    #[serde(default = "default_visual_mode")]
+    pub visual_mode: String,
+    #[serde(default = "default_search")]
+    pub search: String,
+
+    // Other
+    #[serde(default = "default_cycle_theme")]
+    pub cycle_theme: String,
+
+    // Leader commands
+    #[serde(default = "default_leader_process")]
+    pub leader_process: String,
+    #[serde(default = "default_leader_list")]
+    pub leader_list: String,
+    #[serde(default = "default_leader_new")]
+    pub leader_new: String,
+    #[serde(default = "default_leader_save")]
+    pub leader_save: String,
 }
 
-fn default_layout() -> String {
-    "qwerty".to_string()
-}
+fn default_layout() -> String { "qwerty".to_string() }
 
-fn default_direction_up() -> String {
-    "k".to_string()
-}
+// Navigation defaults
+fn default_move_left() -> String { "h".to_string() }
+fn default_move_down() -> String { "j".to_string() }
+fn default_move_up() -> String { "k".to_string() }
+fn default_move_right() -> String { "l".to_string() }
+fn default_word_forward() -> String { "w".to_string() }
+fn default_word_backward() -> String { "b".to_string() }
+fn default_line_start() -> String { "0".to_string() }
+fn default_line_end() -> String { "$".to_string() }
+fn default_file_start() -> String { "g".to_string() }
+fn default_file_end() -> String { "G".to_string() }
 
-fn default_direction_down() -> String {
-    "j".to_string()
-}
+// Insert mode defaults
+fn default_insert() -> String { "i".to_string() }
+fn default_insert_append() -> String { "a".to_string() }
+fn default_insert_line_start() -> String { "I".to_string() }
+fn default_insert_line_end() -> String { "A".to_string() }
+fn default_insert_line_below() -> String { "o".to_string() }
+fn default_insert_line_above() -> String { "O".to_string() }
+
+// Editing defaults
+fn default_delete_char() -> String { "x".to_string() }
+fn default_delete_line() -> String { "d".to_string() }
+fn default_undo() -> String { "u".to_string() }
+
+// Mode defaults
+fn default_visual_mode() -> String { "v".to_string() }
+fn default_search() -> String { "/".to_string() }
+
+// Other defaults
+fn default_cycle_theme() -> String { "T".to_string() }
+
+// Leader command defaults
+fn default_leader_process() -> String { "s".to_string() }
+fn default_leader_list() -> String { "l".to_string() }
+fn default_leader_new() -> String { "n".to_string() }
+fn default_leader_save() -> String { "w".to_string() }
 
 impl Default for KeyboardConfig {
     fn default() -> Self {
         Self {
             layout: default_layout(),
-            direction_up: default_direction_up(),
-            direction_down: default_direction_down(),
+            move_left: default_move_left(),
+            move_down: default_move_down(),
+            move_up: default_move_up(),
+            move_right: default_move_right(),
+            word_forward: default_word_forward(),
+            word_backward: default_word_backward(),
+            line_start: default_line_start(),
+            line_end: default_line_end(),
+            file_start: default_file_start(),
+            file_end: default_file_end(),
+            insert: default_insert(),
+            insert_append: default_insert_append(),
+            insert_line_start: default_insert_line_start(),
+            insert_line_end: default_insert_line_end(),
+            insert_line_below: default_insert_line_below(),
+            insert_line_above: default_insert_line_above(),
+            delete_char: default_delete_char(),
+            delete_line: default_delete_line(),
+            undo: default_undo(),
+            visual_mode: default_visual_mode(),
+            search: default_search(),
+            cycle_theme: default_cycle_theme(),
+            leader_process: default_leader_process(),
+            leader_list: default_leader_list(),
+            leader_new: default_leader_new(),
+            leader_save: default_leader_save(),
         }
     }
 }
@@ -88,8 +200,10 @@ impl KeyboardConfig {
     pub fn colemak() -> Self {
         Self {
             layout: "colemak".to_string(),
-            direction_up: "u".to_string(),
-            direction_down: "e".to_string(),
+            move_up: "u".to_string(),
+            move_down: "e".to_string(),
+            undo: "z".to_string(), // 'u' is used for move_up
+            ..Default::default()
         }
     }
 }

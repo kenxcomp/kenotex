@@ -102,6 +102,8 @@ Kenotex 使用以下模式自动检测块类型：
 
 配置文件位置：`~/.config/kenotex/config.toml`
 
+完整配置参考请查看 [docs/default.toml](docs/default.toml)（含中英文注释）。
+
 ```toml
 [general]
 theme = "tokyo_night"  # tokyo_night, gruvbox, nord
@@ -109,22 +111,39 @@ leader_key = " "
 auto_save_interval_ms = 5000
 
 [keyboard]
-layout = "qwerty"  # 或 "colemak"
-direction_up = "k"
-direction_down = "j"
+layout = "qwerty"
+# 导航键
+move_left = "h"
+move_down = "j"
+move_up = "k"
+move_right = "l"
+word_forward = "w"
+word_backward = "b"
+# 插入模式
+insert = "i"
+insert_append = "a"
+# 编辑操作
+delete_char = "x"
+delete_line = "d"
+undo = "u"
+# Leader 命令
+leader_process = "s"
+leader_list = "l"
+leader_new = "n"
+leader_save = "w"
 
 [destinations.reminders]
 app = "apple"
-list = "收件箱"  # 可选
+# list = "工作"
 
 [destinations.calendar]
 app = "apple"
-calendar_name = "个人"  # 可选
+# calendar_name = "个人"
 
 [destinations.notes]
 app = "apple_notes"  # apple_notes, bear, obsidian
-folder = "Kenotex"   # 可选
-vault = "Main"       # 仅 obsidian
+# folder = "Kenotex"
+# vault = "MyVault"
 ```
 
 ## 架构

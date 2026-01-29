@@ -102,6 +102,8 @@ Kenotex automatically detects block types using these patterns:
 
 Config file location: `~/.config/kenotex/config.toml`
 
+See [docs/default.toml](docs/default.toml) for a complete configuration reference with comments.
+
 ```toml
 [general]
 theme = "tokyo_night"  # tokyo_night, gruvbox, nord
@@ -109,22 +111,39 @@ leader_key = " "
 auto_save_interval_ms = 5000
 
 [keyboard]
-layout = "qwerty"  # or "colemak"
-direction_up = "k"
-direction_down = "j"
+layout = "qwerty"
+# Navigation
+move_left = "h"
+move_down = "j"
+move_up = "k"
+move_right = "l"
+word_forward = "w"
+word_backward = "b"
+# Insert mode
+insert = "i"
+insert_append = "a"
+# Editing
+delete_char = "x"
+delete_line = "d"
+undo = "u"
+# Leader commands
+leader_process = "s"
+leader_list = "l"
+leader_new = "n"
+leader_save = "w"
 
 [destinations.reminders]
 app = "apple"
-list = "Inbox"  # optional
+# list = "Work"
 
 [destinations.calendar]
 app = "apple"
-calendar_name = "Personal"  # optional
+# calendar_name = "Personal"
 
 [destinations.notes]
 app = "apple_notes"  # apple_notes, bear, obsidian
-folder = "Kenotex"   # optional
-vault = "Main"       # for obsidian
+# folder = "Kenotex"
+# vault = "MyVault"
 ```
 
 ## Architecture

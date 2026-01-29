@@ -1,0 +1,17 @@
+# Build artifacts
+/target/
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config (user's personal config)
+# Note: docs/default.toml is the reference config and should be tracked

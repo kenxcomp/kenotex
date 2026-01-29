@@ -1,0 +1,185 @@
+# Kenotex Configuration File
+# Copy this file to ~/.config/kenotex/config.toml and customize as needed
+#
+# Kenotex 配置文件
+# 将此文件复制到 ~/.config/kenotex/config.toml 并根据需要自定义
+
+# =============================================================================
+# General Settings / 通用设置
+# =============================================================================
+[general]
+
+# Theme: "tokyo_night", "gruvbox", "nord"
+# 主题选择
+theme = "tokyo_night"
+
+# Leader key for Vim-style shortcuts (e.g., <Space>+s to process)
+# Vim 风格快捷键的 Leader 键
+leader_key = " "
+
+# Auto-save interval in milliseconds (0 to disable)
+# 自动保存间隔（毫秒），设为 0 禁用
+auto_save_interval_ms = 5000
+
+# =============================================================================
+# Keyboard Settings / 键盘设置
+# =============================================================================
+[keyboard]
+
+# Keyboard layout identifier (for reference)
+# 键盘布局标识（仅作参考）
+layout = "qwerty"
+
+# -----------------------------------------------------------------------------
+# Navigation / 导航键
+# -----------------------------------------------------------------------------
+
+# Basic movement / 基础移动
+move_left = "h"      # Move cursor left / 光标左移
+move_down = "j"      # Move cursor down / 光标下移
+move_up = "k"        # Move cursor up / 光标上移
+move_right = "l"     # Move cursor right / 光标右移
+
+# Word movement / 单词移动
+word_forward = "w"   # Next word / 下一个单词
+word_backward = "b"  # Previous word / 上一个单词
+
+# Line movement / 行内移动
+line_start = "0"     # Line start / 行首
+line_end = "$"       # Line end / 行尾
+
+# File movement / 文件移动
+file_start = "g"     # File start / 文件开头
+file_end = "G"       # File end / 文件结尾
+
+# -----------------------------------------------------------------------------
+# Insert Mode Entry / 进入插入模式
+# -----------------------------------------------------------------------------
+
+insert = "i"              # Insert at cursor / 在光标处插入
+insert_append = "a"       # Append after cursor / 在光标后追加
+insert_line_start = "I"   # Insert at line start / 在行首插入
+insert_line_end = "A"     # Append at line end / 在行尾追加
+insert_line_below = "o"   # Open line below / 在下方新建行
+insert_line_above = "O"   # Open line above / 在上方新建行
+
+# -----------------------------------------------------------------------------
+# Editing / 编辑操作
+# -----------------------------------------------------------------------------
+
+delete_char = "x"    # Delete character under cursor / 删除光标处字符
+delete_line = "d"    # Delete entire line / 删除整行
+undo = "u"           # Undo last change / 撤销
+
+# -----------------------------------------------------------------------------
+# Mode Switching / 模式切换
+# -----------------------------------------------------------------------------
+
+visual_mode = "v"    # Enter visual mode / 进入可视模式
+search = "/"         # Enter search mode (also 'f') / 进入搜索模式
+
+# -----------------------------------------------------------------------------
+# Other / 其他
+# -----------------------------------------------------------------------------
+
+cycle_theme = "T"    # Cycle through themes / 切换主题
+
+# -----------------------------------------------------------------------------
+# Leader Commands (Space + key) / Leader 命令（空格 + 按键）
+# -----------------------------------------------------------------------------
+
+leader_process = "s"  # Process and distribute blocks / 处理并分发内容块
+leader_list = "l"     # Open draft list / 打开草稿列表
+leader_new = "n"      # Create new note / 新建笔记
+leader_save = "w"     # Save current note / 保存当前笔记
+
+# =============================================================================
+# Destinations - Where content gets distributed / 目标应用设置
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Reminders (for items with :::td tag or checkbox pattern)
+# 提醒事项（用于 :::td 标签或复选框格式的内容）
+# -----------------------------------------------------------------------------
+[destinations.reminders]
+
+# App to use: "apple" (Apple Reminders)
+# 使用的应用
+app = "apple"
+
+# Optional: Specific list name in Reminders app
+# 可选：提醒事项中的列表名称
+# list = "Work"
+# list = "工作"
+
+# -----------------------------------------------------------------------------
+# Calendar (for items with :::cal tag or time expressions)
+# 日历（用于 :::cal 标签或时间表达式的内容）
+# -----------------------------------------------------------------------------
+[destinations.calendar]
+
+# App to use: "apple" (Apple Calendar)
+# 使用的应用
+app = "apple"
+
+# Optional: Specific calendar name
+# 可选：日历名称
+# calendar_name = "Personal"
+# calendar_name = "个人"
+
+# -----------------------------------------------------------------------------
+# Notes (for items with :::note tag or default content)
+# 笔记（用于 :::note 标签或默认内容）
+# -----------------------------------------------------------------------------
+[destinations.notes]
+
+# App to use: "apple_notes", "bear", "obsidian"
+# 使用的应用
+app = "apple_notes"
+
+# Optional: Folder name for Apple Notes
+# 可选：Apple Notes 文件夹名称
+# folder = "Kenotex"
+
+# Optional: Vault name for Obsidian
+# 可选：Obsidian vault 名称
+# vault = "MyVault"
+
+# =============================================================================
+# Preset Configurations / 预设配置示例
+# =============================================================================
+
+# --- Colemak Keyboard Layout / Colemak 键盘布局 ---
+# [keyboard]
+# layout = "colemak"
+# move_up = "u"
+# move_down = "e"
+# undo = "z"  # Since 'u' is used for move_up
+
+# --- Dvorak Keyboard Layout / Dvorak 键盘布局 ---
+# [keyboard]
+# layout = "dvorak"
+# move_left = "d"
+# move_down = "h"
+# move_up = "t"
+# move_right = "n"
+
+# --- Arrow Keys Only (No Vim Keys) / 仅使用方向键 ---
+# [keyboard]
+# move_left = ""
+# move_down = ""
+# move_up = ""
+# move_right = ""
+
+# --- Gruvbox Theme / Gruvbox 主题 ---
+# [general]
+# theme = "gruvbox"
+
+# --- Obsidian User / Obsidian 用户 ---
+# [destinations.notes]
+# app = "obsidian"
+# vault = "MyKnowledgeBase"
+
+# --- Bear User / Bear 用户 ---
+# [destinations.notes]
+# app = "bear"

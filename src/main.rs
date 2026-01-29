@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use crossterm::{
+    cursor::SetCursorStyle,
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -54,8 +55,19 @@ fn main() -> Result<()> {
 
 fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
     let tick_rate = Duration::from_millis(100);
+    let mut last_mode = app.mode;
 
     loop {
+        // Update cursor style when mode changes
+        if app.mode != last_mode {
+            let cursor_style = match app.mode {
+                AppMode::Insert => SetCursorStyle::BlinkingBar,
+                _ => SetCursorStyle::SteadyBlock,
+            };
+            execute!(terminal.backend_mut(), cursor_style)?;
+            last_mode = app.mode;
+        }
+
         terminal.draw(|f| ui(f, app))?;
 
         if event::poll(tick_rate)? {
@@ -162,6 +174,36 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
     .scroll_offset(app.scroll_offset());
 
     f.render_widget(editor, area);
+
+    // In Insert mode, show native terminal cursor (I-beam)
+    if app.mode == AppMode::Insert {
+        use unicode_segmentation::UnicodeSegmentation;
+        use unicode_width::UnicodeWidthStr;
+
+        let (cursor_row, cursor_col) = app.buffer.cursor_position();
+        let inner_x = area.x + 1; // Account for border
+        let inner_y = area.y + 1;
+
+        // Calculate display width for cursor position
+        let display_offset: u16 = content
+            .lines()
+            .nth(cursor_row)
+            .map(|line| {
+                line.graphemes(true)
+                    .take(cursor_col)
+                    .map(|g| g.width())
+                    .sum::<usize>() as u16
+            })
+            .unwrap_or(0);
+
+        let cursor_x = inner_x + display_offset;
+        let cursor_y = inner_y + cursor_row as u16 - app.scroll_offset();
+
+        // Set cursor position for native terminal cursor
+        if cursor_y >= inner_y && cursor_y < area.y + area.height - 1 {
+            f.set_cursor_position((cursor_x, cursor_y));
+        }
+    }
 }
 
 fn render_draft_list(f: &mut Frame, app: &App, area: Rect) {

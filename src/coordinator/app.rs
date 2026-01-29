@@ -41,10 +41,7 @@ impl App {
         let config = load_config()?;
         let theme_manager = ThemeManager::with_theme(&config.general.theme);
 
-        let vim_mode = VimMode::with_keybindings(
-            config.keyboard.direction_up.clone(),
-            config.keyboard.direction_down.clone(),
-        );
+        let vim_mode = VimMode::with_config(config.keyboard.clone());
 
         let drafts = load_all_drafts(false)?;
         let archives = load_all_drafts(true)?;

@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::types::AppMode;
+use crate::types::{AppMode, KeyboardConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VimAction {
@@ -41,27 +41,30 @@ pub enum VimAction {
     Quit,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct VimMode {
     leader_pending: bool,
-    direction_up: String,
-    direction_down: String,
+    keys: KeyboardConfig,
+}
+
+impl Default for VimMode {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VimMode {
     pub fn new() -> Self {
         Self {
             leader_pending: false,
-            direction_up: "k".to_string(),
-            direction_down: "j".to_string(),
+            keys: KeyboardConfig::default(),
         }
     }
 
-    pub fn with_keybindings(direction_up: String, direction_down: String) -> Self {
+    pub fn with_config(config: KeyboardConfig) -> Self {
         Self {
             leader_pending: false,
-            direction_up,
-            direction_down,
+            keys: config,
         }
     }
 
@@ -71,6 +74,10 @@ impl VimMode {
 
     pub fn clear_leader(&mut self) {
         self.leader_pending = false;
+    }
+
+    fn key_matches(&self, c: char, binding: &str) -> bool {
+        c.to_string() == binding
     }
 
     pub fn handle_key(&mut self, key: KeyEvent, mode: AppMode) -> VimAction {
@@ -87,57 +94,113 @@ impl VimMode {
         if self.leader_pending {
             self.leader_pending = false;
             return match key.code {
-                KeyCode::Char('s') => VimAction::LeaderProcess,
-                KeyCode::Char('l') => VimAction::LeaderList,
-                KeyCode::Char('n') => VimAction::LeaderNew,
-                KeyCode::Char('w') => VimAction::LeaderSave,
+                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_process) => {
+                    VimAction::LeaderProcess
+                }
+                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_list) => {
+                    VimAction::LeaderList
+                }
+                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_new) => {
+                    VimAction::LeaderNew
+                }
+                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_save) => {
+                    VimAction::LeaderSave
+                }
                 _ => VimAction::None,
             };
         }
 
         match key.code {
+            // Leader key
             KeyCode::Char(' ') => {
                 self.leader_pending = true;
                 VimAction::LeaderKey
             }
 
-            KeyCode::Char('h') | KeyCode::Left => VimAction::MoveLeft,
-            KeyCode::Char('l') | KeyCode::Right => VimAction::MoveRight,
+            // Navigation - arrow keys always work
+            KeyCode::Left => VimAction::MoveLeft,
+            KeyCode::Right => VimAction::MoveRight,
             KeyCode::Up => VimAction::MoveUp,
             KeyCode::Down => VimAction::MoveDown,
-            KeyCode::Char(c) if c.to_string() == self.direction_up => VimAction::MoveUp,
-            KeyCode::Char(c) if c.to_string() == self.direction_down => VimAction::MoveDown,
+            KeyCode::Home => VimAction::MoveLineStart,
+            KeyCode::End => VimAction::MoveLineEnd,
 
-            KeyCode::Char('w') => VimAction::MoveWordForward,
-            KeyCode::Char('b') => VimAction::MoveWordBackward,
-            KeyCode::Char('0') | KeyCode::Home => VimAction::MoveLineStart,
-            KeyCode::Char('$') | KeyCode::End => VimAction::MoveLineEnd,
-            KeyCode::Char('G') => VimAction::MoveFileEnd,
+            // Navigation - configurable keys
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_left) => VimAction::MoveLeft,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_right) => VimAction::MoveRight,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_up) => VimAction::MoveUp,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_down) => VimAction::MoveDown,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_forward) => {
+                VimAction::MoveWordForward
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_backward) => {
+                VimAction::MoveWordBackward
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_start) => {
+                VimAction::MoveLineStart
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => {
+                VimAction::MoveLineEnd
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
+                VimAction::MoveFileEnd
+            }
+            KeyCode::Char(c)
+                if self.key_matches(c, &self.keys.file_start)
+                    && !key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                VimAction::MoveFileStart
+            }
+
+            // Insert mode entry
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.insert) => VimAction::InsertMode,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.insert_append) => {
+                VimAction::InsertModeAppend
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.insert_line_end) => {
+                VimAction::InsertModeLineEnd
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.insert_line_start) => {
+                VimAction::InsertModeLineStart
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.insert_line_below) => {
+                VimAction::InsertLineBelow
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.insert_line_above) => {
+                VimAction::InsertLineAbove
+            }
+
+            // Editing
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_char) => {
+                VimAction::DeleteChar
+            }
+            KeyCode::Char(c)
+                if self.key_matches(c, &self.keys.delete_line)
+                    && key.modifiers.contains(KeyModifiers::NONE) =>
+            {
+                VimAction::DeleteLine
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.undo) => VimAction::Undo,
+            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => VimAction::Redo,
+
+            // Modes
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.visual_mode) => {
+                VimAction::EnterVisualMode
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.search) => VimAction::Search,
+            KeyCode::Char('f') => VimAction::Search, // Alternative search key
+
+            // Other
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.cycle_theme) => {
+                VimAction::CycleTheme
+            }
+
+            // External editor (Ctrl+G)
             KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 VimAction::ExternalEditor
             }
-            KeyCode::Char('g') => VimAction::MoveFileStart,
 
-            KeyCode::Char('i') => VimAction::InsertMode,
-            KeyCode::Char('a') => VimAction::InsertModeAppend,
-            KeyCode::Char('A') => VimAction::InsertModeLineEnd,
-            KeyCode::Char('I') => VimAction::InsertModeLineStart,
-            KeyCode::Char('o') => VimAction::InsertLineBelow,
-            KeyCode::Char('O') => VimAction::InsertLineAbove,
-
-            KeyCode::Char('x') => VimAction::DeleteChar,
-            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::NONE) => {
-                VimAction::DeleteLine
-            }
-
-            KeyCode::Char('v') => VimAction::EnterVisualMode,
-
-            KeyCode::Char('u') if self.direction_up != "u" => VimAction::Undo,
-            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => VimAction::Redo,
-
-            KeyCode::Char('T') => VimAction::CycleTheme,
-            KeyCode::Char('/') | KeyCode::Char('f') => VimAction::Search,
-
+            // Quit
             KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => VimAction::Quit,
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => VimAction::Quit,
 
@@ -178,12 +241,14 @@ impl VimMode {
     fn handle_visual_mode(&mut self, key: KeyEvent) -> VimAction {
         match key.code {
             KeyCode::Esc => VimAction::ExitToNormal,
-            KeyCode::Char('h') | KeyCode::Left => VimAction::MoveLeft,
-            KeyCode::Char('l') | KeyCode::Right => VimAction::MoveRight,
+            KeyCode::Left => VimAction::MoveLeft,
+            KeyCode::Right => VimAction::MoveRight,
             KeyCode::Up => VimAction::MoveUp,
             KeyCode::Down => VimAction::MoveDown,
-            KeyCode::Char(c) if c.to_string() == self.direction_up => VimAction::MoveUp,
-            KeyCode::Char(c) if c.to_string() == self.direction_down => VimAction::MoveDown,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_left) => VimAction::MoveLeft,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_right) => VimAction::MoveRight,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_up) => VimAction::MoveUp,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.move_down) => VimAction::MoveDown,
             _ => VimAction::None,
         }
     }

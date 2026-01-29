@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 use regex::Regex;
+use unicode_width::UnicodeWidthStr;
 
 use crate::types::{AppMode, Theme};
 
@@ -138,14 +139,37 @@ impl Widget for EditorWidget<'_> {
 
         paragraph.render(inner, buf);
 
-        if self.mode == AppMode::Insert {
-            let cursor_x = inner.x + self.cursor_pos.1 as u16;
-            let cursor_y = inner.y + self.cursor_pos.0 as u16 - self.scroll_offset;
+        // Render block cursor only in Normal mode
+        // Insert mode uses native terminal cursor (I-beam) set in main.rs
+        if self.mode == AppMode::Normal {
+            // Calculate display width of characters before cursor
+            // cursor_pos.1 is the grapheme index, not display width
+            let cursor_row = self.cursor_pos.0;
+            let cursor_col = self.cursor_pos.1;
+
+            let display_offset: u16 = self
+                .content
+                .lines()
+                .nth(cursor_row)
+                .map(|line| {
+                    use unicode_segmentation::UnicodeSegmentation;
+                    line.graphemes(true)
+                        .take(cursor_col)
+                        .map(|g| g.width())
+                        .sum::<usize>() as u16
+                })
+                .unwrap_or(0);
+
+            let cursor_x = inner.x + display_offset;
+            let cursor_y = inner.y + cursor_row as u16 - self.scroll_offset;
 
             if cursor_y >= inner.y && cursor_y < inner.y + inner.height {
                 if cursor_x < inner.x + inner.width {
-                    buf[(cursor_x, cursor_y)]
-                        .set_style(Style::default().bg(self.theme.cursor_color()));
+                    // Block cursor: reversed colors
+                    let cursor_style = Style::default()
+                        .fg(self.theme.bg_color())
+                        .bg(self.theme.cursor_color());
+                    buf[(cursor_x, cursor_y)].set_style(cursor_style);
                 }
             }
         }

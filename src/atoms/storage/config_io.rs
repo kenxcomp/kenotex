@@ -5,6 +5,16 @@ use std::path::PathBuf;
 use crate::types::Config;
 
 pub fn config_dir() -> PathBuf {
+    // Prefer ~/.config/kenotex on Unix-like systems for better compatibility
+    // with dotfiles management tools
+    if let Some(home) = dirs::home_dir() {
+        let xdg_config = home.join(".config").join("kenotex");
+        if xdg_config.exists() || cfg!(unix) {
+            return xdg_config;
+        }
+    }
+
+    // Fallback to system default (e.g., ~/Library/Application Support on macOS)
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("kenotex")
@@ -62,5 +72,14 @@ mod tests {
         assert_eq!(config.general.theme, "tokyo_night");
         assert_eq!(config.general.leader_key, " ");
         assert_eq!(config.keyboard.layout, "qwerty");
+    }
+
+    #[test]
+    fn test_config_path_xdg() {
+        // Verify config path uses ~/.config/kenotex on Unix
+        let path = config_path();
+        if cfg!(unix) {
+            assert!(path.to_string_lossy().contains(".config/kenotex"));
+        }
     }
 }
