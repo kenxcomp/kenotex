@@ -66,8 +66,21 @@ L4 Atoms (atoms/)
 
 **L4 Atoms** (`atoms/`):
 - `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay
-- `storage/` - File I/O for config (`~/.config/kenotex/config.toml`) and drafts (`~/.config/kenotex/drafts/`)
+- `storage/` - File I/O for config and drafts (see Config Path below)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
+
+### Config Path
+
+`config_dir()` in `atoms/storage/config_io.rs` determines the config/data directory:
+- **Unix (macOS/Linux)**: `~/.config/kenotex/` (XDG-style, preferred)
+- **Fallback**: `dirs::config_dir()/kenotex/` (e.g. `~/Library/Application Support/kenotex/` on macOS)
+
+Files stored under this directory:
+- `config.toml` - User configuration (see `docs/default.toml` for reference)
+- `drafts/` - Draft notes as markdown files
+- `drafts/archive/` - Archived notes
+
+**Important**: Do NOT use `dirs::config_dir()` directly elsewhere. Always use `config_dir()` from `config_io.rs` to ensure consistent path resolution.
 
 ### Key Data Types (`types/`)
 
