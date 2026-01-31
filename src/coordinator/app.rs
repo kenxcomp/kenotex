@@ -30,6 +30,7 @@ pub struct App {
 
     pub should_quit: bool,
     pub dirty: bool,
+    pub external_editor_requested: bool,
     pub last_save: std::time::Instant,
 }
 
@@ -74,6 +75,7 @@ impl App {
             processing_index: 0,
             should_quit: false,
             dirty: false,
+            external_editor_requested: false,
             last_save: std::time::Instant::now(),
         })
     }
@@ -261,6 +263,18 @@ impl App {
         } else {
             0
         }
+    }
+
+    pub fn request_external_editor(&mut self) {
+        self.external_editor_requested = true;
+    }
+
+    pub fn apply_external_editor_result(&mut self, new_content: String) {
+        self.buffer = TextBuffer::from_string(&new_content);
+        self.buffer.set_cursor(0, 0);
+        self.set_mode(AppMode::Normal);
+        self.dirty = true;
+        self.set_message("Buffer updated from external editor");
     }
 }
 

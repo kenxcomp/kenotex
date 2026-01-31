@@ -9,7 +9,7 @@ use std::time::Duration;
 use anyhow::Result;
 use crossterm::{
     cursor::SetCursorStyle,
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -25,6 +25,9 @@ use ratatui::{
 use coordinator::{App, EventDispatcher};
 use types::{AppMode, View};
 
+use crate::atoms::storage::{
+    cleanup_temp_file, read_temp_file, resolve_editor, spawn_editor, write_temp_file,
+};
 use crate::atoms::widgets::{EditorWidget, ProcessingOverlay, StatusBar};
 
 fn main() -> Result<()> {
@@ -87,6 +90,12 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                 }
 
                 EventDispatcher::handle_key(app, key)?;
+
+                if app.external_editor_requested {
+                    app.external_editor_requested = false;
+                    handle_external_editor(terminal, app)?;
+                    continue;
+                }
             }
         }
 
@@ -107,6 +116,50 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
         }
     }
 
+    Ok(())
+}
+
+fn handle_external_editor(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut App,
+) -> Result<()> {
+    let editor = resolve_editor();
+    let temp_path = write_temp_file(&app.buffer.to_string())?;
+
+    // Suspend TUI
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+
+    // Spawn editor (blocks until exit)
+    let editor_ok = spawn_editor(&editor, &temp_path);
+
+    // Restore TUI unconditionally
+    enable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        EnterAlternateScreen,
+        EnableMouseCapture
+    )?;
+    terminal.clear()?;
+
+    match editor_ok {
+        Ok(true) => {
+            let content = read_temp_file(&temp_path)?;
+            app.apply_external_editor_result(content);
+        }
+        Ok(false) => {
+            app.set_message("External editor exited with error");
+        }
+        Err(e) => {
+            app.set_message(&format!("Failed to launch editor: {}", e));
+        }
+    }
+
+    cleanup_temp_file(&temp_path);
     Ok(())
 }
 

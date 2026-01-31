@@ -113,7 +113,7 @@ impl EventDispatcher {
                 app.set_mode(AppMode::Search);
             }
             VimAction::ExternalEditor => {
-                app.set_message("External editor not yet implemented");
+                app.request_external_editor();
             }
             VimAction::Quit => {
                 app.should_quit = true;
@@ -245,7 +245,7 @@ impl EventDispatcher {
                 app.clear_message();
             }
             VimAction::ExternalEditor => {
-                app.set_message("External editor not yet implemented");
+                app.request_external_editor();
             }
             _ => {}
         }

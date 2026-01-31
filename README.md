@@ -42,6 +42,7 @@ cargo build --release
 | `d` | Delete line |
 | `T` | Cycle theme |
 | `/` or `f` | Enter Search mode |
+| `Ctrl+G` | Open buffer in external editor (`$VISUAL` / `$EDITOR` / `vi`) |
 | `Esc` | Return to Normal mode |
 | `Ctrl+C` or `Ctrl+Q` | Quit |
 

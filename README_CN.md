@@ -42,6 +42,7 @@ cargo build --release
 | `d` | 删除行 |
 | `T` | 切换主题 |
 | `/` 或 `f` | 进入搜索模式 |
+| `Ctrl+G` | 在外部编辑器中打开缓冲区（`$VISUAL` / `$EDITOR` / `vi`） |
 | `Esc` | 返回 Normal 模式 |
 | `Ctrl+C` 或 `Ctrl+Q` | 退出 |
 
