@@ -120,6 +120,8 @@ pub struct KeyboardConfig {
     pub leader_new: String,
     #[serde(default = "default_leader_save")]
     pub leader_save: String,
+    #[serde(default = "default_leader_quit")]
+    pub leader_quit: String,
 }
 
 fn default_layout() -> String { "qwerty".to_string() }
@@ -161,6 +163,7 @@ fn default_leader_process() -> String { "s".to_string() }
 fn default_leader_list() -> String { "l".to_string() }
 fn default_leader_new() -> String { "n".to_string() }
 fn default_leader_save() -> String { "w".to_string() }
+fn default_leader_quit() -> String { "q".to_string() }
 
 impl Default for KeyboardConfig {
     fn default() -> Self {
@@ -192,6 +195,7 @@ impl Default for KeyboardConfig {
             leader_list: default_leader_list(),
             leader_new: default_leader_new(),
             leader_save: default_leader_save(),
+            leader_quit: default_leader_quit(),
         }
     }
 }

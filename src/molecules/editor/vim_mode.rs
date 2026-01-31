@@ -106,6 +106,9 @@ impl VimMode {
                 KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_save) => {
                     VimAction::LeaderSave
                 }
+                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_quit) => {
+                    VimAction::Quit
+                }
                 _ => VimAction::None,
             };
         }

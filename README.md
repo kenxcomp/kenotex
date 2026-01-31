@@ -54,6 +54,7 @@ cargo build --release
 | `Space + l` | Open draft list |
 | `Space + n` | Create new note |
 | `Space + w` | Save current note |
+| `Space + q` | Quit |
 
 ### List View
 
@@ -132,6 +133,7 @@ leader_process = "s"
 leader_list = "l"
 leader_new = "n"
 leader_save = "w"
+leader_quit = "q"
 
 [destinations.reminders]
 app = "apple"

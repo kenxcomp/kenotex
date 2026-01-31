@@ -54,6 +54,7 @@ cargo build --release
 | `空格 + l` | 打开草稿列表 |
 | `空格 + n` | 创建新笔记 |
 | `空格 + w` | 保存当前笔记 |
+| `空格 + q` | 退出 |
 
 ### 列表视图
 
@@ -132,6 +133,7 @@ leader_process = "s"
 leader_list = "l"
 leader_new = "n"
 leader_save = "w"
+leader_quit = "q"
 
 [destinations.reminders]
 app = "apple"
