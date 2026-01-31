@@ -28,6 +28,8 @@ pub struct GeneralConfig {
     pub leader_key: String,
     #[serde(default = "default_auto_save_interval")]
     pub auto_save_interval_ms: u64,
+    #[serde(default = "default_show_hints")]
+    pub show_hints: bool,
 }
 
 fn default_theme() -> String {
@@ -42,12 +44,17 @@ fn default_auto_save_interval() -> u64 {
     5000
 }
 
+fn default_show_hints() -> bool {
+    true
+}
+
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
             theme: default_theme(),
             leader_key: default_leader_key(),
             auto_save_interval_ms: default_auto_save_interval(),
+            show_hints: default_show_hints(),
         }
     }
 }

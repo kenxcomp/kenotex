@@ -55,6 +55,7 @@ cargo build --release
 | `Space + n` | Create new note |
 | `Space + w` | Save current note |
 | `Space + q` | Quit |
+| `Space + th` | Toggle shortcut hints bar |
 
 ### List View
 
@@ -111,6 +112,7 @@ See [docs/default.toml](docs/default.toml) for a complete configuration referenc
 theme = "tokyo_night"  # tokyo_night, gruvbox, nord
 leader_key = " "
 auto_save_interval_ms = 5000
+show_hints = true      # Show shortcut hints bar
 
 [keyboard]
 layout = "qwerty"

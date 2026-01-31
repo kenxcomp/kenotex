@@ -28,7 +28,7 @@ use types::{AppMode, View};
 use crate::atoms::storage::{
     cleanup_temp_file, read_temp_file, resolve_editor, spawn_editor, write_temp_file,
 };
-use crate::atoms::widgets::{EditorWidget, ProcessingOverlay, StatusBar};
+use crate::atoms::widgets::{EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar};
 
 fn main() -> Result<()> {
     enable_raw_mode()?;
@@ -173,9 +173,11 @@ fn ui(f: &mut Frame, app: &App) {
         f.area(),
     );
 
+    let hint_height = if app.show_hints { 1 } else { 0 };
     let main_chunks = Layout::vertical([
-        Constraint::Min(1),
-        Constraint::Length(2),
+        Constraint::Min(1),              // [0] content
+        Constraint::Length(hint_height),  // [1] hint bar
+        Constraint::Length(2),           // [2] status bar
     ])
     .split(f.area());
 
@@ -191,6 +193,10 @@ fn ui(f: &mut Frame, app: &App) {
         }
     }
 
+    if app.show_hints {
+        f.render_widget(HintBar::new(app.mode, app.view, theme), main_chunks[1]);
+    }
+
     let status_bar = StatusBar::new(app.mode, app.view, theme)
         .message(&app.command_message)
         .search_query(&app.search_query)
@@ -200,7 +206,11 @@ fn ui(f: &mut Frame, app: &App) {
                 .map(|n| n.title.as_str())
                 .unwrap_or(""),
         );
-    f.render_widget(status_bar, main_chunks[1]);
+    f.render_widget(status_bar, main_chunks[2]);
+
+    if app.vim_mode.is_leader_pending() {
+        f.render_widget(LeaderPopup::new(theme), f.area());
+    }
 
     if app.mode == AppMode::Processing && !app.processing_blocks.is_empty() {
         let overlay = ProcessingOverlay::new(&app.processing_blocks, theme, app.processing_index);
@@ -333,10 +343,6 @@ fn render_draft_list(f: &mut Frame, app: &App, area: Rect) {
         f.render_widget(list, header_chunks[1]);
     }
 
-    let help = Paragraph::new("[j/k] Navigate  [Enter] Edit  [a] Archive  [d] Delete  [n] New  [A] Archives  [/] Search")
-        .style(Style::default().fg(theme.border_color()));
-    let help_area = Rect::new(area.x + 1, area.y + area.height - 1, area.width - 2, 1);
-    f.render_widget(help, help_area);
 }
 
 fn render_archive_list(f: &mut Frame, app: &App, area: Rect) {
@@ -409,8 +415,4 @@ fn render_archive_list(f: &mut Frame, app: &App, area: Rect) {
         f.render_widget(list, header_chunks[1]);
     }
 
-    let help = Paragraph::new("[j/k] Navigate  [Enter] View  [r] Restore  [d] Delete  [Esc] Back")
-        .style(Style::default().fg(theme.border_color()));
-    let help_area = Rect::new(area.x + 1, area.y + area.height - 1, area.width - 2, 1);
-    f.render_widget(help, help_area);
 }

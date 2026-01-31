@@ -109,6 +109,9 @@ impl EventDispatcher {
                 app.start_processing();
             }
 
+            VimAction::ToggleHints => {
+                app.toggle_hints();
+            }
             VimAction::CycleTheme => {
                 app.cycle_theme();
             }
@@ -165,6 +168,10 @@ impl EventDispatcher {
                 } else {
                     app.set_view(View::Editor);
                 }
+            }
+
+            VimAction::ToggleHints => {
+                app.toggle_hints();
             }
 
             VimAction::CycleTheme => {

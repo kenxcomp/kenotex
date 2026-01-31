@@ -35,15 +35,23 @@ pub enum VimAction {
     LeaderList,
     LeaderNew,
     LeaderProcess,
+    ToggleHints,
     CycleTheme,
     Search,
     ExternalEditor,
     Quit,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum LeaderState {
+    Inactive,
+    AwaitingFirst,
+    AwaitingSecond(char),
+}
+
 #[derive(Debug, Clone)]
 pub struct VimMode {
-    leader_pending: bool,
+    leader_state: LeaderState,
     keys: KeyboardConfig,
 }
 
@@ -56,24 +64,24 @@ impl Default for VimMode {
 impl VimMode {
     pub fn new() -> Self {
         Self {
-            leader_pending: false,
+            leader_state: LeaderState::Inactive,
             keys: KeyboardConfig::default(),
         }
     }
 
     pub fn with_config(config: KeyboardConfig) -> Self {
         Self {
-            leader_pending: false,
+            leader_state: LeaderState::Inactive,
             keys: config,
         }
     }
 
     pub fn is_leader_pending(&self) -> bool {
-        self.leader_pending
+        self.leader_state != LeaderState::Inactive
     }
 
     pub fn clear_leader(&mut self) {
-        self.leader_pending = false;
+        self.leader_state = LeaderState::Inactive;
     }
 
     fn key_matches(&self, c: char, binding: &str) -> bool {
@@ -91,32 +99,54 @@ impl VimMode {
     }
 
     fn handle_normal_mode(&mut self, key: KeyEvent) -> VimAction {
-        if self.leader_pending {
-            self.leader_pending = false;
-            return match key.code {
-                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_process) => {
-                    VimAction::LeaderProcess
-                }
-                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_list) => {
-                    VimAction::LeaderList
-                }
-                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_new) => {
-                    VimAction::LeaderNew
-                }
-                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_save) => {
-                    VimAction::LeaderSave
-                }
-                KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_quit) => {
-                    VimAction::Quit
-                }
-                _ => VimAction::None,
-            };
+        match &self.leader_state {
+            LeaderState::AwaitingSecond(first) => {
+                let first = *first;
+                self.leader_state = LeaderState::Inactive;
+                return match (first, key.code) {
+                    ('t', KeyCode::Char('h')) => VimAction::ToggleHints,
+                    _ => VimAction::None,
+                };
+            }
+            LeaderState::AwaitingFirst => {
+                return match key.code {
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_process) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::LeaderProcess
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_list) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::LeaderList
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_new) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::LeaderNew
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_save) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::LeaderSave
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_quit) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::Quit
+                    }
+                    KeyCode::Char('t') => {
+                        self.leader_state = LeaderState::AwaitingSecond('t');
+                        VimAction::None
+                    }
+                    _ => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::None
+                    }
+                };
+            }
+            LeaderState::Inactive => {}
         }
 
         match key.code {
             // Leader key
             KeyCode::Char(' ') => {
-                self.leader_pending = true;
+                self.leader_state = LeaderState::AwaitingFirst;
                 VimAction::LeaderKey
             }
 
@@ -286,6 +316,61 @@ mod tests {
             AppMode::Normal,
         );
         assert_eq!(action, VimAction::LeaderProcess);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_toggle_hints() {
+        let mut vim = VimMode::new();
+
+        // Space -> AwaitingFirst
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::LeaderKey);
+        assert!(vim.is_leader_pending());
+
+        // 't' -> AwaitingSecond('t')
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(vim.is_leader_pending());
+
+        // 'h' -> ToggleHints
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleHints);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_multi_char_cancel() {
+        let mut vim = VimMode::new();
+
+        // Space -> AwaitingFirst
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+
+        // 't' -> AwaitingSecond('t')
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert!(vim.is_leader_pending());
+
+        // 'x' (invalid second char) -> cancel
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
         assert!(!vim.is_leader_pending());
     }
 

@@ -28,6 +28,8 @@ pub struct App {
     pub processing_blocks: Vec<SmartBlock>,
     pub processing_index: usize,
 
+    pub show_hints: bool,
+
     pub should_quit: bool,
     pub dirty: bool,
     pub external_editor_requested: bool,
@@ -59,6 +61,8 @@ impl App {
             (TextBuffer::new(), None)
         };
 
+        let show_hints = config.general.show_hints;
+
         Ok(Self {
             mode: AppMode::Normal,
             view: View::Editor,
@@ -73,6 +77,7 @@ impl App {
             search_query: String::new(),
             processing_blocks: Vec::new(),
             processing_index: 0,
+            show_hints,
             should_quit: false,
             dirty: false,
             external_editor_requested: false,
@@ -106,6 +111,16 @@ impl App {
     pub fn cycle_theme(&mut self) {
         self.theme_manager.cycle_next();
         self.set_message(&format!("Theme: {}", self.theme().name));
+    }
+
+    pub fn toggle_hints(&mut self) {
+        self.show_hints = !self.show_hints;
+        let msg = if self.show_hints {
+            "Hints shown"
+        } else {
+            "Hints hidden"
+        };
+        self.set_message(msg);
     }
 
     pub fn new_note(&mut self) {

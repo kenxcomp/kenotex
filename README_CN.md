@@ -55,6 +55,7 @@ cargo build --release
 | `空格 + n` | 创建新笔记 |
 | `空格 + w` | 保存当前笔记 |
 | `空格 + q` | 退出 |
+| `空格 + th` | 切换快捷键提示栏 |
 
 ### 列表视图
 
@@ -111,6 +112,7 @@ Kenotex 使用以下模式自动检测块类型：
 theme = "tokyo_night"  # tokyo_night, gruvbox, nord
 leader_key = " "
 auto_save_interval_ms = 5000
+show_hints = true      # 显示快捷键提示栏
 
 [keyboard]
 layout = "qwerty"
