@@ -127,6 +127,14 @@ impl DraftList {
         self.update_filter();
     }
 
+    pub fn update_note(&mut self, updated: &Note) {
+        if let Some(note) = self.notes.iter_mut().find(|n| n.id == updated.id) {
+            note.title = updated.title.clone();
+            note.content = updated.content.clone();
+            note.updated_at = updated.updated_at;
+        }
+    }
+
     pub fn toggle_selected(&mut self) {
         if let Some(&real_idx) = self.filtered_indices.get(self.selected_index) {
             if let Some(note) = self.notes.get_mut(real_idx) {

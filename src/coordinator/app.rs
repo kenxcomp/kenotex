@@ -126,6 +126,7 @@ impl App {
         if let Some(ref mut note) = self.current_note {
             note.update_content(self.buffer.to_string());
             save_draft(note)?;
+            self.draft_list.update_note(note);
             self.dirty = false;
             self.last_save = std::time::Instant::now();
             self.set_message("Saved");

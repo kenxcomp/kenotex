@@ -96,6 +96,9 @@ impl EventDispatcher {
                 app.save_current_note()?;
             }
             VimAction::LeaderList => {
+                if app.dirty {
+                    app.save_current_note()?;
+                }
                 app.set_view(View::DraftList);
                 app.set_message("");
             }
