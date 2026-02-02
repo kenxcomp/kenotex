@@ -12,5 +12,8 @@
 .DS_Store
 Thumbs.db
 
+# Worktrees
+.worktrees/
+
 # Local config (user's personal config)
 # Note: docs/default.toml is the reference config and should be tracked
