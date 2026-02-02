@@ -169,9 +169,6 @@ impl EventDispatcher {
             VimAction::LeaderKey => {
                 app.set_message("LEADER");
             }
-            VimAction::LeaderSave => {
-                app.save_current_note()?;
-            }
             VimAction::LeaderList => {
                 if app.dirty {
                     app.save_current_note()?;
@@ -189,6 +186,11 @@ impl EventDispatcher {
             VimAction::InsertCheckbox => {
                 app.buffer.save_undo_snapshot();
                 app.buffer.insert_checkbox();
+                app.dirty = true;
+            }
+            VimAction::ToggleCheckbox => {
+                app.buffer.save_undo_snapshot();
+                app.buffer.toggle_checkbox();
                 app.dirty = true;
             }
 

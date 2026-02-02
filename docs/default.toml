@@ -98,7 +98,6 @@ cycle_theme = "T"    # Cycle through themes / 切换主题
 leader_process = "s"  # Process and distribute blocks / 处理并分发内容块
 leader_list = "l"     # Open draft list / 打开草稿列表
 leader_new = "n"      # Create new note / 新建笔记
-leader_save = "w"     # Save current note / 保存当前笔记
 leader_quit = "q"     # Quit application / 退出应用
 
 # =============================================================================

@@ -329,6 +329,15 @@ impl TextBuffer {
         }
     }
 
+    /// Toggle the checkbox on the current line between `- [ ]` and `- [x]`.
+    /// Does nothing if the line has no checkbox prefix.
+    pub fn toggle_checkbox(&mut self) {
+        let line = self.current_line().to_string();
+        if let Some(new_line) = list_prefix::toggle_checkbox_prefix(&line) {
+            self.lines[self.cursor_row] = new_line;
+        }
+    }
+
     /// Delete current line and return its content (with trailing newline).
     pub fn delete_line_and_return(&mut self) -> String {
         let line = self.lines[self.cursor_row].clone();
@@ -836,5 +845,32 @@ mod tests {
         buffer.paste_line_above("first");
         assert_eq!(buffer.to_string(), "first\nsecond\nthird");
         assert_eq!(buffer.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_toggle_checkbox_check() {
+        let mut buffer = TextBuffer::from_string("- [ ] buy milk");
+        buffer.set_cursor(0, 8);
+        buffer.toggle_checkbox();
+        assert_eq!(buffer.to_string(), "- [x] buy milk");
+        assert_eq!(buffer.cursor_position(), (0, 8));
+    }
+
+    #[test]
+    fn test_toggle_checkbox_uncheck() {
+        let mut buffer = TextBuffer::from_string("- [x] buy milk");
+        buffer.set_cursor(0, 8);
+        buffer.toggle_checkbox();
+        assert_eq!(buffer.to_string(), "- [ ] buy milk");
+        assert_eq!(buffer.cursor_position(), (0, 8));
+    }
+
+    #[test]
+    fn test_toggle_checkbox_no_checkbox() {
+        let mut buffer = TextBuffer::from_string("plain text");
+        buffer.set_cursor(0, 3);
+        buffer.toggle_checkbox();
+        assert_eq!(buffer.to_string(), "plain text");
+        assert_eq!(buffer.cursor_position(), (0, 3));
     }
 }

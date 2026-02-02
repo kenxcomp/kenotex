@@ -42,12 +42,12 @@ pub enum VimAction {
     Undo,
     Redo,
     LeaderKey,
-    LeaderSave,
     LeaderList,
     LeaderNew,
     LeaderProcess,
     ToggleHints,
     InsertCheckbox,
+    ToggleCheckbox,
     CycleTheme,
     Search,
     ExternalEditor,
@@ -142,6 +142,7 @@ impl VimMode {
                 return match (first, key.code) {
                     ('t', KeyCode::Char('h')) => VimAction::ToggleHints,
                     ('m', KeyCode::Char('c')) => VimAction::InsertCheckbox,
+                    ('m', KeyCode::Char('t')) => VimAction::ToggleCheckbox,
                     _ => VimAction::None,
                 };
             }
@@ -158,10 +159,6 @@ impl VimMode {
                     KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_new) => {
                         self.leader_state = LeaderState::Inactive;
                         VimAction::LeaderNew
-                    }
-                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_save) => {
-                        self.leader_state = LeaderState::Inactive;
-                        VimAction::LeaderSave
                     }
                     KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_quit) => {
                         self.leader_state = LeaderState::Inactive;
@@ -516,6 +513,34 @@ mod tests {
             AppMode::Normal,
         );
         assert_eq!(action, VimAction::InsertCheckbox);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_toggle_checkbox() {
+        let mut vim = VimMode::new();
+
+        // Space -> AwaitingFirst
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::LeaderKey);
+
+        // 'm' -> AwaitingSecond('m')
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(vim.is_leader_pending());
+
+        // 't' -> ToggleCheckbox
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleCheckbox);
         assert!(!vim.is_leader_pending());
     }
 
