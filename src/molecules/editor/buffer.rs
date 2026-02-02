@@ -1,5 +1,7 @@
 use unicode_segmentation::UnicodeSegmentation;
 
+use super::list_prefix;
+
 #[derive(Debug, Clone, Default)]
 pub struct TextBuffer {
     lines: Vec<String>,
@@ -251,6 +253,58 @@ impl TextBuffer {
         self.lines.insert(self.cursor_row, String::new());
         self.cursor_col = 0;
     }
+
+    /// Public accessor for the current line content.
+    pub fn current_line_content(&self) -> &str {
+        self.current_line()
+    }
+
+    /// Insert a new line below the current one with a given prefix.
+    /// Cursor moves to the new line, positioned at the end of the prefix.
+    pub fn insert_line_below_with_prefix(&mut self, prefix: &str) {
+        self.cursor_row += 1;
+        self.lines.insert(self.cursor_row, prefix.to_string());
+        self.cursor_col = prefix.graphemes(true).count();
+    }
+
+    /// Split the current line at the cursor, prepend the given prefix to the
+    /// new (lower) line. Cursor moves to the new line at the end of the prefix.
+    pub fn insert_newline_with_prefix(&mut self, prefix: &str) {
+        let line = &self.lines[self.cursor_row];
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        let split_pos = self.cursor_col.min(graphemes.len());
+
+        let before: String = graphemes[..split_pos].iter().copied().collect();
+        let after: String = graphemes[split_pos..].iter().copied().collect();
+
+        self.lines[self.cursor_row] = before;
+        self.cursor_row += 1;
+        let new_line = format!("{}{}", prefix, after);
+        self.lines.insert(self.cursor_row, new_line);
+        self.cursor_col = prefix.graphemes(true).count();
+    }
+
+    /// Clear the current line (replace with empty string), set cursor_col = 0.
+    pub fn clear_current_line(&mut self) {
+        self.lines[self.cursor_row] = String::new();
+        self.cursor_col = 0;
+    }
+
+    /// Insert a `- [ ] ` checkbox prefix on the current line.
+    /// Does nothing if a checkbox prefix already exists.
+    pub fn insert_checkbox(&mut self) {
+        let line = self.current_line().to_string();
+        if let Some(new_line) = list_prefix::insert_checkbox_prefix(&line) {
+            // Calculate the new cursor column: original indent + "- [ ] " length
+            let old_col = self.cursor_col;
+            let old_len = line.graphemes(true).count();
+            let new_len = new_line.graphemes(true).count();
+            let added = new_len.saturating_sub(old_len);
+
+            self.lines[self.cursor_row] = new_line;
+            self.cursor_col = old_col + added;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -286,5 +340,66 @@ mod tests {
         buffer.set_cursor(0, 2);
         buffer.insert_newline();
         assert_eq!(buffer.to_string(), "he\nllo");
+    }
+
+    #[test]
+    fn test_current_line_content() {
+        let buffer = TextBuffer::from_string("first\nsecond");
+        assert_eq!(buffer.current_line_content(), "first");
+    }
+
+    #[test]
+    fn test_insert_line_below_with_prefix() {
+        let mut buffer = TextBuffer::from_string("- [ ] task one");
+        buffer.insert_line_below_with_prefix("- [ ] ");
+        assert_eq!(buffer.to_string(), "- [ ] task one\n- [ ] ");
+        assert_eq!(buffer.cursor_position(), (1, 6));
+    }
+
+    #[test]
+    fn test_insert_newline_with_prefix() {
+        let mut buffer = TextBuffer::from_string("- [ ] hello world");
+        buffer.set_cursor(0, 12); // after "hello "
+        buffer.insert_newline_with_prefix("- [ ] ");
+        assert_eq!(buffer.to_string(), "- [ ] hello \n- [ ] world");
+        assert_eq!(buffer.cursor_position(), (1, 6));
+    }
+
+    #[test]
+    fn test_clear_current_line() {
+        let mut buffer = TextBuffer::from_string("- [ ] ");
+        buffer.set_cursor(0, 6);
+        buffer.clear_current_line();
+        assert_eq!(buffer.to_string(), "");
+        assert_eq!(buffer.cursor_position(), (0, 0));
+    }
+
+    #[test]
+    fn test_insert_checkbox_on_plain_line() {
+        let mut buffer = TextBuffer::from_string("buy milk");
+        buffer.set_cursor(0, 3); // cursor on 'm'
+        buffer.insert_checkbox();
+        assert_eq!(buffer.to_string(), "- [ ] buy milk");
+        // cursor shifted by 6 ("- [ ] " length)
+        assert_eq!(buffer.cursor_position(), (0, 9));
+    }
+
+    #[test]
+    fn test_insert_checkbox_already_exists() {
+        let mut buffer = TextBuffer::from_string("- [ ] already");
+        buffer.set_cursor(0, 8);
+        buffer.insert_checkbox();
+        // No change
+        assert_eq!(buffer.to_string(), "- [ ] already");
+        assert_eq!(buffer.cursor_position(), (0, 8));
+    }
+
+    #[test]
+    fn test_insert_checkbox_indented() {
+        let mut buffer = TextBuffer::from_string("    indented text");
+        buffer.set_cursor(0, 4);
+        buffer.insert_checkbox();
+        assert_eq!(buffer.to_string(), "    - [ ] indented text");
+        assert_eq!(buffer.cursor_position(), (0, 10));
     }
 }

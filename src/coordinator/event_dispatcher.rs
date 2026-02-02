@@ -2,6 +2,7 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 
 use super::App;
+use crate::molecules::editor::list_prefix;
 use crate::molecules::editor::VimAction;
 use crate::types::{AppMode, View};
 
@@ -63,7 +64,16 @@ impl EventDispatcher {
                 app.set_message("-- INSERT --");
             }
             VimAction::InsertLineBelow => {
-                app.buffer.insert_line_below();
+                let line = app.buffer.current_line_content().to_string();
+                if list_prefix::is_prefix_only(&line) {
+                    app.buffer.clear_current_line();
+                    app.buffer.insert_line_below();
+                } else if let Some(prefix) = list_prefix::detect_list_prefix(&line) {
+                    let full_prefix = format!("{}{}", prefix.indent, prefix.continuation);
+                    app.buffer.insert_line_below_with_prefix(&full_prefix);
+                } else {
+                    app.buffer.insert_line_below();
+                }
                 app.set_mode(AppMode::Insert);
                 app.dirty = true;
                 app.set_message("-- INSERT --");
@@ -107,6 +117,11 @@ impl EventDispatcher {
             }
             VimAction::LeaderProcess => {
                 app.start_processing();
+            }
+
+            VimAction::InsertCheckbox => {
+                app.buffer.insert_checkbox();
+                app.dirty = true;
             }
 
             VimAction::ToggleHints => {
@@ -233,7 +248,16 @@ impl EventDispatcher {
                 app.dirty = true;
             }
             VimAction::InsertNewline => {
-                app.buffer.insert_newline();
+                let line = app.buffer.current_line_content().to_string();
+                if list_prefix::is_prefix_only(&line) {
+                    app.buffer.clear_current_line();
+                    app.buffer.insert_newline();
+                } else if let Some(prefix) = list_prefix::detect_list_prefix(&line) {
+                    let full_prefix = format!("{}{}", prefix.indent, prefix.continuation);
+                    app.buffer.insert_newline_with_prefix(&full_prefix);
+                } else {
+                    app.buffer.insert_newline();
+                }
                 app.dirty = true;
             }
             VimAction::Backspace => {

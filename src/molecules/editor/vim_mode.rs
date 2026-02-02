@@ -36,6 +36,7 @@ pub enum VimAction {
     LeaderNew,
     LeaderProcess,
     ToggleHints,
+    InsertCheckbox,
     CycleTheme,
     Search,
     ExternalEditor,
@@ -105,6 +106,7 @@ impl VimMode {
                 self.leader_state = LeaderState::Inactive;
                 return match (first, key.code) {
                     ('t', KeyCode::Char('h')) => VimAction::ToggleHints,
+                    ('m', KeyCode::Char('c')) => VimAction::InsertCheckbox,
                     _ => VimAction::None,
                 };
             }
@@ -132,6 +134,10 @@ impl VimMode {
                     }
                     KeyCode::Char('t') => {
                         self.leader_state = LeaderState::AwaitingSecond('t');
+                        VimAction::None
+                    }
+                    KeyCode::Char('m') => {
+                        self.leader_state = LeaderState::AwaitingSecond('m');
                         VimAction::None
                     }
                     _ => {
@@ -368,6 +374,57 @@ mod tests {
         // 'x' (invalid second char) -> cancel
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_insert_checkbox() {
+        let mut vim = VimMode::new();
+
+        // Space -> AwaitingFirst
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::LeaderKey);
+        assert!(vim.is_leader_pending());
+
+        // 'm' -> AwaitingSecond('m')
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(vim.is_leader_pending());
+
+        // 'c' -> InsertCheckbox
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::InsertCheckbox);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_m_invalid_second() {
+        let mut vim = VimMode::new();
+
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+
+        // 'z' (invalid) -> None, leader cancelled
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE),
             AppMode::Normal,
         );
         assert_eq!(action, VimAction::None);

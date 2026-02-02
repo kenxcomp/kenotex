@@ -31,7 +31,7 @@ cargo build --release
 |-----|--------|
 | `i` | Enter Insert mode |
 | `a` | Enter Insert mode (append) |
-| `o` | Insert line below |
+| `o` | Insert line below (auto-continues list prefixes) |
 | `O` | Insert line above |
 | `v` | Enter Visual mode |
 | `h/j/k/l` | Navigation (left/down/up/right) |
@@ -56,6 +56,7 @@ cargo build --release
 | `Space + w` | Save current note |
 | `Space + q` | Quit |
 | `Space + th` | Toggle shortcut hints bar |
+| `Space + mc` | Insert checkbox (`- [ ] `) on current line |
 
 ### List View
 
@@ -71,6 +72,19 @@ cargo build --release
 | `/` or `f` | Search notes |
 | `Space` | Toggle selection |
 | `Esc` | Back to editor |
+
+## List Continuation
+
+When pressing `o` (Normal mode) or `Enter` (Insert mode) on a list line, the list prefix is automatically continued on the new line:
+
+- `- [ ] ` / `- [x] ` / `- [X] ` → new line with `- [ ] ` (always unchecked)
+- `- ` → new line with `- `
+- `1. ` → new line with `2. ` (auto-incrementing)
+- `1) ` → new line with `2) ` (auto-incrementing)
+
+**Bullet.vim behavior:** If the current line contains only a list prefix with no text after it, pressing `o` or `Enter` removes the prefix and inserts a blank line instead.
+
+Indentation (leading whitespace) is preserved.
 
 ## Smart Block Syntax
 
