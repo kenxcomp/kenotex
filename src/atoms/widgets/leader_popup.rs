@@ -12,10 +12,10 @@ const LEADER_COMMANDS: &[(&str, &str)] = &[
     ("s", "Process blocks"),
     ("l", "Draft list"),
     ("n", "New note"),
-    ("w", "Save"),
     ("q", "Quit"),
     ("th", "Toggle hints"),
     ("mc", "Insert checkbox"),
+    ("mt", "Toggle checkbox"),
 ];
 
 const POPUP_WIDTH: u16 = 24;

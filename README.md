@@ -72,10 +72,10 @@ cargo build --release
 | `Space + s` | Process and distribute blocks |
 | `Space + l` | Open draft list |
 | `Space + n` | Create new note |
-| `Space + w` | Save current note |
 | `Space + q` | Quit |
 | `Space + th` | Toggle shortcut hints bar |
 | `Space + mc` | Insert checkbox (`- [ ] `) on current line |
+| `Space + mt` | Toggle checkbox (`- [ ]` ↔ `- [x]`) on current line |
 
 ### List View
 
@@ -170,7 +170,6 @@ paste_before = "P"
 leader_process = "s"
 leader_list = "l"
 leader_new = "n"
-leader_save = "w"
 leader_quit = "q"
 
 [destinations.reminders]

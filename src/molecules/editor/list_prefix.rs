@@ -146,6 +146,31 @@ pub fn has_checkbox_prefix(line: &str) -> bool {
         || trimmed == "- [X]"
 }
 
+/// Toggle a checkbox between checked and unchecked.
+///
+/// - `- [ ] ` → `- [x] ` (check)
+/// - `- [x] ` / `- [X] ` → `- [ ] ` (uncheck)
+/// - No checkbox → `None`
+///
+/// Preserves leading indentation.
+pub fn toggle_checkbox_prefix(line: &str) -> Option<String> {
+    let trimmed = line.trim_start();
+    let indent_len = line.len() - trimmed.len();
+    let indent = &line[..indent_len];
+
+    if trimmed.starts_with("- [ ] ") {
+        Some(format!("{}- [x] {}", indent, &trimmed[6..]))
+    } else if trimmed == "- [ ]" {
+        Some(format!("{}- [x]", indent))
+    } else if trimmed.starts_with("- [x] ") || trimmed.starts_with("- [X] ") {
+        Some(format!("{}- [ ] {}", indent, &trimmed[6..]))
+    } else if trimmed == "- [x]" || trimmed == "- [X]" {
+        Some(format!("{}- [ ]", indent))
+    } else {
+        None
+    }
+}
+
 /// Prepend `- [ ] ` after indent on a line. Returns `None` if a checkbox already exists.
 pub fn insert_checkbox_prefix(line: &str) -> Option<String> {
     if has_checkbox_prefix(line) {
@@ -289,5 +314,62 @@ mod tests {
             insert_checkbox_prefix(""),
             Some("- [ ] ".to_string())
         );
+    }
+
+    // ── toggle_checkbox_prefix ────────────────────────────────────────
+
+    #[test]
+    fn test_toggle_checkbox_check() {
+        assert_eq!(
+            toggle_checkbox_prefix("- [ ] buy milk"),
+            Some("- [x] buy milk".to_string())
+        );
+    }
+
+    #[test]
+    fn test_toggle_checkbox_uncheck_lower() {
+        assert_eq!(
+            toggle_checkbox_prefix("- [x] done task"),
+            Some("- [ ] done task".to_string())
+        );
+    }
+
+    #[test]
+    fn test_toggle_checkbox_uncheck_upper() {
+        assert_eq!(
+            toggle_checkbox_prefix("- [X] done"),
+            Some("- [ ] done".to_string())
+        );
+    }
+
+    #[test]
+    fn test_toggle_checkbox_preserves_indent() {
+        assert_eq!(
+            toggle_checkbox_prefix("    - [ ] indented"),
+            Some("    - [x] indented".to_string())
+        );
+        assert_eq!(
+            toggle_checkbox_prefix("    - [x] indented"),
+            Some("    - [ ] indented".to_string())
+        );
+    }
+
+    #[test]
+    fn test_toggle_checkbox_bare() {
+        assert_eq!(
+            toggle_checkbox_prefix("- [ ]"),
+            Some("- [x]".to_string())
+        );
+        assert_eq!(
+            toggle_checkbox_prefix("- [x]"),
+            Some("- [ ]".to_string())
+        );
+    }
+
+    #[test]
+    fn test_toggle_checkbox_no_checkbox() {
+        assert_eq!(toggle_checkbox_prefix("- plain item"), None);
+        assert_eq!(toggle_checkbox_prefix("just text"), None);
+        assert_eq!(toggle_checkbox_prefix(""), None);
     }
 }
