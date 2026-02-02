@@ -107,6 +107,12 @@ pub struct KeyboardConfig {
     pub delete_line: String,
     #[serde(default = "default_undo")]
     pub undo: String,
+    #[serde(default = "default_yank")]
+    pub yank: String,
+    #[serde(default = "default_paste_after")]
+    pub paste_after: String,
+    #[serde(default = "default_paste_before")]
+    pub paste_before: String,
 
     // Modes
     #[serde(default = "default_visual_mode")]
@@ -157,6 +163,9 @@ fn default_insert_line_above() -> String { "O".to_string() }
 fn default_delete_char() -> String { "x".to_string() }
 fn default_delete_line() -> String { "d".to_string() }
 fn default_undo() -> String { "u".to_string() }
+fn default_yank() -> String { "y".to_string() }
+fn default_paste_after() -> String { "p".to_string() }
+fn default_paste_before() -> String { "P".to_string() }
 
 // Mode defaults
 fn default_visual_mode() -> String { "v".to_string() }
@@ -195,6 +204,9 @@ impl Default for KeyboardConfig {
             delete_char: default_delete_char(),
             delete_line: default_delete_line(),
             undo: default_undo(),
+            yank: default_yank(),
+            paste_after: default_paste_after(),
+            paste_before: default_paste_before(),
             visual_mode: default_visual_mode(),
             search: default_search(),
             cycle_theme: default_cycle_theme(),

@@ -39,12 +39,31 @@ cargo build --release
 | `0/$` | 行首/行尾 |
 | `g/G` | 文件开头/结尾 |
 | `x` | 删除字符 |
-| `d` | 删除行 |
+| `dd` | 删除整行 |
+| `dw/d$/d0/dG/dg/db` | 配合动作删除（单词/行尾/行首/文件尾/文件首/前一单词） |
+| `yy` | 复制整行到剪贴板 |
+| `yw/y$/y0/yG/yg/yb` | 配合动作复制 |
+| `p` | 在光标后粘贴（行级操作时在下方粘贴） |
+| `P` | 在光标前粘贴（行级操作时在上方粘贴） |
+| `u` | 撤销 |
+| `Ctrl+R` | 重做 |
 | `T` | 切换主题 |
 | `/` 或 `f` | 进入搜索模式 |
 | `Ctrl+G` | 在外部编辑器中打开缓冲区（`$VISUAL` / `$EDITOR` / `vi`） |
 | `Esc` | 返回 Normal 模式 |
 | `Ctrl+C` 或 `Ctrl+Q` | 退出 |
+
+### Visual 模式
+
+| 按键 | 操作 |
+|-----|--------|
+| `h/j/k/l` | 扩展选区 |
+| `w/b` | 按单词扩展 |
+| `0/$` | 扩展到行首/行尾 |
+| `g/G` | 扩展到文件开头/结尾 |
+| `d` | 删除选区（同时复制到剪贴板） |
+| `y` | 复制选区到剪贴板 |
+| `Esc` | 退出 Visual 模式 |
 
 ### Leader 命令（空格 + 按键）
 
@@ -144,6 +163,9 @@ insert_append = "a"
 delete_char = "x"
 delete_line = "d"
 undo = "u"
+yank = "y"
+paste_after = "p"
+paste_before = "P"
 # Leader 命令
 leader_process = "s"
 leader_list = "l"

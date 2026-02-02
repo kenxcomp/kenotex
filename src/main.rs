@@ -86,7 +86,9 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                     && app.mode == AppMode::Normal
                     && !app.vim_mode.is_leader_pending()
                 {
-                    EventDispatcher::handle_list_key(app, key)?;
+                    if EventDispatcher::handle_list_key(app, key)? {
+                        continue;
+                    }
                 }
 
                 EventDispatcher::handle_key(app, key)?;
@@ -234,7 +236,8 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         app.mode,
         title,
     )
-    .scroll_offset(app.scroll_offset());
+    .scroll_offset(app.scroll_offset())
+    .visual_selection(app.visual_selection());
 
     f.render_widget(editor, area);
 

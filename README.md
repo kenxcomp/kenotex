@@ -39,12 +39,31 @@ cargo build --release
 | `0/$` | Line start/end |
 | `g/G` | File start/end |
 | `x` | Delete character |
-| `d` | Delete line |
+| `dd` | Delete line |
+| `dw/d$/d0/dG/dg/db` | Delete with motion (word/end/start/file-end/file-start/word-back) |
+| `yy` | Yank (copy) line to clipboard |
+| `yw/y$/y0/yG/yg/yb` | Yank with motion |
+| `p` | Paste after cursor (or below for linewise) |
+| `P` | Paste before cursor (or above for linewise) |
+| `u` | Undo |
+| `Ctrl+R` | Redo |
 | `T` | Cycle theme |
 | `/` or `f` | Enter Search mode |
 | `Ctrl+G` | Open buffer in external editor (`$VISUAL` / `$EDITOR` / `vi`) |
 | `Esc` | Return to Normal mode |
 | `Ctrl+C` or `Ctrl+Q` | Quit |
+
+### Visual Mode
+
+| Key | Action |
+|-----|--------|
+| `h/j/k/l` | Extend selection |
+| `w/b` | Extend by word |
+| `0/$` | Extend to line start/end |
+| `g/G` | Extend to file start/end |
+| `d` | Delete selection (copies to clipboard) |
+| `y` | Yank (copy) selection to clipboard |
+| `Esc` | Exit Visual mode |
 
 ### Leader Commands (Space + key)
 
@@ -144,6 +163,9 @@ insert_append = "a"
 delete_char = "x"
 delete_line = "d"
 undo = "u"
+yank = "y"
+paste_after = "p"
+paste_before = "P"
 # Leader commands
 leader_process = "s"
 leader_list = "l"

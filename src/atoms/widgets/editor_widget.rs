@@ -17,6 +17,7 @@ pub struct EditorWidget<'a> {
     mode: AppMode,
     title: &'a str,
     scroll_offset: u16,
+    visual_selection: Option<((usize, usize), (usize, usize))>,
 }
 
 impl<'a> EditorWidget<'a> {
@@ -34,11 +35,17 @@ impl<'a> EditorWidget<'a> {
             mode,
             title,
             scroll_offset: 0,
+            visual_selection: None,
         }
     }
 
     pub fn scroll_offset(mut self, offset: u16) -> Self {
         self.scroll_offset = offset;
+        self
+    }
+
+    pub fn visual_selection(mut self, sel: Option<((usize, usize), (usize, usize))>) -> Self {
+        self.visual_selection = sel;
         self
     }
 
@@ -138,6 +145,54 @@ impl Widget for EditorWidget<'_> {
             .scroll((self.scroll_offset, 0));
 
         paragraph.render(inner, buf);
+
+        // Render visual selection highlight
+        if let Some(((sr, sc), (er, ec))) = self.visual_selection {
+            use unicode_segmentation::UnicodeSegmentation;
+
+            let selection_style = Style::default()
+                .bg(self.theme.accent_color())
+                .fg(self.theme.bg_color());
+
+            let content_lines: Vec<&str> = self.content.lines().collect();
+            for row in sr..=er {
+                let screen_y = inner.y + row as u16 - self.scroll_offset;
+                if screen_y < inner.y || screen_y >= inner.y + inner.height {
+                    continue;
+                }
+                let line = content_lines.get(row).copied().unwrap_or("");
+                let graphemes: Vec<&str> = line.graphemes(true).collect();
+
+                let col_start = if row == sr { sc } else { 0 };
+                let col_end = if row == er { ec + 1 } else { graphemes.len() + 1 };
+                let col_end = col_end.min(graphemes.len() + 1);
+
+                // Calculate x offset for col_start
+                let x_offset: u16 = graphemes
+                    .iter()
+                    .take(col_start)
+                    .map(|g| g.width())
+                    .sum::<usize>() as u16;
+
+                let mut cur_x = inner.x + x_offset;
+                for col in col_start..col_end {
+                    if cur_x >= inner.x + inner.width {
+                        break;
+                    }
+                    let w = if col < graphemes.len() {
+                        graphemes[col].width() as u16
+                    } else {
+                        1 // trailing space for visual selection
+                    };
+                    for dx in 0..w {
+                        if cur_x + dx < inner.x + inner.width {
+                            buf[(cur_x + dx, screen_y)].set_style(selection_style);
+                        }
+                    }
+                    cur_x += w;
+                }
+            }
+        }
 
         // Render block cursor only in Normal mode
         // Insert mode uses native terminal cursor (I-beam) set in main.rs

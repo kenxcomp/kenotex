@@ -34,6 +34,9 @@ pub struct App {
     pub dirty: bool,
     pub external_editor_requested: bool,
     pub last_save: std::time::Instant,
+
+    pub visual_anchor: Option<(usize, usize)>,
+    pub last_yank_linewise: bool,
 }
 
 impl App {
@@ -82,6 +85,8 @@ impl App {
             dirty: false,
             external_editor_requested: false,
             last_save: std::time::Instant::now(),
+            visual_anchor: None,
+            last_yank_linewise: false,
         })
     }
 
@@ -278,6 +283,17 @@ impl App {
             cursor_row - visible_height + 5
         } else {
             0
+        }
+    }
+
+    /// Returns the visual selection as (start, end) sorted, or None if not in visual mode.
+    pub fn visual_selection(&self) -> Option<((usize, usize), (usize, usize))> {
+        let anchor = self.visual_anchor?;
+        let cursor = self.buffer.cursor_position();
+        if anchor <= cursor {
+            Some((anchor, cursor))
+        } else {
+            Some((cursor, anchor))
         }
     }
 

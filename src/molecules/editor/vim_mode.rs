@@ -3,6 +3,17 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::types::{AppMode, KeyboardConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Motion {
+    Line,
+    WordForward,
+    WordBackward,
+    LineEnd,
+    LineStart,
+    FileEnd,
+    FileStart,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VimAction {
     None,
     MoveLeft,
@@ -41,6 +52,12 @@ pub enum VimAction {
     Search,
     ExternalEditor,
     Quit,
+    Delete(Motion),
+    Yank(Motion),
+    VisualDelete,
+    VisualYank,
+    PasteAfter,
+    PasteBefore,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,9 +67,17 @@ enum LeaderState {
     AwaitingSecond(char),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OperatorPending {
+    None,
+    Delete,
+    Yank,
+}
+
 #[derive(Debug, Clone)]
 pub struct VimMode {
     leader_state: LeaderState,
+    operator_state: OperatorPending,
     keys: KeyboardConfig,
 }
 
@@ -66,6 +91,7 @@ impl VimMode {
     pub fn new() -> Self {
         Self {
             leader_state: LeaderState::Inactive,
+            operator_state: OperatorPending::None,
             keys: KeyboardConfig::default(),
         }
     }
@@ -73,6 +99,7 @@ impl VimMode {
     pub fn with_config(config: KeyboardConfig) -> Self {
         Self {
             leader_state: LeaderState::Inactive,
+            operator_state: OperatorPending::None,
             keys: config,
         }
     }
@@ -83,6 +110,14 @@ impl VimMode {
 
     pub fn clear_leader(&mut self) {
         self.leader_state = LeaderState::Inactive;
+    }
+
+    pub fn is_operator_pending(&self) -> bool {
+        self.operator_state != OperatorPending::None
+    }
+
+    pub fn clear_operator(&mut self) {
+        self.operator_state = OperatorPending::None;
     }
 
     fn key_matches(&self, c: char, binding: &str) -> bool {
@@ -147,6 +182,20 @@ impl VimMode {
                 };
             }
             LeaderState::Inactive => {}
+        }
+
+        // Operator-pending: resolve motion
+        if self.operator_state != OperatorPending::None {
+            let op = self.operator_state;
+            self.operator_state = OperatorPending::None;
+            if let Some(motion) = self.resolve_motion(key) {
+                return match op {
+                    OperatorPending::Delete => VimAction::Delete(motion),
+                    OperatorPending::Yank => VimAction::Yank(motion),
+                    OperatorPending::None => unreachable!(),
+                };
+            }
+            return VimAction::None;
         }
 
         match key.code {
@@ -217,7 +266,18 @@ impl VimMode {
                 if self.key_matches(c, &self.keys.delete_line)
                     && key.modifiers.contains(KeyModifiers::NONE) =>
             {
-                VimAction::DeleteLine
+                self.operator_state = OperatorPending::Delete;
+                VimAction::None
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => {
+                self.operator_state = OperatorPending::Yank;
+                VimAction::None
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.paste_after) => {
+                VimAction::PasteAfter
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.paste_before) => {
+                VimAction::PasteBefore
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.undo) => VimAction::Undo,
             KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => VimAction::Redo,
@@ -288,6 +348,28 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.move_right) => VimAction::MoveRight,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.move_up) => VimAction::MoveUp,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.move_down) => VimAction::MoveDown,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_forward) => {
+                VimAction::MoveWordForward
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_backward) => {
+                VimAction::MoveWordBackward
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_start) => {
+                VimAction::MoveLineStart
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => {
+                VimAction::MoveLineEnd
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
+                VimAction::MoveFileStart
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
+                VimAction::MoveFileEnd
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => {
+                VimAction::VisualDelete
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => VimAction::VisualYank,
             _ => VimAction::None,
         }
     }
@@ -298,6 +380,34 @@ impl VimMode {
             KeyCode::Backspace => VimAction::Backspace,
             KeyCode::Char(c) => VimAction::InsertChar(c),
             _ => VimAction::None,
+        }
+    }
+
+    fn resolve_motion(&self, key: KeyEvent) -> Option<Motion> {
+        match key.code {
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => {
+                Some(Motion::Line)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => Some(Motion::Line),
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_forward) => {
+                Some(Motion::WordForward)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_backward) => {
+                Some(Motion::WordBackward)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => {
+                Some(Motion::LineEnd)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_start) => {
+                Some(Motion::LineStart)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
+                Some(Motion::FileEnd)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
+                Some(Motion::FileStart)
+            }
+            _ => None,
         }
     }
 }
@@ -446,5 +556,101 @@ mod tests {
             AppMode::Insert,
         );
         assert_eq!(action, VimAction::InsertChar('a'));
+    }
+
+    #[test]
+    fn test_dd_deletes_line() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(vim.is_operator_pending());
+
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Delete(Motion::Line));
+    }
+
+    #[test]
+    fn test_dw_delete_word() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Delete(Motion::WordForward));
+    }
+
+    #[test]
+    fn test_yy_yank_line() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Yank(Motion::Line));
+    }
+
+    #[test]
+    fn test_operator_cancel_on_invalid() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(!vim.is_operator_pending());
+    }
+
+    #[test]
+    fn test_visual_d() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::VisualDelete);
+    }
+
+    #[test]
+    fn test_visual_y() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::VisualYank);
+    }
+
+    #[test]
+    fn test_paste_keys() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::PasteAfter);
+
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('P'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::PasteBefore);
     }
 }

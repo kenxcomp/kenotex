@@ -72,8 +72,11 @@ insert_line_above = "O"   # Open line above / 在上方新建行
 # -----------------------------------------------------------------------------
 
 delete_char = "x"    # Delete character under cursor / 删除光标处字符
-delete_line = "d"    # Delete entire line / 删除整行
+delete_line = "d"    # Delete operator / 删除操作符 (dd=行, dw=词, d$=至行尾)
 undo = "u"           # Undo last change / 撤销
+yank = "y"           # Yank (copy) operator / 复制操作符 (yy=行, yw=词, y$=至行尾)
+paste_after = "p"    # Paste after cursor / 在光标后粘贴
+paste_before = "P"   # Paste before cursor / 在光标前粘贴
 
 # -----------------------------------------------------------------------------
 # Mode Switching / 模式切换
