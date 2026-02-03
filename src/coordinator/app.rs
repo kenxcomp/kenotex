@@ -434,12 +434,25 @@ impl App {
         Ok(())
     }
 
-    pub fn scroll_offset(&self) -> u16 {
-        let cursor_row = self.buffer.cursor_position().0 as u16;
-        let visible_height = 20;
+    pub fn scroll_offset(&self, area_width: u16, area_height: u16) -> u16 {
+        use crate::atoms::widgets::wrap_calc;
 
-        if cursor_row >= visible_height {
-            cursor_row - visible_height + 5
+        let (cursor_row, cursor_col) = self.buffer.cursor_position();
+        let inner_width = area_width.saturating_sub(2);
+        let inner_height = area_height.saturating_sub(2);
+
+        let content = self.buffer.to_string();
+        let lines: Vec<String> = content.lines().map(String::from).collect();
+        let vpos =
+            wrap_calc::visual_cursor_position(&lines, cursor_row, cursor_col, inner_width);
+        let cursor_display_row = vpos.rows_before + vpos.wrap_row;
+
+        if inner_height == 0 {
+            return 0;
+        }
+
+        if cursor_display_row >= inner_height {
+            cursor_display_row - inner_height + 5
         } else {
             0
         }

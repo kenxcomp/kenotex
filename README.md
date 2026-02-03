@@ -14,6 +14,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
 - **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
 - **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
+- **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
 - **Auto-save**: Configurable auto-save interval
 
 ## Installation

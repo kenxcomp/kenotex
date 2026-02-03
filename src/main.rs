@@ -269,34 +269,27 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         app.mode,
         title,
     )
-    .scroll_offset(app.scroll_offset())
+    .scroll_offset(app.scroll_offset(area.width, area.height))
     .visual_selection(app.visual_selection());
 
     f.render_widget(editor, area);
 
     // In Insert mode, show native terminal cursor (I-beam)
     if app.mode == AppMode::Insert {
-        use unicode_segmentation::UnicodeSegmentation;
-        use unicode_width::UnicodeWidthStr;
+        use crate::atoms::widgets::wrap_calc;
 
         let (cursor_row, cursor_col) = app.buffer.cursor_position();
         let inner_x = area.x + 1; // Account for border
         let inner_y = area.y + 1;
+        let inner_width = area.width.saturating_sub(2);
 
-        // Calculate display width for cursor position
-        let display_offset: u16 = content
-            .lines()
-            .nth(cursor_row)
-            .map(|line| {
-                line.graphemes(true)
-                    .take(cursor_col)
-                    .map(|g| g.width())
-                    .sum::<usize>() as u16
-            })
-            .unwrap_or(0);
+        let content_lines: Vec<String> = content.lines().map(String::from).collect();
+        let vpos =
+            wrap_calc::visual_cursor_position(&content_lines, cursor_row, cursor_col, inner_width);
 
-        let cursor_x = inner_x + display_offset;
-        let cursor_y = inner_y + cursor_row as u16 - app.scroll_offset();
+        let cursor_x = inner_x + vpos.col;
+        let scroll = app.scroll_offset(area.width, area.height);
+        let cursor_y = inner_y + vpos.rows_before + vpos.wrap_row - scroll;
 
         // Set cursor position for native terminal cursor
         if cursor_y >= inner_y && cursor_y < area.y + area.height - 1 {

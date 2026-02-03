@@ -6,7 +6,6 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 use regex::Regex;
-use unicode_width::UnicodeWidthStr;
 
 use crate::types::{AppMode, Theme};
 
@@ -148,84 +147,76 @@ impl Widget for EditorWidget<'_> {
 
         // Render visual selection highlight
         if let Some(((sr, sc), (er, ec))) = self.visual_selection {
+            use super::wrap_calc;
             use unicode_segmentation::UnicodeSegmentation;
 
             let selection_style = Style::default()
                 .bg(self.theme.accent_color())
                 .fg(self.theme.bg_color());
 
-            let content_lines: Vec<&str> = self.content.lines().collect();
+            let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+
+            // Compute rows_before for the first selected line
+            let mut rows_before: u16 = content_lines
+                .iter()
+                .take(sr)
+                .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+                .sum();
+
             for row in sr..=er {
-                let screen_y = inner.y + row as u16 - self.scroll_offset;
-                if screen_y < inner.y || screen_y >= inner.y + inner.height {
-                    continue;
-                }
-                let line = content_lines.get(row).copied().unwrap_or("");
+                let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
                 let graphemes: Vec<&str> = line.graphemes(true).collect();
 
                 let col_start = if row == sr { sc } else { 0 };
                 let col_end = if row == er { ec + 1 } else { graphemes.len() + 1 };
                 let col_end = col_end.min(graphemes.len() + 1);
 
-                // Calculate x offset for col_start
-                let x_offset: u16 = graphemes
-                    .iter()
-                    .take(col_start)
-                    .map(|g| g.width())
-                    .sum::<usize>() as u16;
+                let positions =
+                    wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
 
-                let mut cur_x = inner.x + x_offset;
-                for col in col_start..col_end {
-                    if cur_x >= inner.x + inner.width {
-                        break;
+                for (wrap_row, col, gw) in positions {
+                    let screen_y =
+                        inner.y + rows_before + wrap_row - self.scroll_offset;
+                    if screen_y < inner.y || screen_y >= inner.y + inner.height {
+                        continue;
                     }
-                    let w = if col < graphemes.len() {
-                        graphemes[col].width() as u16
-                    } else {
-                        1 // trailing space for visual selection
-                    };
-                    for dx in 0..w {
-                        if cur_x + dx < inner.x + inner.width {
-                            buf[(cur_x + dx, screen_y)].set_style(selection_style);
+                    let screen_x = inner.x + col;
+                    for dx in 0..gw {
+                        if screen_x + dx < inner.x + inner.width {
+                            buf[(screen_x + dx, screen_y)].set_style(selection_style);
                         }
                     }
-                    cur_x += w;
                 }
+
+                rows_before += wrap_calc::display_rows_for_line(line, inner.width);
             }
         }
 
         // Render block cursor only in Normal mode
         // Insert mode uses native terminal cursor (I-beam) set in main.rs
         if self.mode == AppMode::Normal {
-            // Calculate display width of characters before cursor
-            // cursor_pos.1 is the grapheme index, not display width
+            use super::wrap_calc;
+
             let cursor_row = self.cursor_pos.0;
             let cursor_col = self.cursor_pos.1;
 
-            let display_offset: u16 = self
-                .content
-                .lines()
-                .nth(cursor_row)
-                .map(|line| {
-                    use unicode_segmentation::UnicodeSegmentation;
-                    line.graphemes(true)
-                        .take(cursor_col)
-                        .map(|g| g.width())
-                        .sum::<usize>() as u16
-                })
-                .unwrap_or(0);
+            let content_lines: Vec<String> =
+                self.content.lines().map(String::from).collect();
+            let vpos =
+                wrap_calc::visual_cursor_position(&content_lines, cursor_row, cursor_col, inner.width);
 
-            let cursor_x = inner.x + display_offset;
-            let cursor_y = inner.y + cursor_row as u16 - self.scroll_offset;
+            let cursor_x = inner.x + vpos.col;
+            let cursor_y =
+                inner.y + vpos.rows_before + vpos.wrap_row - self.scroll_offset;
 
-            if cursor_y >= inner.y && cursor_y < inner.y + inner.height {
-                if cursor_x < inner.x + inner.width {
-                    // Block cursor: reversed colors
-                    let cursor_style = Style::default()
-                        .fg(self.theme.bg_color())
-                        .bg(self.theme.cursor_color());
-                    buf[(cursor_x, cursor_y)].set_style(cursor_style);
-                }
+            if cursor_y >= inner.y
+                && cursor_y < inner.y + inner.height
+                && cursor_x < inner.x + inner.width
+            {
+                let cursor_style = Style::default()
+                    .fg(self.theme.bg_color())
+                    .bg(self.theme.cursor_color());
+                buf[(cursor_x, cursor_y)].set_style(cursor_style);
             }
         }
     }
