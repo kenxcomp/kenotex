@@ -9,6 +9,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian with real dispatch
 - **Destination Skip**: Set `app = ""` to disable any destination; skipped blocks show "-" in the processing overlay
 - **Comment on Success**: Successfully dispatched blocks are wrapped with `<!-- -->` in the editor buffer
+- **Idempotent Dispatch**: Already-commented blocks are automatically skipped on re-dispatch, preventing duplicates
 - **Theme Support**: Tokyo Night, Gruvbox, Nord, and Catppuccin (Mocha/Macchiato/Frappé/Latte) themes
 - **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
 - **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)

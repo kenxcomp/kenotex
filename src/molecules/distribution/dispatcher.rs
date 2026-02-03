@@ -13,6 +13,12 @@ pub enum DispatchResult {
 }
 
 pub fn dispatch_block(block: &SmartBlock, destinations: &Destinations) -> DispatchResult {
+    // Skip blocks already wrapped in HTML comments (previously processed)
+    let trimmed = block.content.trim();
+    if trimmed.starts_with("<!--") && trimmed.ends_with("-->") {
+        return DispatchResult::Skipped;
+    }
+
     match block.block_type {
         BlockType::Reminder => dispatch_reminder(block, destinations),
         BlockType::Calendar => dispatch_calendar(block, destinations),
@@ -197,6 +203,32 @@ mod tests {
         let block = SmartBlock::new("t1".to_string(), ":::note Hello".to_string(), BlockType::Note);
         let mut destinations = Destinations::default();
         destinations.notes.app = None;
+
+        let result = dispatch_block(&block, &destinations);
+        assert!(matches!(result, DispatchResult::Skipped));
+    }
+
+    #[test]
+    fn test_dispatch_skips_commented_block() {
+        let block = SmartBlock::new(
+            "t1".to_string(),
+            "<!-- :::td Buy milk -->".to_string(),
+            BlockType::Reminder,
+        );
+        let destinations = Destinations::default();
+
+        let result = dispatch_block(&block, &destinations);
+        assert!(matches!(result, DispatchResult::Skipped));
+    }
+
+    #[test]
+    fn test_dispatch_skips_multiline_commented_block() {
+        let block = SmartBlock::new(
+            "t1".to_string(),
+            "<!-- :::cal Meeting tomorrow\nWith team -->".to_string(),
+            BlockType::Calendar,
+        );
+        let destinations = Destinations::default();
 
         let result = dispatch_block(&block, &destinations);
         assert!(matches!(result, DispatchResult::Skipped));

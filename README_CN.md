@@ -9,6 +9,7 @@
 - **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian，支持实际调度
 - **目标跳过**：设置 `app = ""` 可禁用任何目标应用；跳过的块在处理覆盖层中显示 "-"
 - **成功后注释**：成功分发的块会在编辑器缓冲区中用 `<!-- -->` 包裹
+- **幂等分发**：已注释的块在重新分发时会自动跳过，防止重复发送
 - **主题支持**：Tokyo Night、Gruvbox、Nord 和 Catppuccin（Mocha/Macchiato/Frappé/Latte）主题
 - **Markdown 存储**：所有笔记以 markdown 文件形式存储在 `~/.config/kenotex/drafts/`
 - **自定义数据目录**：通过 `data_dir` 配置选项将笔记存储在任意位置（支持 `~` 展开）
