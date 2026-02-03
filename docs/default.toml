@@ -9,7 +9,7 @@
 # =============================================================================
 [general]
 
-# Theme: "tokyo_night", "gruvbox", "nord"
+# Theme: "tokyo_night", "gruvbox", "nord", "catppuccin_mocha", "catppuccin_macchiato", "catppuccin_frappe", "catppuccin_latte"
 # 主题选择
 theme = "tokyo_night"
 

@@ -117,7 +117,79 @@ impl Theme {
         }
     }
 
+    pub fn catppuccin_mocha() -> Self {
+        Self {
+            name: "Catppuccin Mocha".to_string(),
+            bg: "#1e1e2e".to_string(),
+            fg: "#cdd6f4".to_string(),
+            cursor: "#b4befe".to_string(),
+            selection: "#313244".to_string(),
+            border: "#45475a".to_string(),
+            accent: "#89b4fa".to_string(),
+            success: "#a6e3a1".to_string(),
+            warning: "#f9e2af".to_string(),
+            error: "#f38ba8".to_string(),
+            panel: "#181825".to_string(),
+        }
+    }
+
+    pub fn catppuccin_macchiato() -> Self {
+        Self {
+            name: "Catppuccin Macchiato".to_string(),
+            bg: "#24273a".to_string(),
+            fg: "#cad3f5".to_string(),
+            cursor: "#b7bdf8".to_string(),
+            selection: "#363a4f".to_string(),
+            border: "#494d64".to_string(),
+            accent: "#8aadf4".to_string(),
+            success: "#a6da95".to_string(),
+            warning: "#eed49f".to_string(),
+            error: "#ed8796".to_string(),
+            panel: "#1e2030".to_string(),
+        }
+    }
+
+    pub fn catppuccin_frappe() -> Self {
+        Self {
+            name: "Catppuccin Frappe".to_string(),
+            bg: "#303446".to_string(),
+            fg: "#c6d0f5".to_string(),
+            cursor: "#babbf1".to_string(),
+            selection: "#414559".to_string(),
+            border: "#51576d".to_string(),
+            accent: "#8caaee".to_string(),
+            success: "#a6d189".to_string(),
+            warning: "#e5c890".to_string(),
+            error: "#e78284".to_string(),
+            panel: "#292c3c".to_string(),
+        }
+    }
+
+    pub fn catppuccin_latte() -> Self {
+        Self {
+            name: "Catppuccin Latte".to_string(),
+            bg: "#eff1f5".to_string(),
+            fg: "#4c4f69".to_string(),
+            cursor: "#7287fd".to_string(),
+            selection: "#ccd0da".to_string(),
+            border: "#bcc0cc".to_string(),
+            accent: "#1e66f5".to_string(),
+            success: "#40a02b".to_string(),
+            warning: "#df8e1d".to_string(),
+            error: "#d20f39".to_string(),
+            panel: "#e6e9ef".to_string(),
+        }
+    }
+
     pub fn all_themes() -> Vec<Theme> {
-        vec![Self::tokyo_night(), Self::gruvbox(), Self::nord()]
+        vec![
+            Self::tokyo_night(),
+            Self::gruvbox(),
+            Self::nord(),
+            Self::catppuccin_mocha(),
+            Self::catppuccin_macchiato(),
+            Self::catppuccin_frappe(),
+            Self::catppuccin_latte(),
+        ]
     }
 }

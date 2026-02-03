@@ -7,7 +7,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Vim-style Modal Editing**: Full support for Normal, Insert, Visual, and Search modes
 - **Smart Block Detection**: Automatically identifies content type based on tags and patterns
 - **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian
-- **Theme Support**: Tokyo Night, Gruvbox, and Nord themes
+- **Theme Support**: Tokyo Night, Gruvbox, Nord, and Catppuccin (Mocha/Macchiato/Frappé/Latte) themes
 - **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
 - **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
 - **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
@@ -145,7 +145,7 @@ See [docs/default.toml](docs/default.toml) for a complete configuration referenc
 
 ```toml
 [general]
-theme = "tokyo_night"  # tokyo_night, gruvbox, nord
+theme = "tokyo_night"  # tokyo_night, gruvbox, nord, catppuccin_mocha, catppuccin_macchiato, catppuccin_frappe, catppuccin_latte
 leader_key = " "
 auto_save_interval_ms = 5000
 show_hints = true      # Show shortcut hints bar

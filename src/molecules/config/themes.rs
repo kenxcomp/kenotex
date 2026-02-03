@@ -84,6 +84,18 @@ mod tests {
         assert_eq!(manager.current().name, "Nord");
 
         manager.cycle_next();
+        assert_eq!(manager.current().name, "Catppuccin Mocha");
+
+        manager.cycle_next();
+        assert_eq!(manager.current().name, "Catppuccin Macchiato");
+
+        manager.cycle_next();
+        assert_eq!(manager.current().name, "Catppuccin Frappe");
+
+        manager.cycle_next();
+        assert_eq!(manager.current().name, "Catppuccin Latte");
+
+        manager.cycle_next();
         assert_eq!(manager.current().name, "Tokyo Night");
     }
 

@@ -7,7 +7,7 @@
 - **Vim 风格模态编辑**：完整支持 Normal、Insert、Visual 和 Search 模式
 - **智能块检测**：基于标签和模式自动识别内容类型
 - **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian
-- **主题支持**：Tokyo Night、Gruvbox 和 Nord 主题
+- **主题支持**：Tokyo Night、Gruvbox、Nord 和 Catppuccin（Mocha/Macchiato/Frappé/Latte）主题
 - **Markdown 存储**：所有笔记以 markdown 文件形式存储在 `~/.config/kenotex/drafts/`
 - **自定义数据目录**：通过 `data_dir` 配置选项将笔记存储在任意位置（支持 `~` 展开）
 - **实时重载**：自动检测外部文件更改并重新加载笔记，支持冲突解决
@@ -145,7 +145,7 @@ Kenotex 使用以下模式自动检测块类型：
 
 ```toml
 [general]
-theme = "tokyo_night"  # tokyo_night, gruvbox, nord
+theme = "tokyo_night"  # tokyo_night, gruvbox, nord, catppuccin_mocha, catppuccin_macchiato, catppuccin_frappe, catppuccin_latte
 leader_key = " "
 auto_save_interval_ms = 5000
 show_hints = true      # 显示快捷键提示栏
