@@ -77,10 +77,11 @@ impl Widget for ProcessingOverlay<'_> {
             }
 
             let is_current = idx == self.current_index;
-            let is_done = smart_block.status == ProcessingStatus::Sent;
 
-            let border_color = if is_done {
+            let border_color = if smart_block.status == ProcessingStatus::Sent {
                 self.theme.success_color()
+            } else if smart_block.status == ProcessingStatus::Skipped {
+                self.theme.border_color()
             } else if is_current {
                 self.theme.accent_color()
             } else {
@@ -102,12 +103,14 @@ impl Widget for ProcessingOverlay<'_> {
                 ProcessingStatus::Pending => " ",
                 ProcessingStatus::Sent => "+",
                 ProcessingStatus::Failed => "x",
+                ProcessingStatus::Skipped => "-",
             };
 
             let status_color = match smart_block.status {
                 ProcessingStatus::Pending => self.theme.border_color(),
                 ProcessingStatus::Sent => self.theme.success_color(),
                 ProcessingStatus::Failed => self.theme.error_color(),
+                ProcessingStatus::Skipped => self.theme.warning_color(),
             };
 
             let preview = smart_block.preview(40);

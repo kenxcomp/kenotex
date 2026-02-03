@@ -62,7 +62,7 @@ L4 Atoms (atoms/)
 - `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation)
 - `list/` - DraftList/ArchiveList (note collection management with filtering/selection), FileChangeHandler (file event classification)
 - `config/` - ThemeManager (tokyo_night/gruvbox/nord/catppuccin_mocha/catppuccin_macchiato/catppuccin_frappe/catppuccin_latte), keybindings
-- `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates)
+- `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations)
 
 **L4 Atoms** (`atoms/`):
 - `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay

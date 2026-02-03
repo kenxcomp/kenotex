@@ -6,7 +6,9 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 
 - **Vim-style Modal Editing**: Full support for Normal, Insert, Visual, and Search modes
 - **Smart Block Detection**: Automatically identifies content type based on tags and patterns
-- **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian
+- **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian with real dispatch
+- **Destination Skip**: Set `app = ""` to disable any destination; skipped blocks show "-" in the processing overlay
+- **Comment on Success**: Successfully dispatched blocks are wrapped with `<!-- -->` in the editor buffer
 - **Theme Support**: Tokyo Night, Gruvbox, Nord, and Catppuccin (Mocha/Macchiato/Frappé/Latte) themes
 - **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
 - **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
@@ -180,15 +182,15 @@ leader_new = "n"
 leader_quit = "q"
 
 [destinations.reminders]
-app = "apple"
+app = "apple"          # Set to "" to skip reminders
 # list = "Work"
 
 [destinations.calendar]
-app = "apple"
+app = "apple"          # Set to "" to skip calendar events
 # calendar_name = "Personal"
 
 [destinations.notes]
-app = "apple_notes"  # apple_notes, bear, obsidian
+app = "apple_notes"    # apple_notes, bear, obsidian; set to "" to skip notes
 # folder = "Kenotex"
 # vault = "MyVault"
 ```
@@ -207,7 +209,7 @@ src/
 │   ├── editor/             # Vim mode, text buffer
 │   ├── list/               # Draft/archive lists
 │   ├── config/             # Themes, keybindings
-│   └── distribution/       # Block parser, time parser
+│   └── distribution/       # Block parser, time parser, dispatcher
 ├── atoms/                  # L4 Minimal Units
 │   ├── widgets/            # UI components
 │   ├── storage/            # File I/O

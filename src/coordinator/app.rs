@@ -9,7 +9,7 @@ use crate::atoms::storage::{
     resolve_data_dir, save_draft,
 };
 use crate::molecules::config::ThemeManager;
-use crate::molecules::distribution::parse_smart_blocks;
+use crate::molecules::distribution::{dispatch_block, parse_smart_blocks, DispatchResult};
 use crate::molecules::editor::{TextBuffer, VimMode};
 use crate::molecules::list::{
     classify_event, ArchiveList, DraftList, FileChangeAction, FileChangeTracker,
@@ -253,22 +253,37 @@ impl App {
     }
 
     pub fn start_processing(&mut self) {
-        if let Some(ref note) = self.current_note {
-            let blocks = parse_smart_blocks(&note.content);
-            if blocks.is_empty() {
-                self.set_message("No blocks to process");
-                return;
-            }
-
-            self.processing_blocks = blocks;
-            self.processing_index = 0;
-            self.set_mode(AppMode::Processing);
+        if self.current_note.is_none() {
+            return;
         }
+
+        // Parse from current buffer so byte offsets match the live content
+        let buffer_content = self.buffer.to_string();
+        let blocks = parse_smart_blocks(&buffer_content);
+        if blocks.is_empty() {
+            self.set_message("No blocks to process");
+            return;
+        }
+
+        self.processing_blocks = blocks;
+        self.processing_index = 0;
+        self.set_mode(AppMode::Processing);
     }
 
     pub fn process_next_block(&mut self) -> bool {
         if self.processing_index < self.processing_blocks.len() {
-            self.processing_blocks[self.processing_index].status = ProcessingStatus::Sent;
+            let result = dispatch_block(
+                &self.processing_blocks[self.processing_index],
+                &self.config.destinations,
+            );
+            self.processing_blocks[self.processing_index].status = match result {
+                DispatchResult::Sent => ProcessingStatus::Sent,
+                DispatchResult::Skipped => ProcessingStatus::Skipped,
+                DispatchResult::Failed(ref msg) => {
+                    self.set_message(&format!("Block failed: {}", msg));
+                    ProcessingStatus::Failed
+                }
+            };
             self.processing_index += 1;
             true
         } else {
@@ -277,10 +292,55 @@ impl App {
     }
 
     pub fn finish_processing(&mut self) {
+        // Collect ranges of Sent blocks for comment wrapping
+        let mut sent_ranges: Vec<(usize, usize)> = self
+            .processing_blocks
+            .iter()
+            .filter(|b| b.status == ProcessingStatus::Sent)
+            .filter_map(|b| b.original_range)
+            .collect();
+
+        // Sort by start offset descending so we can replace from end to start
+        // without invalidating earlier offsets
+        sent_ranges.sort_by(|a, b| b.0.cmp(&a.0));
+
+        if !sent_ranges.is_empty() {
+            let mut content = self.buffer.to_string();
+            for (start, end) in &sent_ranges {
+                let block_text = &content[*start..*end];
+                let commented = format!("<!-- {} -->", block_text);
+                content.replace_range(*start..*end, &commented);
+            }
+            self.buffer = TextBuffer::from_string(&content);
+            self.dirty = true;
+        }
+
+        // Build summary message
+        let sent_count = self
+            .processing_blocks
+            .iter()
+            .filter(|b| b.status == ProcessingStatus::Sent)
+            .count();
+        let skipped_count = self
+            .processing_blocks
+            .iter()
+            .filter(|b| b.status == ProcessingStatus::Skipped)
+            .count();
+        let failed_count = self
+            .processing_blocks
+            .iter()
+            .filter(|b| b.status == ProcessingStatus::Failed)
+            .count();
+
+        let summary = format!(
+            "Processing complete: {} sent, {} skipped, {} failed",
+            sent_count, skipped_count, failed_count
+        );
+
         self.processing_blocks.clear();
         self.processing_index = 0;
         self.set_mode(AppMode::Normal);
-        self.set_message("Processing complete");
+        self.set_message(&summary);
     }
 
     pub fn refresh_lists(&mut self) -> Result<()> {

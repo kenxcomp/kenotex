@@ -6,7 +6,9 @@
 
 - **Vim 风格模态编辑**：完整支持 Normal、Insert、Visual 和 Search 模式
 - **智能块检测**：基于标签和模式自动识别内容类型
-- **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian
+- **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian，支持实际调度
+- **目标跳过**：设置 `app = ""` 可禁用任何目标应用；跳过的块在处理覆盖层中显示 "-"
+- **成功后注释**：成功分发的块会在编辑器缓冲区中用 `<!-- -->` 包裹
 - **主题支持**：Tokyo Night、Gruvbox、Nord 和 Catppuccin（Mocha/Macchiato/Frappé/Latte）主题
 - **Markdown 存储**：所有笔记以 markdown 文件形式存储在 `~/.config/kenotex/drafts/`
 - **自定义数据目录**：通过 `data_dir` 配置选项将笔记存储在任意位置（支持 `~` 展开）
@@ -180,15 +182,15 @@ leader_new = "n"
 leader_quit = "q"
 
 [destinations.reminders]
-app = "apple"
+app = "apple"          # 设为 "" 可跳过提醒事项
 # list = "工作"
 
 [destinations.calendar]
-app = "apple"
+app = "apple"          # 设为 "" 可跳过日历事件
 # calendar_name = "个人"
 
 [destinations.notes]
-app = "apple_notes"  # apple_notes, bear, obsidian
+app = "apple_notes"    # apple_notes, bear, obsidian；设为 "" 可跳过备忘录
 # folder = "Kenotex"
 # vault = "MyVault"
 ```
@@ -207,7 +209,7 @@ src/
 │   ├── editor/             # Vim 模式、文本缓冲区
 │   ├── list/               # 草稿/归档列表
 │   ├── config/             # 主题、快捷键
-│   └── distribution/       # 块解析器、时间解析器
+│   └── distribution/       # 块解析器、时间解析器、分发器
 ├── atoms/                  # L4 原子层（最小单元）
 │   ├── widgets/            # UI 组件
 │   ├── storage/            # 文件 I/O

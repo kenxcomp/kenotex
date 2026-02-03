@@ -30,6 +30,7 @@ pub enum ProcessingStatus {
     Pending,
     Sent,
     Failed,
+    Skipped,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +39,7 @@ pub struct SmartBlock {
     pub content: String,
     pub block_type: BlockType,
     pub status: ProcessingStatus,
+    pub original_range: Option<(usize, usize)>,
 }
 
 impl SmartBlock {
@@ -47,7 +49,13 @@ impl SmartBlock {
             content,
             block_type,
             status: ProcessingStatus::Pending,
+            original_range: None,
         }
+    }
+
+    pub fn with_range(mut self, start: usize, end: usize) -> Self {
+        self.original_range = Some((start, end));
+        self
     }
 
     pub fn preview(&self, max_len: usize) -> String {

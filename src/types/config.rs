@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -292,14 +292,48 @@ impl Default for DestinationApp {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotesDestination {
-    #[serde(default = "default_notes_app")]
-    pub app: NotesApp,
+    #[serde(
+        default = "default_notes_app",
+        deserialize_with = "deserialize_optional_notes_app",
+        serialize_with = "serialize_optional_notes_app"
+    )]
+    pub app: Option<NotesApp>,
     pub folder: Option<String>,
     pub vault: Option<String>,
 }
 
-fn default_notes_app() -> NotesApp {
-    NotesApp::AppleNotes
+fn default_notes_app() -> Option<NotesApp> {
+    Some(NotesApp::AppleNotes)
+}
+
+fn deserialize_optional_notes_app<'de, D>(deserializer: D) -> Result<Option<NotesApp>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    // Accept either a string value or a proper enum variant
+    let value = toml::Value::deserialize(deserializer)?;
+    match value {
+        toml::Value::String(s) if s.is_empty() => Ok(None),
+        other => {
+            // Try to deserialize as NotesApp
+            NotesApp::deserialize(other)
+                .map(Some)
+                .map_err(serde::de::Error::custom)
+        }
+    }
+}
+
+fn serialize_optional_notes_app<S>(
+    value: &Option<NotesApp>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match value {
+        Some(app) => app.serialize(serializer),
+        None => serializer.serialize_str(""),
+    }
 }
 
 impl Default for NotesDestination {
