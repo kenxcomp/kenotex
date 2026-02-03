@@ -25,6 +25,22 @@ auto_save_interval_ms = 5000
 # 在状态栏上方显示快捷键提示栏
 show_hints = true
 
+# Custom data directory for notes (supports ~ expansion)
+# When set, drafts/ and archives/ are created as subdirectories
+# When unset, defaults to ~/.config/kenotex/
+# 自定义笔记存储目录（支持 ~ 展开）
+# 设置后，drafts/ 和 archives/ 将作为子目录创建
+# 未设置时，默认为 ~/.config/kenotex/
+# data_dir = "~/Documents/kenotex-notes"
+
+# Enable file watching to detect external changes
+# 启用文件监视以检测外部更改
+file_watch = true
+
+# Debounce interval for file watcher in milliseconds
+# 文件监视器防抖间隔（毫秒）
+file_watch_debounce_ms = 300
+
 # =============================================================================
 # Keyboard Settings / 键盘设置
 # =============================================================================

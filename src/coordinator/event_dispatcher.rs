@@ -203,6 +203,10 @@ impl EventDispatcher {
             VimAction::Search => {
                 app.set_mode(AppMode::Search);
             }
+            VimAction::ReloadBuffer => {
+                app.reload_current_note_from_disk()?;
+                app.set_message("File reloaded");
+            }
             VimAction::ExternalEditor => {
                 app.request_external_editor();
             }

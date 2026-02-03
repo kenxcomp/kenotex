@@ -158,6 +158,10 @@ impl DraftList {
     pub fn total_count(&self) -> usize {
         self.notes.len()
     }
+
+    pub fn all_note_ids(&self) -> Vec<String> {
+        self.notes.iter().map(|n| n.id.clone()).collect()
+    }
 }
 
 #[cfg(test)]

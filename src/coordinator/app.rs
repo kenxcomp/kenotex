@@ -1,13 +1,19 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use uuid::Uuid;
 
+use crate::atoms::storage::file_watcher::FileEvent;
 use crate::atoms::storage::{
-    delete_draft, ensure_config_dir, ensure_drafts_dir, load_all_drafts, load_config, save_draft,
+    delete_draft, ensure_config_dir, ensure_data_dirs, load_all_drafts, load_config, load_draft,
+    resolve_data_dir, save_draft,
 };
 use crate::molecules::config::ThemeManager;
 use crate::molecules::distribution::parse_smart_blocks;
 use crate::molecules::editor::{TextBuffer, VimMode};
-use crate::molecules::list::{ArchiveList, DraftList};
+use crate::molecules::list::{
+    classify_event, ArchiveList, DraftList, FileChangeAction, FileChangeTracker,
+};
 use crate::types::{AppMode, Config, Note, ProcessingStatus, SmartBlock, Theme, View};
 
 pub struct App {
@@ -37,20 +43,26 @@ pub struct App {
 
     pub visual_anchor: Option<(usize, usize)>,
     pub last_yank_linewise: bool,
+
+    pub data_dir: PathBuf,
+    pub file_change_tracker: FileChangeTracker,
+    pub pending_external_reload: Option<String>,
 }
 
 impl App {
     pub fn new() -> Result<Self> {
         ensure_config_dir()?;
-        ensure_drafts_dir()?;
 
         let config = load_config()?;
+        let data_dir = resolve_data_dir(config.general.data_dir.as_deref());
+        ensure_data_dirs(&data_dir)?;
+
         let theme_manager = ThemeManager::with_theme(&config.general.theme);
 
         let vim_mode = VimMode::with_config(config.keyboard.clone());
 
-        let drafts = load_all_drafts(false)?;
-        let archives = load_all_drafts(true)?;
+        let drafts = load_all_drafts(&data_dir, false)?;
+        let archives = load_all_drafts(&data_dir, true)?;
 
         let draft_list = DraftList::new(drafts);
         let archive_list = ArchiveList::new(archives);
@@ -87,6 +99,9 @@ impl App {
             last_save: std::time::Instant::now(),
             visual_anchor: None,
             last_yank_linewise: false,
+            data_dir,
+            file_change_tracker: FileChangeTracker::new(),
+            pending_external_reload: None,
         })
     }
 
@@ -145,7 +160,8 @@ impl App {
     pub fn save_current_note(&mut self) -> Result<()> {
         if let Some(ref mut note) = self.current_note {
             note.update_content(self.buffer.to_string());
-            save_draft(note)?;
+            self.file_change_tracker.record_save(&note.id);
+            save_draft(&self.data_dir, note)?;
             self.draft_list.update_note(note);
             self.dirty = false;
             self.last_save = std::time::Instant::now();
@@ -188,10 +204,10 @@ impl App {
             if let Some(mut note) = self.draft_list.remove_selected() {
                 note.is_archived = true;
                 let old_id = note.id.clone();
-                delete_draft(&old_id, false)?;
-                save_draft(&note)?;
+                delete_draft(&self.data_dir, &old_id, false)?;
+                save_draft(&self.data_dir, &note)?;
 
-                let archives = load_all_drafts(true)?;
+                let archives = load_all_drafts(&self.data_dir, true)?;
                 self.archive_list.update_notes(archives);
 
                 self.set_message("Note archived");
@@ -205,10 +221,10 @@ impl App {
             if let Some(mut note) = self.archive_list.remove_selected() {
                 note.is_archived = false;
                 let old_id = note.id.clone();
-                delete_draft(&old_id, true)?;
-                save_draft(&note)?;
+                delete_draft(&self.data_dir, &old_id, true)?;
+                save_draft(&self.data_dir, &note)?;
 
-                let drafts = load_all_drafts(false)?;
+                let drafts = load_all_drafts(&self.data_dir, false)?;
                 self.draft_list.update_notes(drafts);
 
                 self.set_message("Note restored");
@@ -221,13 +237,13 @@ impl App {
         match self.view {
             View::DraftList => {
                 if let Some(note) = self.draft_list.remove_selected() {
-                    delete_draft(&note.id, false)?;
+                    delete_draft(&self.data_dir, &note.id, false)?;
                     self.set_message("Note deleted");
                 }
             }
             View::ArchiveList => {
                 if let Some(note) = self.archive_list.remove_selected() {
-                    delete_draft(&note.id, true)?;
+                    delete_draft(&self.data_dir, &note.id, true)?;
                     self.set_message("Note deleted");
                 }
             }
@@ -268,10 +284,93 @@ impl App {
     }
 
     pub fn refresh_lists(&mut self) -> Result<()> {
-        let drafts = load_all_drafts(false)?;
-        let archives = load_all_drafts(true)?;
+        let drafts = load_all_drafts(&self.data_dir, false)?;
+        let archives = load_all_drafts(&self.data_dir, true)?;
         self.draft_list.update_notes(drafts);
         self.archive_list.update_notes(archives);
+        Ok(())
+    }
+
+    pub fn handle_file_event(&mut self, event: FileEvent) -> Result<()> {
+        let known_ids: Vec<String> = self
+            .draft_list
+            .all_note_ids()
+            .into_iter()
+            .chain(self.archive_list.all_note_ids())
+            .collect();
+
+        let action = classify_event(&event, &self.file_change_tracker, &known_ids);
+
+        match action {
+            FileChangeAction::Suppressed => {}
+            FileChangeAction::ReloadNote { id, is_archived } => {
+                let is_current = self
+                    .current_note
+                    .as_ref()
+                    .is_some_and(|n| n.id == id);
+
+                if is_current {
+                    if self.dirty {
+                        self.pending_external_reload = Some(id);
+                        self.set_message(
+                            "File changed externally. Ctrl+L to reload, or save to keep yours.",
+                        );
+                    } else {
+                        self.reload_current_note_from_disk()?;
+                        self.set_message("File reloaded");
+                    }
+                } else if let Ok(updated_note) = load_draft(&self.data_dir, &id, is_archived) {
+                    if is_archived {
+                        self.archive_list.update_single_note(updated_note);
+                    } else {
+                        self.draft_list.update_note(&updated_note);
+                    }
+                }
+            }
+            FileChangeAction::NewNote { .. } | FileChangeAction::DeletedNote { .. } => {
+                self.refresh_lists()?;
+
+                if let FileChangeAction::DeletedNote { ref id, .. } = action {
+                    let is_current = self
+                        .current_note
+                        .as_ref()
+                        .is_some_and(|n| n.id == *id);
+                    if is_current {
+                        self.buffer = TextBuffer::new();
+                        self.current_note = None;
+                        self.dirty = false;
+                        self.set_view(View::DraftList);
+                        self.set_message("Current note deleted externally");
+                    }
+                }
+            }
+        }
+
+        self.file_change_tracker.cleanup();
+        Ok(())
+    }
+
+    pub fn reload_current_note_from_disk(&mut self) -> Result<()> {
+        if let Some(ref note) = self.current_note {
+            let id = note.id.clone();
+            let is_archived = note.is_archived;
+            match load_draft(&self.data_dir, &id, is_archived) {
+                Ok(reloaded) => {
+                    self.buffer = TextBuffer::from_string(&reloaded.content);
+                    self.current_note = Some(reloaded.clone());
+                    self.dirty = false;
+                    self.pending_external_reload = None;
+                    if is_archived {
+                        self.archive_list.update_single_note(reloaded);
+                    } else {
+                        self.draft_list.update_note(&reloaded);
+                    }
+                }
+                Err(_) => {
+                    self.set_message("Failed to reload note from disk");
+                }
+            }
+        }
         Ok(())
     }
 

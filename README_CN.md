@@ -9,6 +9,8 @@
 - **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian
 - **主题支持**：Tokyo Night、Gruvbox 和 Nord 主题
 - **Markdown 存储**：所有笔记以 markdown 文件形式存储在 `~/.config/kenotex/drafts/`
+- **自定义数据目录**：通过 `data_dir` 配置选项将笔记存储在任意位置（支持 `~` 展开）
+- **实时重载**：自动检测外部文件更改并重新加载笔记，支持冲突解决
 - **自动保存**：可配置的自动保存间隔
 
 ## 安装
@@ -49,6 +51,7 @@ cargo build --release
 | `Ctrl+R` | 重做 |
 | `T` | 切换主题 |
 | `/` 或 `f` | 进入搜索模式 |
+| `Ctrl+L` | 从磁盘重新加载文件（文件被外部修改时使用） |
 | `Ctrl+G` | 在外部编辑器中打开缓冲区（`$VISUAL` / `$EDITOR` / `vi`） |
 | `Esc` | 返回 Normal 模式 |
 | `Ctrl+C` 或 `Ctrl+Q` | 退出 |
@@ -146,6 +149,9 @@ theme = "tokyo_night"  # tokyo_night, gruvbox, nord
 leader_key = " "
 auto_save_interval_ms = 5000
 show_hints = true      # 显示快捷键提示栏
+# data_dir = "~/Documents/kenotex-notes"  # 自定义笔记存储路径
+file_watch = true       # 检测外部文件更改
+file_watch_debounce_ms = 300
 
 [keyboard]
 layout = "qwerty"
@@ -215,6 +221,7 @@ src/
 - **tokio** - 异步运行时
 - **chrono** + **chrono-english** - 日期/时间解析
 - **serde** + **toml** - 配置管理
+- **notify** + **notify-debouncer-mini** - 文件系统监视（实时重载）
 - **regex** - 模式匹配
 - **uuid** - 笔记 ID
 

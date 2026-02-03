@@ -60,27 +60,39 @@ L4 Atoms (atoms/)
 
 **L3 Molecules** (`molecules/`):
 - `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation)
-- `list/` - DraftList/ArchiveList (note collection management with filtering/selection)
+- `list/` - DraftList/ArchiveList (note collection management with filtering/selection), FileChangeHandler (file event classification)
 - `config/` - ThemeManager (tokyo_night/gruvbox/nord), keybindings
 - `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates)
 
 **L4 Atoms** (`atoms/`):
 - `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay
-- `storage/` - File I/O for config and drafts (see Config Path below)
+- `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
 
-### Config Path
+### Config Path vs Data Directory
 
-`config_dir()` in `atoms/storage/config_io.rs` determines the config/data directory:
+**Config directory** (`config_dir()` in `atoms/storage/config_io.rs`):
 - **Unix (macOS/Linux)**: `~/.config/kenotex/` (XDG-style, preferred)
-- **Fallback**: `dirs::config_dir()/kenotex/` (e.g. `~/Library/Application Support/kenotex/` on macOS)
+- **Fallback**: `dirs::config_dir()/kenotex/`
+- Stores: `config.toml`
 
-Files stored under this directory:
-- `config.toml` - User configuration (see `docs/default.toml` for reference)
-- `drafts/` - Draft notes as markdown files
-- `drafts/archive/` - Archived notes
+**Data directory** (`resolve_data_dir()` in `atoms/storage/config_io.rs`):
+- When `data_dir` is set in config: uses that path (supports `~` expansion)
+- When unset: falls back to config directory
+- Stores: `drafts/` (draft notes), `archives/` (archived notes)
 
-**Important**: Do NOT use `dirs::config_dir()` directly elsewhere. Always use `config_dir()` from `config_io.rs` to ensure consistent path resolution.
+**Important**:
+- All draft I/O functions accept `base_dir: &Path` — they do NOT import `config_dir`. Path resolution happens once in `App::new()`.
+- Do NOT use `dirs::config_dir()` directly elsewhere. Always use `config_dir()` or `resolve_data_dir()` from `config_io.rs`.
+
+### File Watcher
+
+Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching:
+- `atoms/storage/file_watcher.rs` (L4) — wraps notify, produces `FileEvent` via `mpsc` channel
+- `molecules/list/file_change_handler.rs` (L3) — classifies events, suppresses self-saves (500ms window)
+- `coordinator/app.rs` (L2) — handles events: silent reload (clean buffer), conflict message (dirty buffer)
+- `main.rs` (L1) — starts watcher, integrates via non-blocking `try_recv()` in event loop
+- Config: `file_watch = true` (default), `file_watch_debounce_ms = 300`
 
 ### Key Data Types (`types/`)
 

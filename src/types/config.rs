@@ -30,6 +30,12 @@ pub struct GeneralConfig {
     pub auto_save_interval_ms: u64,
     #[serde(default = "default_show_hints")]
     pub show_hints: bool,
+    #[serde(default)]
+    pub data_dir: Option<String>,
+    #[serde(default = "default_file_watch")]
+    pub file_watch: bool,
+    #[serde(default = "default_file_watch_debounce_ms")]
+    pub file_watch_debounce_ms: u64,
 }
 
 fn default_theme() -> String {
@@ -48,6 +54,14 @@ fn default_show_hints() -> bool {
     true
 }
 
+fn default_file_watch() -> bool {
+    true
+}
+
+fn default_file_watch_debounce_ms() -> u64 {
+    300
+}
+
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
@@ -55,6 +69,9 @@ impl Default for GeneralConfig {
             leader_key: default_leader_key(),
             auto_save_interval_ms: default_auto_save_interval(),
             show_hints: default_show_hints(),
+            data_dir: None,
+            file_watch: default_file_watch(),
+            file_watch_debounce_ms: default_file_watch_debounce_ms(),
         }
     }
 }

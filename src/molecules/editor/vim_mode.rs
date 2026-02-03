@@ -58,6 +58,7 @@ pub enum VimAction {
     VisualYank,
     PasteAfter,
     PasteBefore,
+    ReloadBuffer,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -289,6 +290,11 @@ impl VimMode {
             // Other
             KeyCode::Char(c) if self.key_matches(c, &self.keys.cycle_theme) => {
                 VimAction::CycleTheme
+            }
+
+            // Reload buffer from disk (Ctrl+L)
+            KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                VimAction::ReloadBuffer
             }
 
             // External editor (Ctrl+G)
