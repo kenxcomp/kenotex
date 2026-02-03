@@ -195,7 +195,7 @@ fn default_cycle_theme() -> String { "T".to_string() }
 // Leader command defaults
 fn default_leader_process() -> String { "s".to_string() }
 fn default_leader_list() -> String { "l".to_string() }
-fn default_leader_new() -> String { "n".to_string() }
+fn default_leader_new() -> String { "nn".to_string() }
 fn default_leader_quit() -> String { "q".to_string() }
 
 impl Default for KeyboardConfig {

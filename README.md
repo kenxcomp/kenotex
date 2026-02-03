@@ -79,11 +79,11 @@ cargo build --release
 |-----|--------|
 | `Space + s` | Process and distribute blocks |
 | `Space + l` | Open draft list |
-| `Space + n` | Create new note |
+| `Space + nn` | Create new note |
 | `Space + q` | Quit |
-| `Space + th` | Toggle shortcut hints bar |
+| `Space + h` | Toggle shortcut hints bar |
+| `Space + d` | Toggle checkbox (`- [ ]` ↔ `- [x]`) on current line |
 | `Space + mc` | Insert checkbox (`- [ ] `) on current line |
-| `Space + mt` | Toggle checkbox (`- [ ]` ↔ `- [x]`) on current line |
 
 ### List View
 
@@ -181,7 +181,7 @@ paste_before = "P"
 # Leader commands
 leader_process = "s"
 leader_list = "l"
-leader_new = "n"
+leader_new = "nn"
 leader_quit = "q"
 
 [destinations.reminders]

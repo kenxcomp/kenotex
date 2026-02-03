@@ -11,11 +11,11 @@ use crate::types::Theme;
 const LEADER_COMMANDS: &[(&str, &str)] = &[
     ("s", "Process blocks"),
     ("l", "Draft list"),
-    ("n", "New note"),
+    ("nn", "New note"),
     ("q", "Quit"),
-    ("th", "Toggle hints"),
+    ("h", "Toggle hints"),
+    ("d", "Toggle checkbox"),
     ("mc", "Insert checkbox"),
-    ("mt", "Toggle checkbox"),
 ];
 
 const POPUP_WIDTH: u16 = 24;

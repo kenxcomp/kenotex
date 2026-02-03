@@ -79,11 +79,11 @@ cargo build --release
 |-----|--------|
 | `空格 + s` | 处理并分发块 |
 | `空格 + l` | 打开草稿列表 |
-| `空格 + n` | 创建新笔记 |
+| `空格 + nn` | 创建新笔记 |
 | `空格 + q` | 退出 |
-| `空格 + th` | 切换快捷键提示栏 |
+| `空格 + h` | 切换快捷键提示栏 |
+| `空格 + d` | 切换复选框状态（`- [ ]` ↔ `- [x]`） |
 | `空格 + mc` | 在当前行插入复选框（`- [ ] `） |
-| `空格 + mt` | 切换复选框状态（`- [ ]` ↔ `- [x]`） |
 
 ### 列表视图
 
@@ -181,7 +181,7 @@ paste_before = "P"
 # Leader 命令
 leader_process = "s"
 leader_list = "l"
-leader_new = "n"
+leader_new = "nn"
 leader_quit = "q"
 
 [destinations.reminders]

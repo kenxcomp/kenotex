@@ -158,9 +158,8 @@ impl VimMode {
                 let first = *first;
                 self.leader_state = LeaderState::Inactive;
                 return match (first, key.code) {
-                    ('t', KeyCode::Char('h')) => VimAction::ToggleHints,
+                    ('n', KeyCode::Char('n')) => VimAction::LeaderNew,
                     ('m', KeyCode::Char('c')) => VimAction::InsertCheckbox,
-                    ('m', KeyCode::Char('t')) => VimAction::ToggleCheckbox,
                     _ => VimAction::None,
                 };
             }
@@ -174,16 +173,20 @@ impl VimMode {
                         self.leader_state = LeaderState::Inactive;
                         VimAction::LeaderList
                     }
-                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_new) => {
-                        self.leader_state = LeaderState::Inactive;
-                        VimAction::LeaderNew
-                    }
                     KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_quit) => {
                         self.leader_state = LeaderState::Inactive;
                         VimAction::Quit
                     }
-                    KeyCode::Char('t') => {
-                        self.leader_state = LeaderState::AwaitingSecond('t');
+                    KeyCode::Char('d') => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleCheckbox
+                    }
+                    KeyCode::Char('h') => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleHints
+                    }
+                    KeyCode::Char('n') => {
+                        self.leader_state = LeaderState::AwaitingSecond('n');
                         VimAction::None
                     }
                     KeyCode::Char('m') => {
@@ -467,14 +470,6 @@ mod tests {
         assert_eq!(action, VimAction::LeaderKey);
         assert!(vim.is_leader_pending());
 
-        // 't' -> AwaitingSecond('t')
-        let action = vim.handle_key(
-            KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
-            AppMode::Normal,
-        );
-        assert_eq!(action, VimAction::None);
-        assert!(vim.is_leader_pending());
-
         // 'h' -> ToggleHints
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE),
@@ -494,9 +489,9 @@ mod tests {
             AppMode::Normal,
         );
 
-        // 't' -> AwaitingSecond('t')
+        // 'n' -> AwaitingSecond('n')
         vim.handle_key(
-            KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE),
             AppMode::Normal,
         );
         assert!(vim.is_leader_pending());
@@ -550,17 +545,9 @@ mod tests {
         );
         assert_eq!(action, VimAction::LeaderKey);
 
-        // 'm' -> AwaitingSecond('m')
+        // 'd' -> ToggleCheckbox
         let action = vim.handle_key(
-            KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE),
-            AppMode::Normal,
-        );
-        assert_eq!(action, VimAction::None);
-        assert!(vim.is_leader_pending());
-
-        // 't' -> ToggleCheckbox
-        let action = vim.handle_key(
-            KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
             AppMode::Normal,
         );
         assert_eq!(action, VimAction::ToggleCheckbox);
@@ -586,6 +573,35 @@ mod tests {
             AppMode::Normal,
         );
         assert_eq!(action, VimAction::None);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_new_note() {
+        let mut vim = VimMode::new();
+
+        // Space -> AwaitingFirst
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::LeaderKey);
+        assert!(vim.is_leader_pending());
+
+        // 'n' -> AwaitingSecond('n')
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+        assert!(vim.is_leader_pending());
+
+        // 'n' -> LeaderNew
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::LeaderNew);
         assert!(!vim.is_leader_pending());
     }
 
