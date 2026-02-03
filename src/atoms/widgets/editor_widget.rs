@@ -3,11 +3,94 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 use regex::Regex;
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 use crate::types::{AppMode, Theme};
+
+/// Split a styled `Line` into multiple display lines using character-level wrapping.
+///
+/// This must match the algorithm in `wrap_calc` exactly so that cursor position
+/// calculations agree with the rendered text. Ratatui's `Wrap { trim: false }` uses
+/// word-boundary wrapping which produces different break points, causing cursor drift.
+fn split_line_by_width(line: Line<'_>, width: u16) -> Vec<Line<'static>> {
+    if width == 0 {
+        let spans: Vec<Span<'static>> = line
+            .spans
+            .into_iter()
+            .map(|s| Span::styled(s.content.into_owned(), s.style))
+            .collect();
+        return vec![Line::from(spans)];
+    }
+
+    let max_w = width as usize;
+
+    // Flatten spans into (grapheme_string, style, display_width)
+    let mut graphemes: Vec<(String, Style, usize)> = Vec::new();
+    for span in line.spans {
+        let style = span.style;
+        for g in span.content.graphemes(true) {
+            graphemes.push((g.to_string(), style, g.width()));
+        }
+    }
+
+    if graphemes.is_empty() {
+        return vec![Line::from("")];
+    }
+
+    // Split into display lines at character-level wrap points
+    let mut result: Vec<Line<'static>> = Vec::new();
+    let mut col: usize = 0;
+    let mut line_start: usize = 0;
+
+    for i in 0..graphemes.len() {
+        let gw = graphemes[i].2;
+        if gw > 0 && col + gw > max_w {
+            result.push(build_display_line(&graphemes[line_start..i]));
+            line_start = i;
+            col = 0;
+        }
+        col += gw;
+    }
+
+    // Last segment
+    result.push(build_display_line(&graphemes[line_start..]));
+
+    result
+}
+
+/// Re-merge consecutive same-style graphemes into Spans to form a display Line.
+fn build_display_line(graphemes: &[(String, Style, usize)]) -> Line<'static> {
+    if graphemes.is_empty() {
+        return Line::from("");
+    }
+
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut current_text = String::new();
+    let mut current_style = graphemes[0].1;
+
+    for (g, style, _) in graphemes {
+        if *style == current_style {
+            current_text.push_str(g);
+        } else {
+            spans.push(Span::styled(
+                std::mem::take(&mut current_text),
+                current_style,
+            ));
+            current_text.push_str(g);
+            current_style = *style;
+        }
+    }
+
+    if !current_text.is_empty() {
+        spans.push(Span::styled(current_text, current_style));
+    }
+
+    Line::from(spans)
+}
 
 pub struct EditorWidget<'a> {
     content: &'a str,
@@ -131,16 +214,18 @@ impl Widget for EditorWidget<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let lines: Vec<Line> = self
+        // Pre-split styled lines using character-level wrapping so that
+        // the rendered text matches wrap_calc's cursor position calculations.
+        let display_lines: Vec<Line> = self
             .content
             .lines()
             .enumerate()
             .map(|(idx, line)| self.highlight_line(line, idx))
+            .flat_map(|line| split_line_by_width(line, inner.width))
             .collect();
 
-        let paragraph = Paragraph::new(lines)
+        let paragraph = Paragraph::new(display_lines)
             .style(Style::default().bg(self.theme.bg_color()))
-            .wrap(Wrap { trim: false })
             .scroll((self.scroll_offset, 0));
 
         paragraph.render(inner, buf);
