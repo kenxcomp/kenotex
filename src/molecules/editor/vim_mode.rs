@@ -125,6 +125,23 @@ impl VimMode {
         c.to_string() == binding
     }
 
+    fn key_event_matches(&self, key: &KeyEvent, binding: &str) -> bool {
+        if let Some(ch_str) = binding.strip_prefix("ctrl+") {
+            if let Some(c) = ch_str.chars().next() {
+                if ch_str.len() == 1 {
+                    return key.code == KeyCode::Char(c)
+                        && key.modifiers.contains(KeyModifiers::CONTROL);
+                }
+            }
+            return false;
+        }
+        if let KeyCode::Char(c) = key.code {
+            c.to_string() == binding
+        } else {
+            false
+        }
+    }
+
     pub fn handle_key(&mut self, key: KeyEvent, mode: AppMode) -> VimAction {
         match mode {
             AppMode::Normal => self.handle_normal_mode(key),
@@ -278,7 +295,7 @@ impl VimMode {
                 VimAction::PasteBefore
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.undo) => VimAction::Undo,
-            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => VimAction::Redo,
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.redo) => VimAction::Redo,
 
             // Modes
             KeyCode::Char(c) if self.key_matches(c, &self.keys.visual_mode) => {

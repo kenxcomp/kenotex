@@ -124,6 +124,8 @@ pub struct KeyboardConfig {
     pub delete_line: String,
     #[serde(default = "default_undo")]
     pub undo: String,
+    #[serde(default = "default_redo")]
+    pub redo: String,
     #[serde(default = "default_yank")]
     pub yank: String,
     #[serde(default = "default_paste_after")]
@@ -178,6 +180,7 @@ fn default_insert_line_above() -> String { "O".to_string() }
 fn default_delete_char() -> String { "x".to_string() }
 fn default_delete_line() -> String { "d".to_string() }
 fn default_undo() -> String { "u".to_string() }
+fn default_redo() -> String { "ctrl+r".to_string() }
 fn default_yank() -> String { "y".to_string() }
 fn default_paste_after() -> String { "p".to_string() }
 fn default_paste_before() -> String { "P".to_string() }
@@ -218,6 +221,7 @@ impl Default for KeyboardConfig {
             delete_char: default_delete_char(),
             delete_line: default_delete_line(),
             undo: default_undo(),
+            redo: default_redo(),
             yank: default_yank(),
             paste_after: default_paste_after(),
             paste_before: default_paste_before(),
