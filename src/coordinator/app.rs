@@ -47,6 +47,7 @@ pub struct App {
     pub data_dir: PathBuf,
     pub file_change_tracker: FileChangeTracker,
     pub pending_external_reload: Option<String>,
+    pub pending_delete_title: Option<String>,
 }
 
 impl App {
@@ -102,6 +103,7 @@ impl App {
             data_dir,
             file_change_tracker: FileChangeTracker::new(),
             pending_external_reload: None,
+            pending_delete_title: None,
         })
     }
 
@@ -250,6 +252,31 @@ impl App {
             _ => {}
         }
         Ok(())
+    }
+
+    pub fn request_delete(&mut self) {
+        let title = match self.view {
+            View::DraftList => self.draft_list.selected_note().map(|n| n.title.clone()),
+            View::ArchiveList => self.archive_list.selected_note().map(|n| n.title.clone()),
+            _ => None,
+        };
+        if let Some(title) = title {
+            self.pending_delete_title = Some(title);
+            self.set_mode(AppMode::ConfirmDelete);
+        }
+    }
+
+    pub fn confirm_delete(&mut self) -> Result<()> {
+        self.delete_selected_note()?;
+        self.pending_delete_title = None;
+        self.set_mode(AppMode::Normal);
+        Ok(())
+    }
+
+    pub fn cancel_delete(&mut self) {
+        self.pending_delete_title = None;
+        self.set_mode(AppMode::Normal);
+        self.clear_message();
     }
 
     pub fn start_processing(&mut self) {

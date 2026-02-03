@@ -148,7 +148,7 @@ impl VimMode {
             AppMode::Insert => self.handle_insert_mode(key),
             AppMode::Visual => self.handle_visual_mode(key),
             AppMode::Search => self.handle_search_mode(key),
-            AppMode::Processing => VimAction::None,
+            AppMode::Processing | AppMode::ConfirmDelete => VimAction::None,
         }
     }
 

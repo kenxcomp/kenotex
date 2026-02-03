@@ -8,6 +8,7 @@ pub enum AppMode {
     Visual,
     Processing,
     Search,
+    ConfirmDelete,
 }
 
 impl AppMode {
@@ -18,6 +19,7 @@ impl AppMode {
             AppMode::Visual => "VISUAL",
             AppMode::Processing => "PROCESSING",
             AppMode::Search => "SEARCH",
+            AppMode::ConfirmDelete => "CONFIRM",
         }
     }
 }

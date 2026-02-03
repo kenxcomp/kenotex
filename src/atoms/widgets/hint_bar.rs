@@ -46,6 +46,10 @@ impl<'a> HintBar<'a> {
                 ("Enter", "Confirm"),
                 ("Esc", "Cancel"),
             ],
+            (_, AppMode::ConfirmDelete) => vec![
+                ("y", "Confirm"),
+                ("n/Esc", "Cancel"),
+            ],
             (View::DraftList, AppMode::Normal) => vec![
                 ("j/k", "Nav"),
                 ("Enter", "Open"),

@@ -29,7 +29,7 @@ use crate::atoms::storage::file_watcher::{self, FileWatcherHandle};
 use crate::atoms::storage::{
     cleanup_temp_file, read_temp_file, resolve_editor, spawn_editor, write_temp_file,
 };
-use crate::atoms::widgets::{EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar};
+use crate::atoms::widgets::{ConfirmOverlay, EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar};
 
 fn main() -> Result<()> {
     enable_raw_mode()?;
@@ -250,6 +250,12 @@ fn ui(f: &mut Frame, app: &App) {
     if app.mode == AppMode::Processing && !app.processing_blocks.is_empty() {
         let overlay = ProcessingOverlay::new(&app.processing_blocks, theme, app.processing_index);
         f.render_widget(overlay, f.area());
+    }
+
+    if app.mode == AppMode::ConfirmDelete
+        && let Some(title) = &app.pending_delete_title
+    {
+        f.render_widget(ConfirmOverlay::new(title, theme), f.area());
     }
 }
 

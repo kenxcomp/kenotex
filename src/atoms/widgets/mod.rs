@@ -1,3 +1,4 @@
+mod confirm_overlay;
 mod editor_widget;
 mod hint_bar;
 mod leader_popup;
@@ -6,6 +7,7 @@ mod processing_overlay;
 mod status_bar;
 pub mod wrap_calc;
 
+pub use confirm_overlay::ConfirmOverlay;
 pub use editor_widget::EditorWidget;
 pub use hint_bar::HintBar;
 pub use leader_popup::LeaderPopup;

@@ -15,6 +15,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
 - **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
 - **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
+- **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
 - **Auto-save**: Configurable auto-save interval
 
 ## Installation
@@ -92,7 +93,7 @@ cargo build --release
 | `Enter/l/i` | Open selected note |
 | `a` | Archive note (drafts view) |
 | `r` | Restore note (archive view) |
-| `d` | Delete note |
+| `d` | Delete note (with confirmation) |
 | `n` | Create new note |
 | `A` | Toggle to archive view |
 | `/` or `f` | Search notes |

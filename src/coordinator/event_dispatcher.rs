@@ -11,6 +11,15 @@ pub struct EventDispatcher;
 
 impl EventDispatcher {
     pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
+        if app.mode == AppMode::ConfirmDelete {
+            match key.code {
+                KeyCode::Char('y') => app.confirm_delete()?,
+                KeyCode::Char('n') | KeyCode::Esc => app.cancel_delete(),
+                _ => {}
+            }
+            return Ok(());
+        }
+
         let action = app.vim_mode.handle_key(key, app.mode);
 
         match app.mode {
@@ -18,7 +27,7 @@ impl EventDispatcher {
             AppMode::Insert => Self::handle_insert_action(app, action)?,
             AppMode::Visual => Self::handle_visual_action(app, action)?,
             AppMode::Search => Self::handle_search_action(app, action, key)?,
-            AppMode::Processing => {}
+            AppMode::Processing | AppMode::ConfirmDelete => {}
         }
 
         Ok(())
@@ -280,7 +289,7 @@ impl EventDispatcher {
     pub fn handle_list_key(app: &mut App, key: KeyEvent) -> Result<bool> {
         match key.code {
             KeyCode::Char('d') => {
-                app.delete_selected_note()?;
+                app.request_delete();
                 Ok(true)
             }
             KeyCode::Char('a') if app.view == View::DraftList => {

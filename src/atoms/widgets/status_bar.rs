@@ -51,6 +51,7 @@ impl<'a> StatusBar<'a> {
             AppMode::Visual => self.theme.warning_color(),
             AppMode::Processing => self.theme.error_color(),
             AppMode::Search => self.theme.warning_color(),
+            AppMode::ConfirmDelete => self.theme.warning_color(),
         }
     }
 
