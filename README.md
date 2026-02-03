@@ -61,7 +61,7 @@ cargo build --release
 | `N` | Jump to previous search match |
 | `Ctrl+L` | Reload file from disk (useful when file changed externally) |
 | `Ctrl+G` | Open buffer in external editor (`$VISUAL` / `$EDITOR` / `vi`) |
-| `Esc` | Return to Normal mode |
+| `Esc` | Return to Normal mode / Clear search highlights |
 | `Ctrl+C` or `Ctrl+Q` | Quit |
 
 ### Visual Mode

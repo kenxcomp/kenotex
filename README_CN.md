@@ -61,7 +61,7 @@ cargo build --release
 | `N` | 跳转到上一个搜索匹配 |
 | `Ctrl+L` | 从磁盘重新加载文件（文件被外部修改时使用） |
 | `Ctrl+G` | 在外部编辑器中打开缓冲区（`$VISUAL` / `$EDITOR` / `vi`） |
-| `Esc` | 返回 Normal 模式 |
+| `Esc` | 返回 Normal 模式 / 清除搜索高亮 |
 | `Ctrl+C` 或 `Ctrl+Q` | 退出 |
 
 ### Visual 模式

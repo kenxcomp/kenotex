@@ -234,9 +234,11 @@ impl EventDispatcher {
                     }
                 }
             }
-            VimAction::ClearSearch => {
-                app.search_query.clear();
-                app.clear_message();
+            VimAction::ClearSearch | VimAction::ExitToNormal => {
+                if !app.search_query.is_empty() {
+                    app.search_query.clear();
+                    app.clear_message();
+                }
             }
             VimAction::ReloadBuffer => {
                 app.reload_current_note_from_disk()?;
