@@ -682,6 +682,39 @@ impl TextBuffer {
         None
     }
 
+    /// Find all occurrences of `query` (case-insensitive) in the buffer.
+    /// Returns a Vec of (row, col, length_in_graphemes) for each match.
+    pub fn find_all(&self, query: &str) -> Vec<(usize, usize, usize)> {
+        if query.is_empty() {
+            return Vec::new();
+        }
+        let query_lower = query.to_lowercase();
+        let query_grapheme_len = query_lower.graphemes(true).count();
+        let mut results = Vec::new();
+
+        for (row, line) in self.lines.iter().enumerate() {
+            let line_lower = line.to_lowercase();
+            let graphemes: Vec<&str> = line.graphemes(true).collect();
+            let mut search_from_byte = 0;
+
+            while let Some(byte_pos) = line_lower[search_from_byte..].find(&query_lower) {
+                let abs_byte = search_from_byte + byte_pos;
+                // Convert byte offset to grapheme index
+                let col = line[..abs_byte].graphemes(true).count();
+                results.push((row, col, query_grapheme_len));
+                // Advance past this match by at least one grapheme's bytes
+                let advance = if col < graphemes.len() {
+                    graphemes[col].len()
+                } else {
+                    1
+                };
+                search_from_byte = abs_byte + advance;
+            }
+        }
+
+        results
+    }
+
     /// Find the first occurrence of `query_lower` in `line` starting at grapheme index `from_col`.
     /// Returns the grapheme index of the match start, or None.
     fn find_in_line_forward(&self, line: &str, from_col: usize, query_lower: &str) -> Option<usize> {
@@ -1084,5 +1117,41 @@ mod tests {
         // Search for "世界", should find at grapheme index 2
         let result = buffer.find_next("世界", 0, 0);
         assert_eq!(result, Some((0, 2)));
+    }
+
+    #[test]
+    fn test_find_all_basic() {
+        let buffer = TextBuffer::from_string("hello world hello");
+        let matches = buffer.find_all("hello");
+        assert_eq!(matches.len(), 2);
+        assert_eq!(matches[0], (0, 0, 5));
+        assert_eq!(matches[1], (0, 12, 5));
+    }
+
+    #[test]
+    fn test_find_all_case_insensitive() {
+        let buffer = TextBuffer::from_string("Hello HELLO hello");
+        let matches = buffer.find_all("hello");
+        assert_eq!(matches.len(), 3);
+        assert_eq!(matches[0], (0, 0, 5));
+        assert_eq!(matches[1], (0, 6, 5));
+        assert_eq!(matches[2], (0, 12, 5));
+    }
+
+    #[test]
+    fn test_find_all_empty_query() {
+        let buffer = TextBuffer::from_string("hello");
+        let matches = buffer.find_all("");
+        assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn test_find_all_multiline() {
+        let buffer = TextBuffer::from_string("foo bar\nbaz foo\nfoo");
+        let matches = buffer.find_all("foo");
+        assert_eq!(matches.len(), 3);
+        assert_eq!(matches[0], (0, 0, 3));
+        assert_eq!(matches[1], (1, 4, 3));
+        assert_eq!(matches[2], (2, 0, 3));
     }
 }

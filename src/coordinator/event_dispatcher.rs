@@ -285,6 +285,18 @@ impl EventDispatcher {
             VimAction::Search => {
                 app.set_mode(AppMode::Search);
             }
+            VimAction::SearchNext | VimAction::SearchPrev => {
+                // List views use filter-based search, n/N are no-ops here
+            }
+            VimAction::ClearSearch => {
+                app.search_query.clear();
+                if app.view == View::DraftList {
+                    app.draft_list.clear_search();
+                } else {
+                    app.archive_list.clear_search();
+                }
+                app.clear_message();
+            }
 
             VimAction::ExitToNormal => {
                 if app.view == View::ArchiveList {
@@ -334,7 +346,7 @@ impl EventDispatcher {
                 }
                 Ok(true)
             }
-            KeyCode::Char('n') => {
+            KeyCode::Char('n') if app.search_query.is_empty() => {
                 app.new_note();
                 Ok(true)
             }

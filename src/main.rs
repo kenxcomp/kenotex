@@ -268,6 +268,7 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         .unwrap_or("Untitled");
 
     let content = app.buffer.to_string();
+    let search_matches = app.buffer.find_all(&app.search_query);
     let editor = EditorWidget::new(
         &content,
         app.buffer.cursor_position(),
@@ -276,7 +277,8 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         title,
     )
     .scroll_offset(app.scroll_offset(area.width, area.height))
-    .visual_selection(app.visual_selection());
+    .visual_selection(app.visual_selection())
+    .search_matches(&search_matches);
 
     f.render_widget(editor, area);
 

@@ -100,6 +100,7 @@ pub struct EditorWidget<'a> {
     title: &'a str,
     scroll_offset: u16,
     visual_selection: Option<((usize, usize), (usize, usize))>,
+    search_matches: &'a [(usize, usize, usize)],
 }
 
 impl<'a> EditorWidget<'a> {
@@ -118,6 +119,7 @@ impl<'a> EditorWidget<'a> {
             title,
             scroll_offset: 0,
             visual_selection: None,
+            search_matches: &[],
         }
     }
 
@@ -128,6 +130,11 @@ impl<'a> EditorWidget<'a> {
 
     pub fn visual_selection(mut self, sel: Option<((usize, usize), (usize, usize))>) -> Self {
         self.visual_selection = sel;
+        self
+    }
+
+    pub fn search_matches(mut self, matches: &'a [(usize, usize, usize)]) -> Self {
+        self.search_matches = matches;
         self
     }
 
@@ -274,6 +281,50 @@ impl Widget for EditorWidget<'_> {
                 }
 
                 rows_before += wrap_calc::display_rows_for_line(line, inner.width);
+            }
+        }
+
+        // Render search match highlights
+        if !self.search_matches.is_empty() {
+            use super::wrap_calc;
+
+            let search_style = Style::default()
+                .bg(self.theme.warning_color())
+                .fg(self.theme.bg_color());
+
+            let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+
+            for &(match_row, match_col, match_len) in self.search_matches {
+                if match_row >= content_lines.len() {
+                    continue;
+                }
+
+                let rows_before: u16 = content_lines
+                    .iter()
+                    .take(match_row)
+                    .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+                    .sum();
+
+                let line = &content_lines[match_row];
+                let positions = wrap_calc::visual_positions_in_range(
+                    line,
+                    match_col,
+                    match_col + match_len,
+                    inner.width,
+                );
+
+                for (wrap_row, col, gw) in positions {
+                    let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                    if screen_y < inner.y || screen_y >= inner.y + inner.height {
+                        continue;
+                    }
+                    let screen_x = inner.x + col;
+                    for dx in 0..gw {
+                        if screen_x + dx < inner.x + inner.width {
+                            buf[(screen_x + dx, screen_y)].set_style(search_style);
+                        }
+                    }
+                }
             }
         }
 
