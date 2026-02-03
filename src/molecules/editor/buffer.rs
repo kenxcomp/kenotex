@@ -610,6 +610,122 @@ impl TextBuffer {
             false
         }
     }
+
+    /// Search forward from (start_row, start_col+1) for `query` (case-insensitive).
+    /// Wraps around to the beginning of the buffer.
+    /// Returns Some((row, col)) of the match start, or None if not found.
+    pub fn find_next(&self, query: &str, start_row: usize, start_col: usize) -> Option<(usize, usize)> {
+        if query.is_empty() || self.lines.is_empty() {
+            return None;
+        }
+        let query_lower = query.to_lowercase();
+        let total_lines = self.lines.len();
+
+        // Search current line from start_col+1 onwards
+        if let Some(col) = self.find_in_line_forward(&self.lines[start_row], start_col + 1, &query_lower) {
+            return Some((start_row, col));
+        }
+
+        // Search subsequent lines, wrapping around
+        for offset in 1..total_lines {
+            let row = (start_row + offset) % total_lines;
+            if let Some(col) = self.find_in_line_forward(&self.lines[row], 0, &query_lower) {
+                return Some((row, col));
+            }
+        }
+
+        // Search the start line from column 0 up to start_col
+        if let Some(col) = self.find_in_line_forward(&self.lines[start_row], 0, &query_lower)
+            && col <= start_col
+        {
+            return Some((start_row, col));
+        }
+
+        None
+    }
+
+    /// Search backward from (start_row, start_col-1) for `query` (case-insensitive).
+    /// Wraps around to the end of the buffer.
+    /// Returns Some((row, col)) of the match start, or None if not found.
+    pub fn find_prev(&self, query: &str, start_row: usize, start_col: usize) -> Option<(usize, usize)> {
+        if query.is_empty() || self.lines.is_empty() {
+            return None;
+        }
+        let query_lower = query.to_lowercase();
+        let total_lines = self.lines.len();
+
+        // Search current line backward from start_col-1
+        if start_col > 0
+            && let Some(col) = self.find_in_line_backward(&self.lines[start_row], start_col - 1, &query_lower)
+        {
+            return Some((start_row, col));
+        }
+
+        // Search preceding lines, wrapping around
+        for offset in 1..total_lines {
+            let row = (start_row + total_lines - offset) % total_lines;
+            let line_len = self.lines[row].graphemes(true).count();
+            if let Some(col) = self.find_in_line_backward(&self.lines[row], line_len, &query_lower) {
+                return Some((row, col));
+            }
+        }
+
+        // Search the start line from the end
+        let line_len = self.lines[start_row].graphemes(true).count();
+        if line_len > start_col
+            && let Some(col) = self.find_in_line_backward(&self.lines[start_row], line_len, &query_lower)
+            && col > start_col
+        {
+            return Some((start_row, col));
+        }
+
+        None
+    }
+
+    /// Find the first occurrence of `query_lower` in `line` starting at grapheme index `from_col`.
+    /// Returns the grapheme index of the match start, or None.
+    fn find_in_line_forward(&self, line: &str, from_col: usize, query_lower: &str) -> Option<usize> {
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        if from_col >= graphemes.len() {
+            return None;
+        }
+
+        // Build the substring from from_col and its byte offset
+        let byte_offset: usize = graphemes[..from_col].iter().map(|g| g.len()).sum();
+        let search_str = &line[byte_offset..];
+        let search_lower = search_str.to_lowercase();
+
+        if let Some(byte_match) = search_lower.find(query_lower) {
+            // Convert byte match position back to grapheme index
+            let matched_bytes = &search_str[..byte_match];
+            let grapheme_offset = matched_bytes.graphemes(true).count();
+            Some(from_col + grapheme_offset)
+        } else {
+            None
+        }
+    }
+
+    /// Find the last occurrence of `query_lower` in `line` at or before grapheme index `before_col`.
+    /// Returns the grapheme index of the match start, or None.
+    fn find_in_line_backward(&self, line: &str, before_col: usize, query_lower: &str) -> Option<usize> {
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        if graphemes.is_empty() {
+            return None;
+        }
+
+        let end_col = before_col.min(graphemes.len());
+        let byte_end: usize = graphemes[..end_col].iter().map(|g| g.len()).sum();
+        let search_str = &line[..byte_end];
+        let search_lower = search_str.to_lowercase();
+
+        if let Some(byte_match) = search_lower.rfind(query_lower) {
+            let matched_bytes = &search_str[..byte_match];
+            let grapheme_offset = matched_bytes.graphemes(true).count();
+            Some(grapheme_offset)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -872,5 +988,101 @@ mod tests {
         buffer.toggle_checkbox();
         assert_eq!(buffer.to_string(), "plain text");
         assert_eq!(buffer.cursor_position(), (0, 3));
+    }
+
+    #[test]
+    fn test_find_next_basic() {
+        let buffer = TextBuffer::from_string("hello world hello");
+        // Starting at (0, 0), find_next should find "world" at col 6
+        let result = buffer.find_next("world", 0, 0);
+        assert_eq!(result, Some((0, 6)));
+    }
+
+    #[test]
+    fn test_find_next_skips_current_position() {
+        let buffer = TextBuffer::from_string("hello world hello");
+        // Cursor at col 6 (start of "world"), find_next should skip it and find "hello" at col 12
+        let result = buffer.find_next("hello", 0, 0);
+        assert_eq!(result, Some((0, 12)));
+    }
+
+    #[test]
+    fn test_find_next_wraps() {
+        let buffer = TextBuffer::from_string("hello\nworld\nfoo");
+        // Start at last line, should wrap to find "hello" at line 0
+        let result = buffer.find_next("hello", 2, 0);
+        assert_eq!(result, Some((0, 0)));
+    }
+
+    #[test]
+    fn test_find_next_case_insensitive() {
+        let buffer = TextBuffer::from_string("Hello World HELLO");
+        let result = buffer.find_next("hello", 0, 0);
+        assert_eq!(result, Some((0, 12)));
+        // Also find the first "Hello" when wrapping
+        let result2 = buffer.find_next("hello", 0, 12);
+        assert_eq!(result2, Some((0, 0)));
+    }
+
+    #[test]
+    fn test_find_next_no_match() {
+        let buffer = TextBuffer::from_string("hello world");
+        let result = buffer.find_next("xyz", 0, 0);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_find_next_empty_query() {
+        let buffer = TextBuffer::from_string("hello");
+        let result = buffer.find_next("", 0, 0);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_find_prev_basic() {
+        let buffer = TextBuffer::from_string("hello world hello");
+        // Cursor at col 12 (second "hello"), find_prev should find "world" at col 6
+        let result = buffer.find_prev("world", 0, 12);
+        assert_eq!(result, Some((0, 6)));
+    }
+
+    #[test]
+    fn test_find_prev_wraps() {
+        let buffer = TextBuffer::from_string("hello\nworld\nfoo");
+        // Start at line 0, should wrap backward to find "foo" at line 2
+        let result = buffer.find_prev("foo", 0, 0);
+        assert_eq!(result, Some((2, 0)));
+    }
+
+    #[test]
+    fn test_find_next_multiline() {
+        let buffer = TextBuffer::from_string("aaa\nbbb\nccc\naaa");
+        // From row 0 col 0, find_next "aaa" should find the one on line 3
+        let result = buffer.find_next("aaa", 0, 0);
+        assert_eq!(result, Some((3, 0)));
+    }
+
+    #[test]
+    fn test_find_prev_multiline() {
+        let buffer = TextBuffer::from_string("aaa\nbbb\nccc\naaa");
+        // From row 3 col 0, find_prev "aaa" should find the one on line 0
+        let result = buffer.find_prev("aaa", 3, 0);
+        assert_eq!(result, Some((0, 0)));
+    }
+
+    #[test]
+    fn test_find_next_unicode() {
+        let buffer = TextBuffer::from_string("café résumé café");
+        // Search for "résumé" — grapheme positions: c(0) a(1) f(2) é(3) (4) r(5) é(6) s(7) u(8) m(9) é(10) (11) c(12) a(13) f(14) é(15)
+        let result = buffer.find_next("résumé", 0, 0);
+        assert_eq!(result, Some((0, 5)));
+    }
+
+    #[test]
+    fn test_find_next_chinese() {
+        let buffer = TextBuffer::from_string("你好世界你好");
+        // Search for "世界", should find at grapheme index 2
+        let result = buffer.find_next("世界", 0, 0);
+        assert_eq!(result, Some((0, 2)));
     }
 }

@@ -50,6 +50,9 @@ pub enum VimAction {
     ToggleCheckbox,
     CycleTheme,
     Search,
+    SearchNext,
+    SearchPrev,
+    ClearSearch,
     ExternalEditor,
     Quit,
     Delete(Motion),
@@ -306,6 +309,8 @@ impl VimMode {
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.search) => VimAction::Search,
             KeyCode::Char('f') => VimAction::Search, // Alternative search key
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.search_next) => VimAction::SearchNext,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.search_prev) => VimAction::SearchPrev,
 
             // Other
             KeyCode::Char(c) if self.key_matches(c, &self.keys.cycle_theme) => {

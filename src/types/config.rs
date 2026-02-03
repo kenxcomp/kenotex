@@ -138,6 +138,10 @@ pub struct KeyboardConfig {
     pub visual_mode: String,
     #[serde(default = "default_search")]
     pub search: String,
+    #[serde(default = "default_search_next")]
+    pub search_next: String,
+    #[serde(default = "default_search_prev")]
+    pub search_prev: String,
 
     // Other
     #[serde(default = "default_cycle_theme")]
@@ -188,6 +192,8 @@ fn default_paste_before() -> String { "P".to_string() }
 // Mode defaults
 fn default_visual_mode() -> String { "v".to_string() }
 fn default_search() -> String { "/".to_string() }
+fn default_search_next() -> String { "n".to_string() }
+fn default_search_prev() -> String { "N".to_string() }
 
 // Other defaults
 fn default_cycle_theme() -> String { "T".to_string() }
@@ -227,6 +233,8 @@ impl Default for KeyboardConfig {
             paste_before: default_paste_before(),
             visual_mode: default_visual_mode(),
             search: default_search(),
+            search_next: default_search_next(),
+            search_prev: default_search_prev(),
             cycle_theme: default_cycle_theme(),
             leader_process: default_leader_process(),
             leader_list: default_leader_list(),

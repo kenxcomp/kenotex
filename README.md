@@ -15,6 +15,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
 - **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
 - **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
+- **Editor Search**: Case-insensitive forward/backward search with wrap-around (`/` to search, `n`/`N` to navigate matches)
 - **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
 - **Auto-save**: Configurable auto-save interval
 
@@ -56,6 +57,8 @@ cargo build --release
 | `Ctrl+R` | Redo |
 | `T` | Cycle theme |
 | `/` or `f` | Enter Search mode |
+| `n` | Jump to next search match |
+| `N` | Jump to previous search match |
 | `Ctrl+L` | Reload file from disk (useful when file changed externally) |
 | `Ctrl+G` | Open buffer in external editor (`$VISUAL` / `$EDITOR` / `vi`) |
 | `Esc` | Return to Normal mode |

@@ -113,9 +113,6 @@ impl App {
 
     pub fn set_mode(&mut self, mode: AppMode) {
         self.mode = mode;
-        if mode != AppMode::Search {
-            self.search_query.clear();
-        }
     }
 
     pub fn set_view(&mut self, view: View) {

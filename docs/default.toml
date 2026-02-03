@@ -101,6 +101,8 @@ paste_before = "P"   # Paste before cursor / 在光标前粘贴
 
 visual_mode = "v"    # Enter visual mode / 进入可视模式
 search = "/"         # Enter search mode (also 'f') / 进入搜索模式
+search_next = "n"    # Jump to next search match / 跳转到下一个搜索匹配
+search_prev = "N"    # Jump to previous search match / 跳转到上一个搜索匹配
 
 # -----------------------------------------------------------------------------
 # Other / 其他

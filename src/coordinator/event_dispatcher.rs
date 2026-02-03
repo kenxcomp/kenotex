@@ -212,6 +212,32 @@ impl EventDispatcher {
             VimAction::Search => {
                 app.set_mode(AppMode::Search);
             }
+            VimAction::SearchNext => {
+                if !app.search_query.is_empty() {
+                    let (row, col) = app.buffer.cursor_position();
+                    if let Some((r, c)) = app.buffer.find_next(&app.search_query, row, col) {
+                        app.buffer.set_cursor(r, c);
+                        app.set_message(&format!("/{}", app.search_query));
+                    } else {
+                        app.set_message(&format!("Pattern not found: {}", app.search_query));
+                    }
+                }
+            }
+            VimAction::SearchPrev => {
+                if !app.search_query.is_empty() {
+                    let (row, col) = app.buffer.cursor_position();
+                    if let Some((r, c)) = app.buffer.find_prev(&app.search_query, row, col) {
+                        app.buffer.set_cursor(r, c);
+                        app.set_message(&format!("?{}", app.search_query));
+                    } else {
+                        app.set_message(&format!("Pattern not found: {}", app.search_query));
+                    }
+                }
+            }
+            VimAction::ClearSearch => {
+                app.search_query.clear();
+                app.clear_message();
+            }
             VimAction::ReloadBuffer => {
                 app.reload_current_note_from_disk()?;
                 app.set_message("File reloaded");
@@ -473,6 +499,15 @@ impl EventDispatcher {
                         View::DraftList => app.draft_list.clear_search(),
                         View::ArchiveList => app.archive_list.clear_search(),
                         View::Editor => {}
+                    }
+                } else if app.view == View::Editor && !app.search_query.is_empty() {
+                    // Enter pressed — jump to first match
+                    let (row, col) = app.buffer.cursor_position();
+                    if let Some((r, c)) = app.buffer.find_next(&app.search_query, row, col) {
+                        app.buffer.set_cursor(r, c);
+                        app.set_message(&format!("/{}", app.search_query));
+                    } else {
+                        app.set_message(&format!("Pattern not found: {}", app.search_query));
                     }
                 }
             }
