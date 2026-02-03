@@ -443,10 +443,21 @@ impl App {
             let is_archived = note.is_archived;
             match load_draft(&self.data_dir, &id, is_archived) {
                 Ok(reloaded) => {
-                    self.buffer = TextBuffer::from_string(&reloaded.content);
-                    self.current_note = Some(reloaded.clone());
-                    self.dirty = false;
-                    self.pending_external_reload = None;
+                    let current_content = self.buffer.to_string();
+                    if reloaded.content == current_content {
+                        // Content unchanged (e.g. self-save detected by file watcher).
+                        // Update metadata only; keep buffer and cursor intact.
+                        self.current_note = Some(reloaded.clone());
+                        self.pending_external_reload = None;
+                    } else {
+                        // Genuine external edit: replace buffer but preserve cursor
+                        let (old_row, old_col) = self.buffer.cursor_position();
+                        self.buffer = TextBuffer::from_string(&reloaded.content);
+                        self.buffer.set_cursor(old_row, old_col);
+                        self.current_note = Some(reloaded.clone());
+                        self.dirty = false;
+                        self.pending_external_reload = None;
+                    }
                     if is_archived {
                         self.archive_list.update_single_note(reloaded);
                     } else {

@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use crate::atoms::storage::file_watcher::FileEvent;
 
-const SUPPRESSION_WINDOW_MS: u64 = 500;
+const SUPPRESSION_WINDOW_MS: u64 = 2000;
 
 #[derive(Debug)]
 pub enum FileChangeAction {
@@ -112,10 +112,10 @@ mod tests {
         let mut tracker = FileChangeTracker::new();
         tracker.record_save("note-123");
 
-        // Simulate time passage beyond suppression window
+        // Simulate time passage beyond suppression window (2s)
         tracker
             .save_timestamps
-            .insert("note-123".to_string(), Instant::now() - Duration::from_secs(1));
+            .insert("note-123".to_string(), Instant::now() - Duration::from_secs(3));
 
         let event = FileEvent::Modified(PathBuf::from("/tmp/drafts/note-123.md"), false);
         let action = classify_event(&event, &tracker, &["note-123".to_string()]);
