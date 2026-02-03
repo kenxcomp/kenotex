@@ -9,6 +9,8 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian
 - **Theme Support**: Tokyo Night, Gruvbox, and Nord themes
 - **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
+- **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
+- **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
 - **Auto-save**: Configurable auto-save interval
 
 ## Installation
@@ -49,6 +51,7 @@ cargo build --release
 | `Ctrl+R` | Redo |
 | `T` | Cycle theme |
 | `/` or `f` | Enter Search mode |
+| `Ctrl+L` | Reload file from disk (useful when file changed externally) |
 | `Ctrl+G` | Open buffer in external editor (`$VISUAL` / `$EDITOR` / `vi`) |
 | `Esc` | Return to Normal mode |
 | `Ctrl+C` or `Ctrl+Q` | Quit |
@@ -146,6 +149,9 @@ theme = "tokyo_night"  # tokyo_night, gruvbox, nord
 leader_key = " "
 auto_save_interval_ms = 5000
 show_hints = true      # Show shortcut hints bar
+# data_dir = "~/Documents/kenotex-notes"  # Custom note storage path
+file_watch = true       # Detect external file changes
+file_watch_debounce_ms = 300
 
 [keyboard]
 layout = "qwerty"
@@ -215,6 +221,7 @@ src/
 - **tokio** - Async runtime
 - **chrono** + **chrono-english** - Date/time parsing
 - **serde** + **toml** - Configuration
+- **notify** + **notify-debouncer-mini** - File system watching for live reload
 - **regex** - Pattern matching
 - **uuid** - Note IDs
 

@@ -1,44 +1,43 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use crate::atoms::storage::config_dir;
 use crate::types::Note;
 
-pub fn drafts_dir() -> PathBuf {
-    config_dir().join("drafts")
+fn drafts_dir(base_dir: &Path) -> PathBuf {
+    base_dir.join("drafts")
 }
 
-pub fn archives_dir() -> PathBuf {
-    config_dir().join("archives")
+fn archives_dir(base_dir: &Path) -> PathBuf {
+    base_dir.join("archives")
 }
 
-pub fn ensure_drafts_dir() -> Result<PathBuf> {
-    let dir = drafts_dir();
+pub fn ensure_data_dirs(base_dir: &Path) -> Result<()> {
+    let dir = drafts_dir(base_dir);
     if !dir.exists() {
         fs::create_dir_all(&dir)
             .with_context(|| format!("Failed to create drafts directory: {:?}", dir))?;
     }
-    let archive_dir = archives_dir();
+    let archive_dir = archives_dir(base_dir);
     if !archive_dir.exists() {
         fs::create_dir_all(&archive_dir)
             .with_context(|| format!("Failed to create archives directory: {:?}", archive_dir))?;
     }
-    Ok(dir)
+    Ok(())
 }
 
-fn draft_path(id: &str, is_archived: bool) -> PathBuf {
+fn draft_path(base_dir: &Path, id: &str, is_archived: bool) -> PathBuf {
     let dir = if is_archived {
-        archives_dir()
+        archives_dir(base_dir)
     } else {
-        drafts_dir()
+        drafts_dir(base_dir)
     };
     dir.join(format!("{}.md", id))
 }
 
-pub fn load_draft(id: &str, is_archived: bool) -> Result<Note> {
-    let path = draft_path(id, is_archived);
+pub fn load_draft(base_dir: &Path, id: &str, is_archived: bool) -> Result<Note> {
+    let path = draft_path(base_dir, id, is_archived);
 
     let content =
         fs::read_to_string(&path).with_context(|| format!("Failed to read draft: {:?}", path))?;
@@ -63,8 +62,12 @@ pub fn load_draft(id: &str, is_archived: bool) -> Result<Note> {
     })
 }
 
-pub fn load_all_drafts(archived: bool) -> Result<Vec<Note>> {
-    let dir = if archived { archives_dir() } else { drafts_dir() };
+pub fn load_all_drafts(base_dir: &Path, archived: bool) -> Result<Vec<Note>> {
+    let dir = if archived {
+        archives_dir(base_dir)
+    } else {
+        drafts_dir(base_dir)
+    };
 
     if !dir.exists() {
         return Ok(Vec::new());
@@ -79,7 +82,7 @@ pub fn load_all_drafts(archived: bool) -> Result<Vec<Note>> {
         if path.extension().is_some_and(|ext| ext == "md") {
             if let Some(stem) = path.file_stem() {
                 let id = stem.to_string_lossy().to_string();
-                match load_draft(&id, archived) {
+                match load_draft(base_dir, &id, archived) {
                     Ok(note) => notes.push(note),
                     Err(e) => eprintln!("Warning: Failed to load draft {}: {}", id, e),
                 }
@@ -91,9 +94,9 @@ pub fn load_all_drafts(archived: bool) -> Result<Vec<Note>> {
     Ok(notes)
 }
 
-pub fn save_draft(note: &Note) -> Result<()> {
-    ensure_drafts_dir()?;
-    let path = draft_path(&note.id, note.is_archived);
+pub fn save_draft(base_dir: &Path, note: &Note) -> Result<()> {
+    ensure_data_dirs(base_dir)?;
+    let path = draft_path(base_dir, &note.id, note.is_archived);
 
     fs::write(&path, &note.content)
         .with_context(|| format!("Failed to save draft: {:?}", path))?;
@@ -101,8 +104,8 @@ pub fn save_draft(note: &Note) -> Result<()> {
     Ok(())
 }
 
-pub fn delete_draft(id: &str, is_archived: bool) -> Result<()> {
-    let path = draft_path(id, is_archived);
+pub fn delete_draft(base_dir: &Path, id: &str, is_archived: bool) -> Result<()> {
+    let path = draft_path(base_dir, id, is_archived);
 
     if path.exists() {
         fs::remove_file(&path)
@@ -112,35 +115,35 @@ pub fn delete_draft(id: &str, is_archived: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn archive_draft(note: &mut Note) -> Result<()> {
-    let old_path = draft_path(&note.id, false);
+pub fn archive_draft(base_dir: &Path, note: &mut Note) -> Result<()> {
+    let old_path = draft_path(base_dir, &note.id, false);
     note.is_archived = true;
-    let new_path = draft_path(&note.id, true);
+    let new_path = draft_path(base_dir, &note.id, true);
 
-    ensure_drafts_dir()?;
+    ensure_data_dirs(base_dir)?;
 
     if old_path.exists() {
         fs::rename(&old_path, &new_path)
             .with_context(|| format!("Failed to archive draft: {:?}", old_path))?;
     } else {
-        save_draft(note)?;
+        save_draft(base_dir, note)?;
     }
 
     Ok(())
 }
 
-pub fn restore_draft(note: &mut Note) -> Result<()> {
-    let old_path = draft_path(&note.id, true);
+pub fn restore_draft(base_dir: &Path, note: &mut Note) -> Result<()> {
+    let old_path = draft_path(base_dir, &note.id, true);
     note.is_archived = false;
-    let new_path = draft_path(&note.id, false);
+    let new_path = draft_path(base_dir, &note.id, false);
 
-    ensure_drafts_dir()?;
+    ensure_data_dirs(base_dir)?;
 
     if old_path.exists() {
         fs::rename(&old_path, &new_path)
             .with_context(|| format!("Failed to restore draft: {:?}", old_path))?;
     } else {
-        save_draft(note)?;
+        save_draft(base_dir, note)?;
     }
 
     Ok(())

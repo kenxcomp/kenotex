@@ -25,6 +25,7 @@ use ratatui::{
 use coordinator::{App, EventDispatcher};
 use types::{AppMode, View};
 
+use crate::atoms::storage::file_watcher::{self, FileWatcherHandle};
 use crate::atoms::storage::{
     cleanup_temp_file, read_temp_file, resolve_editor, spawn_editor, write_temp_file,
 };
@@ -39,7 +40,26 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new()?;
-    let result = run_app(&mut terminal, &mut app);
+
+    let watcher_handle = if app.config.general.file_watch {
+        let drafts = app.data_dir.join("drafts");
+        let archives = app.data_dir.join("archives");
+        match file_watcher::start_watcher(
+            &drafts,
+            &archives,
+            app.config.general.file_watch_debounce_ms,
+        ) {
+            Ok(handle) => Some(handle),
+            Err(e) => {
+                app.set_message(&format!("File watcher failed: {}", e));
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let result = run_app(&mut terminal, &mut app, watcher_handle.as_ref());
 
     disable_raw_mode()?;
     execute!(
@@ -56,7 +76,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
+fn run_app(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut App,
+    watcher: Option<&FileWatcherHandle>,
+) -> Result<()> {
     let tick_rate = Duration::from_millis(100);
     let mut last_mode = app.mode;
 
@@ -97,6 +121,15 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                     app.external_editor_requested = false;
                     handle_external_editor(terminal, app)?;
                     continue;
+                }
+            }
+        }
+
+        // Process file watcher events (non-blocking)
+        if let Some(watcher) = watcher {
+            while let Ok(event) = watcher.receiver.try_recv() {
+                if let Err(e) = app.handle_file_event(event) {
+                    app.set_message(&format!("File event error: {}", e));
                 }
             }
         }

@@ -123,4 +123,16 @@ impl ArchiveList {
     pub fn len(&self) -> usize {
         self.filtered_indices.len()
     }
+
+    pub fn all_note_ids(&self) -> Vec<String> {
+        self.notes.iter().map(|n| n.id.clone()).collect()
+    }
+
+    pub fn update_single_note(&mut self, updated: Note) {
+        if let Some(note) = self.notes.iter_mut().find(|n| n.id == updated.id) {
+            note.title = updated.title;
+            note.content = updated.content;
+            note.updated_at = updated.updated_at;
+        }
+    }
 }

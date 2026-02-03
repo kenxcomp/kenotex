@@ -51,6 +51,27 @@ pub fn load_config() -> Result<Config> {
     Ok(config)
 }
 
+pub fn expand_tilde(path: &str) -> PathBuf {
+    if let Some(rest) = path.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest);
+    }
+    if path == "~"
+        && let Some(home) = dirs::home_dir()
+    {
+        return home;
+    }
+    PathBuf::from(path)
+}
+
+pub fn resolve_data_dir(data_dir: Option<&str>) -> PathBuf {
+    match data_dir {
+        Some(dir) => expand_tilde(dir),
+        None => config_dir(),
+    }
+}
+
 pub fn save_config(config: &Config) -> Result<()> {
     ensure_config_dir()?;
     let path = config_path();
@@ -81,5 +102,39 @@ mod tests {
         if cfg!(unix) {
             assert!(path.to_string_lossy().contains(".config/kenotex"));
         }
+    }
+
+    #[test]
+    fn test_expand_tilde() {
+        let expanded = expand_tilde("~/Documents/notes");
+        if let Some(home) = dirs::home_dir() {
+            assert_eq!(expanded, home.join("Documents/notes"));
+        }
+    }
+
+    #[test]
+    fn test_expand_tilde_no_prefix() {
+        let path = expand_tilde("/absolute/path");
+        assert_eq!(path, PathBuf::from("/absolute/path"));
+    }
+
+    #[test]
+    fn test_expand_tilde_home_only() {
+        let expanded = expand_tilde("~");
+        if let Some(home) = dirs::home_dir() {
+            assert_eq!(expanded, home);
+        }
+    }
+
+    #[test]
+    fn test_resolve_data_dir_custom() {
+        let resolved = resolve_data_dir(Some("/tmp/kenotex-test"));
+        assert_eq!(resolved, PathBuf::from("/tmp/kenotex-test"));
+    }
+
+    #[test]
+    fn test_resolve_data_dir_none_falls_back() {
+        let resolved = resolve_data_dir(None);
+        assert_eq!(resolved, config_dir());
     }
 }

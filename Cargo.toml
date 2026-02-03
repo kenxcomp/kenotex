@@ -21,6 +21,8 @@ regex = "1.10"
 anyhow = "1.0"
 unicode-width = "0.2"
 unicode-segmentation = "1.12"
+notify = "7"
+notify-debouncer-mini = "0.5"
 
 [profile.release]
 lto = true
