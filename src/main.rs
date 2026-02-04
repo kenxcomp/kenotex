@@ -35,6 +35,12 @@ use crate::atoms::storage::{
 use crate::atoms::widgets::{ConfirmOverlay, EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar};
 
 fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        println!("kenotex {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(

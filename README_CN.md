@@ -24,10 +24,17 @@
 
 ## 安装
 
+### Homebrew（macOS / Linux）
+
 ```bash
-# 克隆并构建
-git clone https://github.com/your-username/kenotex.git
-cd kenotex/kenotex
+brew tap kenxcomp/tap && brew install kenotex
+```
+
+### 从源码构建
+
+```bash
+git clone https://github.com/kenxcomp/kenotex.git
+cd kenotex
 cargo build --release
 
 # 运行

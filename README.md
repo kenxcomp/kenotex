@@ -24,10 +24,17 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 
 ## Installation
 
+### Homebrew (macOS / Linux)
+
 ```bash
-# Clone and build
-git clone https://github.com/your-username/kenotex.git
-cd kenotex/kenotex
+brew tap kenxcomp/tap && brew install kenotex
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/kenxcomp/kenotex.git
+cd kenotex
 cargo build --release
 
 # Run
