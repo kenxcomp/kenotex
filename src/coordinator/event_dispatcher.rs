@@ -497,6 +497,7 @@ impl EventDispatcher {
                         ec + 1
                     };
                     let text = app.buffer.delete_range(sr, sc, er, delete_ec);
+                    app.buffer.set_cursor(sr, sc);
                     let _ = clipboard_copy(&text);
                     app.last_yank_linewise = false;
                     app.dirty = true;
