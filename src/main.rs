@@ -9,7 +9,10 @@ use std::time::Duration;
 use anyhow::Result;
 use crossterm::{
     cursor::SetCursorStyle,
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{
+        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        Event, KeyCode,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -34,7 +37,12 @@ use crate::atoms::widgets::{ConfirmOverlay, EditorWidget, HintBar, LeaderPopup, 
 fn main() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        EnableMouseCapture,
+        EnableBracketedPaste
+    )?;
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -65,7 +73,8 @@ fn main() -> Result<()> {
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture
+        DisableMouseCapture,
+        DisableBracketedPaste
     )?;
     terminal.show_cursor()?;
 
@@ -98,30 +107,36 @@ fn run_app(
         terminal.draw(|f| ui(f, app))?;
 
         if event::poll(tick_rate)? {
-            if let Event::Key(key) = event::read()? {
-                if app.mode == AppMode::Processing {
-                    if key.code == KeyCode::Esc {
-                        app.finish_processing();
+            match event::read()? {
+                Event::Key(key) => {
+                    if app.mode == AppMode::Processing {
+                        if key.code == KeyCode::Esc {
+                            app.finish_processing();
+                        }
+                        continue;
                     }
-                    continue;
-                }
 
-                if matches!(app.view, View::DraftList | View::ArchiveList)
-                    && app.mode == AppMode::Normal
-                    && !app.vim_mode.is_leader_pending()
-                {
-                    if EventDispatcher::handle_list_key(app, key)? {
+                    if matches!(app.view, View::DraftList | View::ArchiveList)
+                        && app.mode == AppMode::Normal
+                        && !app.vim_mode.is_leader_pending()
+                    {
+                        if EventDispatcher::handle_list_key(app, key)? {
+                            continue;
+                        }
+                    }
+
+                    EventDispatcher::handle_key(app, key)?;
+
+                    if app.external_editor_requested {
+                        app.external_editor_requested = false;
+                        handle_external_editor(terminal, app)?;
                         continue;
                     }
                 }
-
-                EventDispatcher::handle_key(app, key)?;
-
-                if app.external_editor_requested {
-                    app.external_editor_requested = false;
-                    handle_external_editor(terminal, app)?;
-                    continue;
+                Event::Paste(text) => {
+                    EventDispatcher::handle_paste(app, text)?;
                 }
+                _ => {}
             }
         }
 
@@ -166,7 +181,8 @@ fn handle_external_editor(
     execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture
+        DisableMouseCapture,
+        DisableBracketedPaste
     )?;
 
     // Spawn editor (blocks until exit)
@@ -177,7 +193,8 @@ fn handle_external_editor(
     execute!(
         terminal.backend_mut(),
         EnterAlternateScreen,
-        EnableMouseCapture
+        EnableMouseCapture,
+        EnableBracketedPaste
     )?;
     terminal.clear()?;
 

@@ -85,6 +85,11 @@ impl TextBuffer {
     }
 
     pub fn insert_char(&mut self, c: char) {
+        if c == '\n' {
+            self.insert_newline();
+            return;
+        }
+
         if self.cursor_row >= self.lines.len() {
             self.lines.push(String::new());
         }
@@ -102,6 +107,63 @@ impl TextBuffer {
 
         self.lines[self.cursor_row] = new_line;
         self.cursor_col += 1;
+    }
+
+    pub fn insert_tab(&mut self, tab_width: u8) {
+        for _ in 0..tab_width {
+            self.insert_char(' ');
+        }
+    }
+
+    /// Insert a string of text at the cursor, handling newlines by splitting lines.
+    /// Used for bracketed paste in Insert mode.
+    pub fn insert_text(&mut self, text: &str) {
+        for c in text.chars() {
+            if c == '\n' {
+                self.insert_newline();
+            } else if c != '\r' {
+                self.insert_char(c);
+            }
+        }
+    }
+
+    pub fn indent_line(&mut self, tab_width: u8) {
+        let spaces: String = " ".repeat(tab_width as usize);
+        self.lines[self.cursor_row] = format!("{}{}", spaces, self.lines[self.cursor_row]);
+        self.cursor_col += tab_width as usize;
+    }
+
+    pub fn dedent_line(&mut self, tab_width: u8) {
+        let line = &self.lines[self.cursor_row];
+        let leading_spaces = line.chars().take_while(|c| *c == ' ').count();
+        let remove = leading_spaces.min(tab_width as usize);
+        if remove > 0 {
+            self.lines[self.cursor_row] = self.lines[self.cursor_row][remove..].to_string();
+            self.cursor_col = self.cursor_col.saturating_sub(remove);
+        }
+    }
+
+    pub fn indent_lines(&mut self, start_row: usize, end_row: usize, tab_width: u8) {
+        let spaces: String = " ".repeat(tab_width as usize);
+        for row in start_row..=end_row.min(self.lines.len().saturating_sub(1)) {
+            self.lines[row] = format!("{}{}", spaces, self.lines[row]);
+        }
+        self.cursor_col += tab_width as usize;
+    }
+
+    pub fn dedent_lines(&mut self, start_row: usize, end_row: usize, tab_width: u8) {
+        for row in start_row..=end_row.min(self.lines.len().saturating_sub(1)) {
+            let leading = self.lines[row].chars().take_while(|c| *c == ' ').count();
+            let remove = leading.min(tab_width as usize);
+            if remove > 0 {
+                self.lines[row] = self.lines[row][remove..].to_string();
+            }
+        }
+        self.cursor_col = self.cursor_col.min(
+            self.lines[self.cursor_row]
+                .graphemes(true)
+                .count(),
+        );
     }
 
     pub fn insert_newline(&mut self) {
@@ -505,26 +567,56 @@ impl TextBuffer {
 
     /// Paste text after the cursor (character-wise).
     pub fn paste_after_cursor(&mut self, text: &str) {
-        let line = &self.lines[self.cursor_row];
-        let graphemes: Vec<&str> = line.graphemes(true).collect();
-        let insert_pos = (self.cursor_col + 1).min(graphemes.len());
-
-        let before: String = graphemes[..insert_pos].iter().copied().collect();
-        let after: String = graphemes[insert_pos..].iter().copied().collect();
-        self.lines[self.cursor_row] = format!("{}{}{}", before, text, after);
-        self.cursor_col = insert_pos + text.graphemes(true).count().saturating_sub(1);
+        let grapheme_count = self.lines[self.cursor_row].graphemes(true).count();
+        let insert_pos = (self.cursor_col + 1).min(grapheme_count);
+        self.paste_charwise(text, insert_pos);
     }
 
     /// Paste text before the cursor (character-wise).
     pub fn paste_before_cursor(&mut self, text: &str) {
+        let grapheme_count = self.lines[self.cursor_row].graphemes(true).count();
+        let insert_pos = self.cursor_col.min(grapheme_count);
+        self.paste_charwise(text, insert_pos);
+    }
+
+    /// Shared helper for character-wise paste. Inserts `text` at grapheme
+    /// position `insert_pos` on the current line, splitting on `\n` so that
+    /// multi-line clipboard content creates separate `self.lines` entries.
+    fn paste_charwise(&mut self, text: &str, insert_pos: usize) {
         let line = &self.lines[self.cursor_row];
         let graphemes: Vec<&str> = line.graphemes(true).collect();
-        let insert_pos = self.cursor_col.min(graphemes.len());
+        let insert_pos = insert_pos.min(graphemes.len());
 
         let before: String = graphemes[..insert_pos].iter().copied().collect();
         let after: String = graphemes[insert_pos..].iter().copied().collect();
-        self.lines[self.cursor_row] = format!("{}{}{}", before, text, after);
-        self.cursor_col = insert_pos + text.graphemes(true).count().saturating_sub(1);
+
+        if !text.contains('\n') {
+            // Single-line: keep existing behaviour
+            self.lines[self.cursor_row] = format!("{}{}{}", before, text, after);
+            self.cursor_col = insert_pos + text.graphemes(true).count().saturating_sub(1);
+            return;
+        }
+
+        // Multi-line: split pasted text on '\n'
+        let pasted: Vec<&str> = text.split('\n').collect();
+        let last_idx = pasted.len() - 1;
+
+        // First segment joins with text before cursor
+        self.lines[self.cursor_row] = format!("{}{}", before, pasted[0]);
+
+        // Middle segments become their own lines
+        for i in 1..last_idx {
+            self.lines
+                .insert(self.cursor_row + i, pasted[i].to_string());
+        }
+
+        // Last segment joins with text after cursor
+        let last_pasted = pasted[last_idx];
+        self.lines
+            .insert(self.cursor_row + last_idx, format!("{}{}", last_pasted, after));
+
+        self.cursor_row += last_idx;
+        self.cursor_col = last_pasted.graphemes(true).count().saturating_sub(1);
     }
 
     /// Paste line(s) below the current line (line-wise).
@@ -1153,5 +1245,82 @@ mod tests {
         assert_eq!(matches[0], (0, 0, 3));
         assert_eq!(matches[1], (1, 4, 3));
         assert_eq!(matches[2], (2, 0, 3));
+    }
+
+    #[test]
+    fn test_paste_after_cursor_multiline() {
+        let mut buffer = TextBuffer::from_string("hello world");
+        buffer.set_cursor(0, 4); // cursor on 'o'
+        buffer.paste_after_cursor("foo\nbar");
+        assert_eq!(buffer.line_count(), 2);
+        assert_eq!(buffer.content()[0], "hellofoo");
+        assert_eq!(buffer.content()[1], "bar world");
+        assert_eq!(buffer.cursor_position(), (1, 2)); // end of "bar"
+    }
+
+    #[test]
+    fn test_paste_after_cursor_three_lines() {
+        let mut buffer = TextBuffer::from_string("AB");
+        buffer.set_cursor(0, 0); // cursor on 'A'
+        buffer.paste_after_cursor("x\ny\nz");
+        assert_eq!(buffer.line_count(), 3);
+        assert_eq!(buffer.content()[0], "Ax");
+        assert_eq!(buffer.content()[1], "y");
+        assert_eq!(buffer.content()[2], "zB");
+        assert_eq!(buffer.cursor_position(), (2, 0)); // on 'z'
+    }
+
+    #[test]
+    fn test_paste_after_cursor_trailing_newline() {
+        let mut buffer = TextBuffer::from_string("AB");
+        buffer.set_cursor(0, 0); // cursor on 'A'
+        buffer.paste_after_cursor("line1\n");
+        assert_eq!(buffer.line_count(), 2);
+        assert_eq!(buffer.content()[0], "Aline1");
+        assert_eq!(buffer.content()[1], "B");
+        assert_eq!(buffer.cursor_position().0, 1);
+    }
+
+    #[test]
+    fn test_paste_before_cursor_multiline() {
+        let mut buffer = TextBuffer::from_string("hello world");
+        buffer.set_cursor(0, 5); // cursor on ' '
+        buffer.paste_before_cursor("foo\nbar");
+        assert_eq!(buffer.line_count(), 2);
+        assert_eq!(buffer.content()[0], "hellofoo");
+        assert_eq!(buffer.content()[1], "bar world");
+        assert_eq!(buffer.cursor_position(), (1, 2));
+    }
+
+    #[test]
+    fn test_paste_after_cursor_single_line_unchanged() {
+        // Regression: single-line paste should still work
+        let mut buffer = TextBuffer::from_string("helo");
+        buffer.set_cursor(0, 1); // cursor on 'e'
+        buffer.paste_after_cursor("l");
+        assert_eq!(buffer.to_string(), "hello");
+        assert_eq!(buffer.line_count(), 1);
+    }
+
+    #[test]
+    fn test_insert_text_multiline() {
+        let mut buffer = TextBuffer::new();
+        buffer.insert_text("hello\nworld\nfoo");
+        assert_eq!(buffer.line_count(), 3);
+        assert_eq!(buffer.content()[0], "hello");
+        assert_eq!(buffer.content()[1], "world");
+        assert_eq!(buffer.content()[2], "foo");
+        assert_eq!(buffer.cursor_position(), (2, 3));
+    }
+
+    #[test]
+    fn test_insert_char_newline() {
+        let mut buffer = TextBuffer::from_string("hello");
+        buffer.set_cursor(0, 3);
+        buffer.insert_char('\n');
+        assert_eq!(buffer.line_count(), 2);
+        assert_eq!(buffer.content()[0], "hel");
+        assert_eq!(buffer.content()[1], "lo");
+        assert_eq!(buffer.cursor_position(), (1, 0));
     }
 }

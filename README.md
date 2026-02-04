@@ -17,6 +17,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
 - **Editor Search**: Case-insensitive forward/backward search with wrap-around, incremental match highlighting (`/` to search, `n`/`N` to navigate matches)
 - **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
+- **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
 - **Auto-save**: Configurable auto-save interval
 
 ## Installation
@@ -53,6 +54,8 @@ cargo build --release
 | `yw/y$/y0/yG/yg/yb` | Yank with motion |
 | `p` | Paste after cursor (or below for linewise) |
 | `P` | Paste before cursor (or above for linewise) |
+| `>` | Indent current line |
+| `<` | Dedent current line |
 | `u` | Undo |
 | `Ctrl+R` | Redo |
 | `T` | Cycle theme |
@@ -74,7 +77,17 @@ cargo build --release
 | `g/G` | Extend to file start/end |
 | `d` | Delete selection (copies to clipboard) |
 | `y` | Yank (copy) selection to clipboard |
+| `>` | Indent selected lines |
+| `<` | Dedent selected lines |
 | `Esc` | Exit Visual mode |
+
+### Insert Mode
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Insert spaces (tab_width) |
+| `Shift+Tab` | Dedent current line |
+| `Esc` | Return to Normal mode |
 
 ### Leader Commands (Space + key)
 
@@ -160,6 +173,7 @@ show_hints = true      # Show shortcut hints bar
 # data_dir = "~/Documents/kenotex-notes"  # Custom note storage path
 file_watch = true       # Detect external file changes
 file_watch_debounce_ms = 300
+tab_width = 4           # Number of spaces inserted when pressing Tab
 
 [keyboard]
 layout = "qwerty"

@@ -36,6 +36,9 @@ pub enum VimAction {
     DeleteLine,
     Backspace,
     InsertChar(char),
+    InsertTab,
+    Indent,
+    Dedent,
     InsertNewline,
     EnterVisualMode,
     ExitToNormal,
@@ -333,6 +336,9 @@ impl VimMode {
 
             KeyCode::Esc => VimAction::ExitToNormal,
 
+            KeyCode::Char('>') => VimAction::Indent,
+            KeyCode::Char('<') => VimAction::Dedent,
+
             _ => VimAction::None,
         }
     }
@@ -349,7 +355,8 @@ impl VimMode {
             KeyCode::Down => VimAction::MoveDown,
             KeyCode::Home => VimAction::MoveLineStart,
             KeyCode::End => VimAction::MoveLineEnd,
-            KeyCode::Tab => VimAction::InsertChar('\t'),
+            KeyCode::Tab => VimAction::InsertTab,
+            KeyCode::BackTab => VimAction::Dedent,
             KeyCode::Char(c) => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     match c {
@@ -398,6 +405,8 @@ impl VimMode {
                 VimAction::VisualDelete
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => VimAction::VisualYank,
+            KeyCode::Char('>') => VimAction::Indent,
+            KeyCode::Char('<') => VimAction::Dedent,
             _ => VimAction::None,
         }
     }

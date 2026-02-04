@@ -36,6 +36,8 @@ pub struct GeneralConfig {
     pub file_watch: bool,
     #[serde(default = "default_file_watch_debounce_ms")]
     pub file_watch_debounce_ms: u64,
+    #[serde(default = "default_tab_width")]
+    pub tab_width: u8,
 }
 
 fn default_theme() -> String {
@@ -62,6 +64,10 @@ fn default_file_watch_debounce_ms() -> u64 {
     300
 }
 
+fn default_tab_width() -> u8 {
+    4
+}
+
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
@@ -72,6 +78,7 @@ impl Default for GeneralConfig {
             data_dir: None,
             file_watch: default_file_watch(),
             file_watch_debounce_ms: default_file_watch_debounce_ms(),
+            tab_width: default_tab_width(),
         }
     }
 }

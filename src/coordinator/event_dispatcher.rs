@@ -10,6 +10,26 @@ use crate::types::{AppMode, View};
 pub struct EventDispatcher;
 
 impl EventDispatcher {
+    /// Handle a bracketed paste event (Cmd+V / terminal paste).
+    pub fn handle_paste(app: &mut App, text: String) -> Result<()> {
+        match app.mode {
+            AppMode::Insert => {
+                app.buffer.save_undo_snapshot();
+                app.buffer.insert_text(&text);
+                app.dirty = true;
+            }
+            AppMode::Normal => {
+                if !text.is_empty() {
+                    app.buffer.save_undo_snapshot();
+                    app.buffer.paste_after_cursor(&text);
+                    app.dirty = true;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
         if app.mode == AppMode::ConfirmDelete {
             match key.code {
@@ -167,6 +187,19 @@ impl EventDispatcher {
                 } else {
                     app.set_message("Already at newest change");
                 }
+            }
+
+            VimAction::Indent => {
+                app.buffer.save_undo_snapshot();
+                let tab_width = app.config.general.tab_width;
+                app.buffer.indent_line(tab_width);
+                app.dirty = true;
+            }
+            VimAction::Dedent => {
+                app.buffer.save_undo_snapshot();
+                let tab_width = app.config.general.tab_width;
+                app.buffer.dedent_line(tab_width);
+                app.dirty = true;
             }
 
             VimAction::EnterVisualMode => {
@@ -372,6 +405,16 @@ impl EventDispatcher {
                 app.buffer.insert_char(c);
                 app.dirty = true;
             }
+            VimAction::InsertTab => {
+                let tab_width = app.config.general.tab_width;
+                app.buffer.insert_tab(tab_width);
+                app.dirty = true;
+            }
+            VimAction::Dedent => {
+                let tab_width = app.config.general.tab_width;
+                app.buffer.dedent_line(tab_width);
+                app.dirty = true;
+            }
             VimAction::InsertNewline => {
                 let line = app.buffer.current_line_content().to_string();
                 if list_prefix::is_prefix_only(&line) {
@@ -475,6 +518,29 @@ impl EventDispatcher {
                 }
                 app.visual_anchor = None;
                 app.set_mode(AppMode::Normal);
+            }
+
+            VimAction::Indent => {
+                if let Some(((sr, _), (er, _))) = app.visual_selection() {
+                    app.buffer.save_undo_snapshot();
+                    let tab_width = app.config.general.tab_width;
+                    app.buffer.indent_lines(sr, er, tab_width);
+                    app.dirty = true;
+                }
+                app.visual_anchor = None;
+                app.set_mode(AppMode::Normal);
+                app.clear_message();
+            }
+            VimAction::Dedent => {
+                if let Some(((sr, _), (er, _))) = app.visual_selection() {
+                    app.buffer.save_undo_snapshot();
+                    let tab_width = app.config.general.tab_width;
+                    app.buffer.dedent_lines(sr, er, tab_width);
+                    app.dirty = true;
+                }
+                app.visual_anchor = None;
+                app.set_mode(AppMode::Normal);
+                app.clear_message();
             }
 
             VimAction::ExitToNormal => {

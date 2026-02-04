@@ -41,6 +41,10 @@ file_watch = true
 # 文件监视器防抖间隔（毫秒）
 file_watch_debounce_ms = 300
 
+# Number of spaces inserted when pressing Tab in Insert mode
+# 在插入模式下按 Tab 键时插入的空格数
+tab_width = 4
+
 # =============================================================================
 # Keyboard Settings / 键盘设置
 # =============================================================================
