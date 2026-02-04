@@ -16,6 +16,7 @@ const LEADER_COMMANDS: &[(&str, &str)] = &[
     ("h", "Toggle hints"),
     ("d", "Toggle checkbox"),
     ("mc", "Insert checkbox"),
+    ("c", "Toggle comment"),
 ];
 
 const POPUP_WIDTH: u16 = 24;

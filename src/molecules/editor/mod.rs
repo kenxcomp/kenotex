@@ -1,4 +1,5 @@
 mod buffer;
+pub mod comment;
 pub mod list_prefix;
 mod vim_mode;
 

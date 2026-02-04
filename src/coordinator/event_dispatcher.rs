@@ -235,6 +235,11 @@ impl EventDispatcher {
                 app.buffer.toggle_checkbox();
                 app.dirty = true;
             }
+            VimAction::ToggleComment => {
+                app.buffer.save_undo_snapshot();
+                app.buffer.toggle_comment();
+                app.dirty = true;
+            }
 
             VimAction::ToggleHints => {
                 app.toggle_hints();
@@ -536,6 +541,16 @@ impl EventDispatcher {
                     app.buffer.save_undo_snapshot();
                     let tab_width = app.config.general.tab_width;
                     app.buffer.dedent_lines(sr, er, tab_width);
+                    app.dirty = true;
+                }
+                app.visual_anchor = None;
+                app.set_mode(AppMode::Normal);
+                app.clear_message();
+            }
+            VimAction::VisualToggleComment => {
+                if let Some(((sr, _), (er, _))) = app.visual_selection() {
+                    app.buffer.save_undo_snapshot();
+                    app.buffer.toggle_comment_lines(sr, er);
                     app.dirty = true;
                 }
                 app.visual_anchor = None;

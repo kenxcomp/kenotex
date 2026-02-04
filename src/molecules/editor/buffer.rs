@@ -1,5 +1,6 @@
 use unicode_segmentation::UnicodeSegmentation;
 
+use super::comment;
 use super::list_prefix;
 use super::vim_mode::Motion;
 
@@ -397,6 +398,41 @@ impl TextBuffer {
         let line = self.current_line().to_string();
         if let Some(new_line) = list_prefix::toggle_checkbox_prefix(&line) {
             self.lines[self.cursor_row] = new_line;
+        }
+    }
+
+    /// Toggle HTML comment on the current line.
+    pub fn toggle_comment(&mut self) {
+        let line = self.current_line().to_string();
+        let new_line = comment::toggle_comment_line(&line);
+        if new_line != line {
+            self.lines[self.cursor_row] = new_line;
+        }
+    }
+
+    /// Toggle HTML comment on a range of lines.
+    /// If all non-empty lines are commented, uncomment all; otherwise comment all uncommented.
+    pub fn toggle_comment_lines(&mut self, start_row: usize, end_row: usize) {
+        let end = end_row.min(self.lines.len().saturating_sub(1));
+        let line_refs: Vec<&str> = (start_row..=end)
+            .map(|r| self.lines[r].as_str())
+            .collect();
+        let do_comment = comment::should_comment(&line_refs);
+
+        for row in start_row..=end {
+            let line = &self.lines[row];
+            if line.trim().is_empty() {
+                continue;
+            }
+            if do_comment {
+                if !comment::is_commented(line) {
+                    self.lines[row] = comment::comment_line(line);
+                }
+            } else {
+                if let Some(uncommented) = comment::uncomment_line(line) {
+                    self.lines[row] = uncommented;
+                }
+            }
         }
     }
 
@@ -1322,5 +1358,65 @@ mod tests {
         assert_eq!(buffer.content()[0], "hel");
         assert_eq!(buffer.content()[1], "lo");
         assert_eq!(buffer.cursor_position(), (1, 0));
+    }
+
+    #[test]
+    fn test_toggle_comment_add() {
+        let mut buffer = TextBuffer::from_string("hello world");
+        buffer.toggle_comment();
+        assert_eq!(buffer.to_string(), "<!-- hello world -->");
+    }
+
+    #[test]
+    fn test_toggle_comment_remove() {
+        let mut buffer = TextBuffer::from_string("<!-- hello world -->");
+        buffer.toggle_comment();
+        assert_eq!(buffer.to_string(), "hello world");
+    }
+
+    #[test]
+    fn test_toggle_comment_indented() {
+        let mut buffer = TextBuffer::from_string("    hello");
+        buffer.toggle_comment();
+        assert_eq!(buffer.to_string(), "    <!-- hello -->");
+        buffer.toggle_comment();
+        assert_eq!(buffer.to_string(), "    hello");
+    }
+
+    #[test]
+    fn test_toggle_comment_lines_all_uncommented() {
+        let mut buffer = TextBuffer::from_string("hello\nworld\nfoo");
+        buffer.toggle_comment_lines(0, 2);
+        assert_eq!(buffer.content()[0], "<!-- hello -->");
+        assert_eq!(buffer.content()[1], "<!-- world -->");
+        assert_eq!(buffer.content()[2], "<!-- foo -->");
+    }
+
+    #[test]
+    fn test_toggle_comment_lines_all_commented() {
+        let mut buffer =
+            TextBuffer::from_string("<!-- hello -->\n<!-- world -->\n<!-- foo -->");
+        buffer.toggle_comment_lines(0, 2);
+        assert_eq!(buffer.content()[0], "hello");
+        assert_eq!(buffer.content()[1], "world");
+        assert_eq!(buffer.content()[2], "foo");
+    }
+
+    #[test]
+    fn test_toggle_comment_lines_mixed() {
+        let mut buffer = TextBuffer::from_string("<!-- hello -->\nworld");
+        buffer.toggle_comment_lines(0, 1);
+        // Mixed: should comment all uncommented
+        assert_eq!(buffer.content()[0], "<!-- hello -->");
+        assert_eq!(buffer.content()[1], "<!-- world -->");
+    }
+
+    #[test]
+    fn test_toggle_comment_lines_skips_empty() {
+        let mut buffer = TextBuffer::from_string("hello\n\nworld");
+        buffer.toggle_comment_lines(0, 2);
+        assert_eq!(buffer.content()[0], "<!-- hello -->");
+        assert_eq!(buffer.content()[1], "");
+        assert_eq!(buffer.content()[2], "<!-- world -->");
     }
 }

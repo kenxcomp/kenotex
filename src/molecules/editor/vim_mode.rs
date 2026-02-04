@@ -65,6 +65,8 @@ pub enum VimAction {
     PasteAfter,
     PasteBefore,
     ReloadBuffer,
+    ToggleComment,
+    VisualToggleComment,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +87,7 @@ enum OperatorPending {
 pub struct VimMode {
     leader_state: LeaderState,
     operator_state: OperatorPending,
+    visual_g_pending: bool,
     keys: KeyboardConfig,
 }
 
@@ -99,6 +102,7 @@ impl VimMode {
         Self {
             leader_state: LeaderState::Inactive,
             operator_state: OperatorPending::None,
+            visual_g_pending: false,
             keys: KeyboardConfig::default(),
         }
     }
@@ -107,6 +111,7 @@ impl VimMode {
         Self {
             leader_state: LeaderState::Inactive,
             operator_state: OperatorPending::None,
+            visual_g_pending: false,
             keys: config,
         }
     }
@@ -190,6 +195,10 @@ impl VimMode {
                     KeyCode::Char('h') => {
                         self.leader_state = LeaderState::Inactive;
                         VimAction::ToggleHints
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_comment) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleComment
                     }
                     KeyCode::Char('n') => {
                         self.leader_state = LeaderState::AwaitingSecond('n');
@@ -373,6 +382,23 @@ impl VimMode {
     }
 
     fn handle_visual_mode(&mut self, key: KeyEvent) -> VimAction {
+        // Handle g-pending state for gc (comment) and gg (file start)
+        if self.visual_g_pending {
+            self.visual_g_pending = false;
+            if let KeyCode::Char(c) = key.code {
+                // Check second char of visual_comment (e.g., 'c' from "gc")
+                if self.keys.visual_comment.len() >= 2
+                    && c == self.keys.visual_comment.chars().nth(1).unwrap_or('\0')
+                {
+                    return VimAction::VisualToggleComment;
+                }
+                if self.key_matches(c, &self.keys.file_start) {
+                    return VimAction::MoveFileStart;
+                }
+            }
+            return VimAction::None;
+        }
+
         match key.code {
             KeyCode::Esc => VimAction::ExitToNormal,
             KeyCode::Left => VimAction::MoveLeft,
@@ -396,7 +422,8 @@ impl VimMode {
                 VimAction::MoveLineEnd
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
-                VimAction::MoveFileStart
+                self.visual_g_pending = true;
+                VimAction::None
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
                 VimAction::MoveFileEnd
@@ -730,5 +757,82 @@ mod tests {
             AppMode::Normal,
         );
         assert_eq!(action, VimAction::PasteBefore);
+    }
+
+    #[test]
+    fn test_leader_toggle_comment() {
+        let mut vim = VimMode::new();
+
+        // Space -> AwaitingFirst
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::LeaderKey);
+
+        // 'c' -> ToggleComment
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleComment);
+        assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_visual_gc_comment() {
+        let mut vim = VimMode::new();
+
+        // 'g' in visual mode -> pending
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::None);
+
+        // 'c' -> VisualToggleComment
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::VisualToggleComment);
+    }
+
+    #[test]
+    fn test_visual_gg_file_start() {
+        let mut vim = VimMode::new();
+
+        // 'g' in visual mode -> pending
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::None);
+
+        // 'g' again -> MoveFileStart
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::MoveFileStart);
+    }
+
+    #[test]
+    fn test_visual_g_cancel() {
+        let mut vim = VimMode::new();
+
+        // 'g' in visual mode -> pending
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::None);
+
+        // 'z' (invalid) -> None, pending cancelled
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::None);
     }
 }

@@ -40,6 +40,7 @@ impl<'a> HintBar<'a> {
                 ("Esc", "Normal"),
                 ("d", "Delete"),
                 ("y", "Yank"),
+                ("gc", "Comment"),
                 ("hjkl", "Move"),
             ],
             (_, AppMode::Search) => vec![
