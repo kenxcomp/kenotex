@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use super::markdown_fmt::MarkdownFormat;
 use crate::types::{AppMode, KeyboardConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,6 +68,8 @@ pub enum VimAction {
     ReloadBuffer,
     ToggleComment,
     VisualToggleComment,
+    ToggleFormat(MarkdownFormat),
+    VisualToggleFormat(MarkdownFormat),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +91,8 @@ pub struct VimMode {
     leader_state: LeaderState,
     operator_state: OperatorPending,
     visual_g_pending: bool,
+    normal_g_pending: bool,
+    gc_pending: bool,
     keys: KeyboardConfig,
 }
 
@@ -103,6 +108,8 @@ impl VimMode {
             leader_state: LeaderState::Inactive,
             operator_state: OperatorPending::None,
             visual_g_pending: false,
+            normal_g_pending: false,
+            gc_pending: false,
             keys: KeyboardConfig::default(),
         }
     }
@@ -112,6 +119,8 @@ impl VimMode {
             leader_state: LeaderState::Inactive,
             operator_state: OperatorPending::None,
             visual_g_pending: false,
+            normal_g_pending: false,
+            gc_pending: false,
             keys: config,
         }
     }
@@ -164,6 +173,31 @@ impl VimMode {
     }
 
     fn handle_normal_mode(&mut self, key: KeyEvent) -> VimAction {
+        // gc-pending: waiting for 'c' after 'g','c' to complete gcc
+        if self.gc_pending {
+            self.gc_pending = false;
+            if let KeyCode::Char('c') = key.code {
+                return VimAction::ToggleComment;
+            }
+            // Not 'c' — fall through (gc + something else is invalid)
+            return VimAction::None;
+        }
+
+        // g-pending: 'g' was pressed, waiting for second key
+        if self.normal_g_pending {
+            self.normal_g_pending = false;
+            if let KeyCode::Char(c) = key.code {
+                if self.key_matches(c, &self.keys.file_start) {
+                    return VimAction::MoveFileStart;
+                }
+                if c == 'c' {
+                    self.gc_pending = true;
+                    return VimAction::None;
+                }
+            }
+            return VimAction::None;
+        }
+
         match &self.leader_state {
             LeaderState::AwaitingSecond(first) => {
                 let first = *first;
@@ -196,9 +230,26 @@ impl VimMode {
                         self.leader_state = LeaderState::Inactive;
                         VimAction::ToggleHints
                     }
-                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_comment) => {
+                    // Formatting leader keys
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_bold) => {
                         self.leader_state = LeaderState::Inactive;
-                        VimAction::ToggleComment
+                        VimAction::ToggleFormat(MarkdownFormat::Bold)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_italic) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleFormat(MarkdownFormat::Italic)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_strikethrough) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleFormat(MarkdownFormat::Strikethrough)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_code) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleFormat(MarkdownFormat::InlineCode)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_code_block) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::ToggleFormat(MarkdownFormat::CodeBlock)
                     }
                     KeyCode::Char('n') => {
                         self.leader_state = LeaderState::AwaitingSecond('n');
@@ -266,11 +317,13 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
                 VimAction::MoveFileEnd
             }
+            // 'g' now enters g-pending state instead of instant MoveFileStart
             KeyCode::Char(c)
                 if self.key_matches(c, &self.keys.file_start)
                     && !key.modifiers.contains(KeyModifiers::CONTROL) =>
             {
-                VimAction::MoveFileStart
+                self.normal_g_pending = true;
+                VimAction::None
             }
 
             // Insert mode entry
@@ -382,6 +435,43 @@ impl VimMode {
     }
 
     fn handle_visual_mode(&mut self, key: KeyEvent) -> VimAction {
+        // Leader key handling in Visual mode
+        match &self.leader_state {
+            LeaderState::AwaitingFirst => {
+                return match key.code {
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_bold) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::VisualToggleFormat(MarkdownFormat::Bold)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_italic) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::VisualToggleFormat(MarkdownFormat::Italic)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_strikethrough) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::VisualToggleFormat(MarkdownFormat::Strikethrough)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_code) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::VisualToggleFormat(MarkdownFormat::InlineCode)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_code_block) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::VisualToggleFormat(MarkdownFormat::CodeBlock)
+                    }
+                    _ => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::None
+                    }
+                };
+            }
+            LeaderState::AwaitingSecond(_) => {
+                self.leader_state = LeaderState::Inactive;
+                return VimAction::None;
+            }
+            LeaderState::Inactive => {}
+        }
+
         // Handle g-pending state for gc (comment) and gg (file start)
         if self.visual_g_pending {
             self.visual_g_pending = false;
@@ -401,6 +491,13 @@ impl VimMode {
 
         match key.code {
             KeyCode::Esc => VimAction::ExitToNormal,
+
+            // Leader key (Space)
+            KeyCode::Char(' ') => {
+                self.leader_state = LeaderState::AwaitingFirst;
+                VimAction::LeaderKey
+            }
+
             KeyCode::Left => VimAction::MoveLeft,
             KeyCode::Right => VimAction::MoveRight,
             KeyCode::Up => VimAction::MoveUp,
@@ -760,7 +857,90 @@ mod tests {
     }
 
     #[test]
-    fn test_leader_toggle_comment() {
+    fn test_gcc_toggle_comment() {
+        let mut vim = VimMode::new();
+
+        // 'g' -> g-pending
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+
+        // 'c' -> gc-pending
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+
+        // 'c' -> ToggleComment
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleComment);
+    }
+
+    #[test]
+    fn test_gg_file_start() {
+        let mut vim = VimMode::new();
+
+        // 'g' -> g-pending
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+
+        // 'g' -> MoveFileStart
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::MoveFileStart);
+    }
+
+    #[test]
+    fn test_g_pending_cancel() {
+        let mut vim = VimMode::new();
+
+        // 'g' -> g-pending
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+
+        // 'z' (invalid) -> cancels
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+    }
+
+    #[test]
+    fn test_gc_pending_cancel() {
+        let mut vim = VimMode::new();
+
+        // g -> c -> x (not 'c', so gc is cancelled)
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::None);
+    }
+
+    #[test]
+    fn test_leader_inline_code() {
         let mut vim = VimMode::new();
 
         // Space -> AwaitingFirst
@@ -770,13 +950,107 @@ mod tests {
         );
         assert_eq!(action, VimAction::LeaderKey);
 
-        // 'c' -> ToggleComment
+        // 'c' -> ToggleFormat(InlineCode) (default leader_code = "c")
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
             AppMode::Normal,
         );
-        assert_eq!(action, VimAction::ToggleComment);
+        assert_eq!(action, VimAction::ToggleFormat(MarkdownFormat::InlineCode));
         assert!(!vim.is_leader_pending());
+    }
+
+    #[test]
+    fn test_leader_bold() {
+        let mut vim = VimMode::new();
+
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleFormat(MarkdownFormat::Bold));
+    }
+
+    #[test]
+    fn test_leader_italic() {
+        let mut vim = VimMode::new();
+
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleFormat(MarkdownFormat::Italic));
+    }
+
+    #[test]
+    fn test_leader_strikethrough() {
+        let mut vim = VimMode::new();
+
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleFormat(MarkdownFormat::Strikethrough));
+    }
+
+    #[test]
+    fn test_leader_code_block() {
+        let mut vim = VimMode::new();
+
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('C'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::ToggleFormat(MarkdownFormat::CodeBlock));
+    }
+
+    #[test]
+    fn test_visual_leader_bold() {
+        let mut vim = VimMode::new();
+
+        // Space in Visual -> AwaitingFirst
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::LeaderKey);
+
+        // 'b' -> VisualToggleFormat(Bold)
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::VisualToggleFormat(MarkdownFormat::Bold));
+    }
+
+    #[test]
+    fn test_visual_leader_inline_code() {
+        let mut vim = VimMode::new();
+
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+            AppMode::Visual,
+        );
+        assert_eq!(action, VimAction::VisualToggleFormat(MarkdownFormat::InlineCode));
     }
 
     #[test]

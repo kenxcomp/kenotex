@@ -2,6 +2,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use super::comment;
 use super::list_prefix;
+use super::markdown_fmt::{self, MarkdownFormat};
 use super::vim_mode::Motion;
 
 const MAX_UNDO_LEVELS: usize = 50;
@@ -431,6 +432,76 @@ impl TextBuffer {
             } else {
                 if let Some(uncommented) = comment::uncomment_line(line) {
                     self.lines[row] = uncommented;
+                }
+            }
+        }
+    }
+
+    /// Toggle Markdown formatting at the cursor position (Normal mode).
+    pub fn toggle_format(&mut self, format: MarkdownFormat) {
+        match format {
+            MarkdownFormat::CodeBlock => {
+                let (new_lines, new_row, new_col) =
+                    markdown_fmt::toggle_code_block(&self.lines, self.cursor_row);
+                self.lines = new_lines;
+                self.cursor_row = new_row;
+                self.cursor_col = new_col;
+            }
+            _ => {
+                let line = self.lines[self.cursor_row].clone();
+                let (new_line, new_col) =
+                    markdown_fmt::toggle_inline_format(&line, self.cursor_col, format);
+                self.lines[self.cursor_row] = new_line;
+                self.cursor_col = new_col;
+            }
+        }
+    }
+
+    /// Toggle Markdown formatting on a visual selection (Visual mode).
+    pub fn toggle_format_visual(
+        &mut self,
+        sr: usize,
+        sc: usize,
+        er: usize,
+        ec: usize,
+        format: MarkdownFormat,
+    ) {
+        match format {
+            MarkdownFormat::CodeBlock => {
+                let (new_lines, new_row, new_col) =
+                    markdown_fmt::toggle_code_block_visual(&self.lines, sr, er);
+                self.lines = new_lines;
+                self.cursor_row = new_row;
+                self.cursor_col = new_col;
+            }
+            _ => {
+                if sr == er {
+                    // Single-line: wrap/unwrap the selected range
+                    let line = self.lines[sr].clone();
+                    // Visual selection is inclusive, so ec+1 for exclusive end
+                    let sel_end = (ec + 1).min(line.graphemes(true).count());
+                    let (new_line, _new_start, _new_end) =
+                        markdown_fmt::toggle_inline_format_visual(&line, sc, sel_end, format);
+                    self.lines[sr] = new_line;
+                    self.cursor_col = sc;
+                } else {
+                    // Multi-line: apply per-line wrapping
+                    for row in sr..=er.min(self.lines.len().saturating_sub(1)) {
+                        let line = self.lines[row].clone();
+                        let line_len = line.graphemes(true).count();
+                        let start = if row == sr { sc } else { 0 };
+                        let end = if row == er {
+                            (ec + 1).min(line_len)
+                        } else {
+                            line_len
+                        };
+                        if start < end {
+                            let (new_line, _, _) =
+                                markdown_fmt::toggle_inline_format_visual(&line, start, end, format);
+                            self.lines[row] = new_line;
+                        }
+                    }
+                    self.cursor_col = sc;
                 }
             }
         }

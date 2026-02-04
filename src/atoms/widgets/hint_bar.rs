@@ -29,6 +29,7 @@ impl<'a> HintBar<'a> {
                 ("yy", "Yank"),
                 ("p", "Paste"),
                 ("u", "Undo"),
+                ("gcc", "Comment"),
                 ("/", "Search"),
                 ("^Q", "Quit"),
             ],
@@ -41,6 +42,7 @@ impl<'a> HintBar<'a> {
                 ("d", "Delete"),
                 ("y", "Yank"),
                 ("gc", "Comment"),
+                ("Space", "Format"),
                 ("hjkl", "Move"),
             ],
             (_, AppMode::Search) => vec![

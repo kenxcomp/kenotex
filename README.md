@@ -17,7 +17,8 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
 - **Editor Search**: Case-insensitive forward/backward search with wrap-around, incremental match highlighting (`/` to search, `n`/`N` to navigate matches)
 - **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
-- **Comment Toggle**: Toggle HTML comments (`<!-- -->`) per-line with `Space+c` in Normal mode or `gc` on visual selection
+- **Comment Toggle**: Toggle HTML comments (`<!-- -->`) per-line with `gcc` in Normal mode or `gc` on visual selection
+- **Markdown Formatting**: Toggle bold, italic, strikethrough, inline code, and code block formatting via `Space+key` in Normal and Visual modes
 - **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
 - **Auto-save**: Configurable auto-save interval
 
@@ -47,7 +48,7 @@ cargo build --release
 | `h/j/k/l` | Navigation (left/down/up/right) |
 | `w/b` | Word forward/backward |
 | `0/$` | Line start/end |
-| `g/G` | File start/end |
+| `gg/G` | File start/end |
 | `x` | Delete character |
 | `dd` | Delete line |
 | `dw/d$/d0/dG/dg/db` | Delete with motion (word/end/start/file-end/file-start/word-back) |
@@ -55,6 +56,7 @@ cargo build --release
 | `yw/y$/y0/yG/yg/yb` | Yank with motion |
 | `p` | Paste after cursor (or below for linewise) |
 | `P` | Paste before cursor (or above for linewise) |
+| `gcc` | Toggle HTML comment (`<!-- -->`) on current line |
 | `>` | Indent current line |
 | `<` | Dedent current line |
 | `u` | Undo |
@@ -79,6 +81,7 @@ cargo build --release
 | `d` | Delete selection (copies to clipboard) |
 | `y` | Yank (copy) selection to clipboard |
 | `gc` | Toggle HTML comment on selected lines |
+| `Space + b/i/x/c/C` | Toggle bold/italic/strikethrough/code/code-block on selection |
 | `>` | Indent selected lines |
 | `<` | Dedent selected lines |
 | `gg` | Move to file start |
@@ -103,7 +106,11 @@ cargo build --release
 | `Space + h` | Toggle shortcut hints bar |
 | `Space + d` | Toggle checkbox (`- [ ]` ↔ `- [x]`) on current line |
 | `Space + mc` | Insert checkbox (`- [ ] `) on current line |
-| `Space + c` | Toggle HTML comment (`<!-- -->`) on current line |
+| `Space + b` | Toggle **bold** (`**text**`) |
+| `Space + i` | Toggle *italic* (`*text*`) |
+| `Space + x` | Toggle ~~strikethrough~~ (`~~text~~`) |
+| `Space + c` | Toggle inline code (`` `text` ``) |
+| `Space + C` | Toggle code block (` ``` `) |
 
 ### List View
 
@@ -220,6 +227,12 @@ leader_new = "nn"
 leader_quit = "q"
 leader_comment = "c"
 visual_comment = "gc"
+# Formatting leader keys
+leader_bold = "b"
+leader_italic = "i"
+leader_strikethrough = "x"
+leader_code = "c"
+leader_code_block = "C"
 
 [destinations.reminders]
 app = "apple"          # Set to "" to skip reminders

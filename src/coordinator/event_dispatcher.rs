@@ -240,6 +240,11 @@ impl EventDispatcher {
                 app.buffer.toggle_comment();
                 app.dirty = true;
             }
+            VimAction::ToggleFormat(f) => {
+                app.buffer.save_undo_snapshot();
+                app.buffer.toggle_format(f);
+                app.dirty = true;
+            }
 
             VimAction::ToggleHints => {
                 app.toggle_hints();
@@ -551,6 +556,16 @@ impl EventDispatcher {
                 if let Some(((sr, _), (er, _))) = app.visual_selection() {
                     app.buffer.save_undo_snapshot();
                     app.buffer.toggle_comment_lines(sr, er);
+                    app.dirty = true;
+                }
+                app.visual_anchor = None;
+                app.set_mode(AppMode::Normal);
+                app.clear_message();
+            }
+            VimAction::VisualToggleFormat(f) => {
+                if let Some(((sr, sc), (er, ec))) = app.visual_selection() {
+                    app.buffer.save_undo_snapshot();
+                    app.buffer.toggle_format_visual(sr, sc, er, ec, f);
                     app.dirty = true;
                 }
                 app.visual_anchor = None;

@@ -167,6 +167,18 @@ pub struct KeyboardConfig {
     pub leader_comment: String,
     #[serde(default = "default_visual_comment")]
     pub visual_comment: String,
+
+    // Formatting leader keys
+    #[serde(default = "default_leader_bold")]
+    pub leader_bold: String,
+    #[serde(default = "default_leader_italic")]
+    pub leader_italic: String,
+    #[serde(default = "default_leader_strikethrough")]
+    pub leader_strikethrough: String,
+    #[serde(default = "default_leader_code")]
+    pub leader_code: String,
+    #[serde(default = "default_leader_code_block")]
+    pub leader_code_block: String,
 }
 
 fn default_layout() -> String { "qwerty".to_string() }
@@ -217,6 +229,13 @@ fn default_leader_quit() -> String { "q".to_string() }
 fn default_leader_comment() -> String { "c".to_string() }
 fn default_visual_comment() -> String { "gc".to_string() }
 
+// Formatting leader key defaults
+fn default_leader_bold() -> String { "b".to_string() }
+fn default_leader_italic() -> String { "i".to_string() }
+fn default_leader_strikethrough() -> String { "x".to_string() }
+fn default_leader_code() -> String { "c".to_string() }
+fn default_leader_code_block() -> String { "C".to_string() }
+
 impl Default for KeyboardConfig {
     fn default() -> Self {
         Self {
@@ -255,6 +274,11 @@ impl Default for KeyboardConfig {
             leader_quit: default_leader_quit(),
             leader_comment: default_leader_comment(),
             visual_comment: default_visual_comment(),
+            leader_bold: default_leader_bold(),
+            leader_italic: default_leader_italic(),
+            leader_strikethrough: default_leader_strikethrough(),
+            leader_code: default_leader_code(),
+            leader_code_block: default_leader_code_block(),
         }
     }
 }
