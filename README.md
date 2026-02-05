@@ -19,6 +19,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
 - **Comment Toggle**: Toggle HTML comments (`<!-- -->`) per-line with `gcc` in Normal mode or `gc` on visual selection
 - **Markdown Formatting**: Toggle bold, italic, strikethrough, inline code, and code block formatting via `Space+key` in Normal and Visual modes
+- **Syntax Highlighting**: Real-time visual highlighting for inline code, bold, italic, strikethrough, code blocks, and list markers in the editor
 - **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
 - **Auto-save**: Configurable auto-save interval
 

@@ -6,10 +6,22 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
 };
 use regex::Regex;
+use std::sync::LazyLock;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use crate::types::{AppMode, Theme};
+
+use super::md_highlight::{MdTokenKind, tokenize_inline};
+
+// Cached regex patterns for syntax highlighting
+static HEADING_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^#{1,6}\s").unwrap());
+static CHECKBOX_CHECKED_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*-\s*\[x\]\s?").unwrap());
+static CHECKBOX_UNCHECKED_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*-\s*\[\s*\]\s?").unwrap());
+static SMART_TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^:::(?:td|cal|note)\s?").unwrap());
 
 /// Split a styled `Line` into multiple display lines using character-level wrapping.
 ///
@@ -92,6 +104,25 @@ fn build_display_line(graphemes: &[(String, Style, usize)]) -> Line<'static> {
     Line::from(spans)
 }
 
+/// Pre-scan all lines to determine which are inside code block fences (```).
+fn compute_code_block_flags(content: &str) -> Vec<bool> {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut flags = vec![false; lines.len()];
+    let mut in_code_block = false;
+
+    for (idx, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            flags[idx] = true; // fence line itself is marked
+            in_code_block = !in_code_block;
+        } else if in_code_block {
+            flags[idx] = true;
+        }
+    }
+
+    flags
+}
+
 pub struct EditorWidget<'a> {
     content: &'a str,
     cursor_pos: (usize, usize),
@@ -138,12 +169,28 @@ impl<'a> EditorWidget<'a> {
         self
     }
 
-    fn highlight_line(&self, line: &str, line_idx: usize) -> Line<'a> {
+    /// Map MdTokenKind to ratatui Style based on theme colors.
+    fn style_for_token(&self, kind: &MdTokenKind, base_style: Style) -> Style {
+        match kind {
+            MdTokenKind::Plain => base_style,
+            MdTokenKind::Bold => base_style.add_modifier(Modifier::BOLD),
+            MdTokenKind::Italic => base_style.add_modifier(Modifier::ITALIC),
+            MdTokenKind::BoldItalic => base_style.add_modifier(Modifier::BOLD | Modifier::ITALIC),
+            MdTokenKind::Strikethrough => {
+                base_style.add_modifier(Modifier::DIM | Modifier::CROSSED_OUT)
+            }
+            MdTokenKind::InlineCode => base_style
+                .fg(self.theme.warning_color())
+                .bg(self.theme.panel_color()),
+            MdTokenKind::Delimiter => base_style.add_modifier(Modifier::DIM),
+            MdTokenKind::OrderedListPrefix | MdTokenKind::UnorderedListPrefix => {
+                base_style.fg(self.theme.border_color())
+            }
+        }
+    }
+
+    fn highlight_line(&self, line: &str, line_idx: usize, in_code_block: bool) -> Line<'a> {
         let mut spans = Vec::new();
-        let heading_re = Regex::new(r"^#{1,6}\s").unwrap();
-        let checkbox_checked_re = Regex::new(r"^\s*-\s*\[x\]\s?").unwrap();
-        let checkbox_unchecked_re = Regex::new(r"^\s*-\s*\[\s*\]\s?").unwrap();
-        let smart_tag_re = Regex::new(r"^:::(?:td|cal|note)\s?").unwrap();
 
         let is_cursor_line = line_idx == self.cursor_pos.0;
         let base_style = if is_cursor_line && self.mode == AppMode::Normal {
@@ -154,56 +201,105 @@ impl<'a> EditorWidget<'a> {
             Style::default().fg(self.theme.fg_color())
         };
 
-        if let Some(m) = heading_re.find(line) {
+        // Code block handling
+        if in_code_block {
+            let trimmed = line.trim();
+            if trimmed.starts_with("```") {
+                // Fence line: border color + dim
+                spans.push(Span::styled(
+                    line.to_string(),
+                    base_style
+                        .fg(self.theme.border_color())
+                        .bg(self.theme.panel_color())
+                        .add_modifier(Modifier::DIM),
+                ));
+            } else {
+                // Code block content: panel background
+                spans.push(Span::styled(
+                    line.to_string(),
+                    base_style.bg(self.theme.panel_color()),
+                ));
+            }
+            return Line::from(spans);
+        }
+
+        // Line-level patterns (heading, checkbox, smart tag)
+        if let Some(m) = HEADING_RE.find(line) {
             let prefix = &line[..m.end()];
             let rest = &line[m.end()..];
+
+            // Heading prefix with accent + bold
             spans.push(Span::styled(
                 prefix.to_string(),
                 base_style
                     .fg(self.theme.accent_color())
                     .add_modifier(Modifier::BOLD),
             ));
-            spans.push(Span::styled(
-                rest.to_string(),
-                base_style
-                    .fg(self.theme.accent_color())
-                    .add_modifier(Modifier::BOLD),
-            ));
-        } else if let Some(m) = checkbox_checked_re.find(line) {
+
+            // Rest portion: tokenize inline with accent + bold as base
+            let heading_base = base_style
+                .fg(self.theme.accent_color())
+                .add_modifier(Modifier::BOLD);
+            for token in tokenize_inline(rest) {
+                let token_style = self.style_for_token(&token.kind, heading_base);
+                spans.push(Span::styled(token.text, token_style));
+            }
+        } else if let Some(m) = CHECKBOX_CHECKED_RE.find(line) {
             let prefix = &line[..m.end()];
             let rest = &line[m.end()..];
+
+            // Checkbox prefix
             spans.push(Span::styled(
                 prefix.to_string(),
                 base_style
                     .fg(self.theme.success_color())
                     .add_modifier(Modifier::DIM | Modifier::CROSSED_OUT),
             ));
-            spans.push(Span::styled(
-                rest.to_string(),
-                base_style
-                    .fg(self.theme.fg_color())
-                    .add_modifier(Modifier::DIM | Modifier::CROSSED_OUT),
-            ));
-        } else if let Some(m) = checkbox_unchecked_re.find(line) {
+
+            // Rest portion: tokenize inline with dimmed strikethrough as base
+            let checkbox_base = base_style.add_modifier(Modifier::DIM | Modifier::CROSSED_OUT);
+            for token in tokenize_inline(rest) {
+                let token_style = self.style_for_token(&token.kind, checkbox_base);
+                spans.push(Span::styled(token.text, token_style));
+            }
+        } else if let Some(m) = CHECKBOX_UNCHECKED_RE.find(line) {
             let prefix = &line[..m.end()];
             let rest = &line[m.end()..];
+
+            // Checkbox prefix
             spans.push(Span::styled(
                 prefix.to_string(),
                 base_style.fg(self.theme.warning_color()),
             ));
-            spans.push(Span::styled(rest.to_string(), base_style));
-        } else if let Some(m) = smart_tag_re.find(line) {
+
+            // Rest portion: tokenize inline
+            for token in tokenize_inline(rest) {
+                let token_style = self.style_for_token(&token.kind, base_style);
+                spans.push(Span::styled(token.text, token_style));
+            }
+        } else if let Some(m) = SMART_TAG_RE.find(line) {
             let prefix = &line[..m.end()];
             let rest = &line[m.end()..];
+
+            // Smart tag prefix
             spans.push(Span::styled(
                 prefix.to_string(),
                 base_style
                     .fg(self.theme.error_color())
                     .add_modifier(Modifier::ITALIC),
             ));
-            spans.push(Span::styled(rest.to_string(), base_style));
+
+            // Rest portion: tokenize inline
+            for token in tokenize_inline(rest) {
+                let token_style = self.style_for_token(&token.kind, base_style);
+                spans.push(Span::styled(token.text, token_style));
+            }
         } else {
-            spans.push(Span::styled(line.to_string(), base_style));
+            // Plain line: tokenize inline
+            for token in tokenize_inline(line) {
+                let token_style = self.style_for_token(&token.kind, base_style);
+                spans.push(Span::styled(token.text, token_style));
+            }
         }
 
         Line::from(spans)
@@ -221,13 +317,19 @@ impl Widget for EditorWidget<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
+        // Pre-compute code block flags
+        let code_block_flags = compute_code_block_flags(self.content);
+
         // Pre-split styled lines using character-level wrapping so that
         // the rendered text matches wrap_calc's cursor position calculations.
         let display_lines: Vec<Line> = self
             .content
             .lines()
             .enumerate()
-            .map(|(idx, line)| self.highlight_line(line, idx))
+            .map(|(idx, line)| {
+                let in_code_block = code_block_flags.get(idx).copied().unwrap_or(false);
+                self.highlight_line(line, idx, in_code_block)
+            })
             .flat_map(|line| split_line_by_width(line, inner.width))
             .collect();
 
@@ -260,15 +362,18 @@ impl Widget for EditorWidget<'_> {
                 let graphemes: Vec<&str> = line.graphemes(true).collect();
 
                 let col_start = if row == sr { sc } else { 0 };
-                let col_end = if row == er { ec + 1 } else { graphemes.len() + 1 };
+                let col_end = if row == er {
+                    ec + 1
+                } else {
+                    graphemes.len() + 1
+                };
                 let col_end = col_end.min(graphemes.len() + 1);
 
                 let positions =
                     wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
 
                 for (wrap_row, col, gw) in positions {
-                    let screen_y =
-                        inner.y + rows_before + wrap_row - self.scroll_offset;
+                    let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
                     if screen_y < inner.y || screen_y >= inner.y + inner.height {
                         continue;
                     }
@@ -336,14 +441,16 @@ impl Widget for EditorWidget<'_> {
             let cursor_row = self.cursor_pos.0;
             let cursor_col = self.cursor_pos.1;
 
-            let content_lines: Vec<String> =
-                self.content.lines().map(String::from).collect();
-            let vpos =
-                wrap_calc::visual_cursor_position(&content_lines, cursor_row, cursor_col, inner.width);
+            let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+            let vpos = wrap_calc::visual_cursor_position(
+                &content_lines,
+                cursor_row,
+                cursor_col,
+                inner.width,
+            );
 
             let cursor_x = inner.x + vpos.col;
-            let cursor_y =
-                inner.y + vpos.rows_before + vpos.wrap_row - self.scroll_offset;
+            let cursor_y = inner.y + vpos.rows_before + vpos.wrap_row - self.scroll_offset;
 
             if cursor_y >= inner.y
                 && cursor_y < inner.y + inner.height
