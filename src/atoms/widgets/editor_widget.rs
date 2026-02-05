@@ -173,9 +173,13 @@ impl<'a> EditorWidget<'a> {
     fn style_for_token(&self, kind: &MdTokenKind, base_style: Style) -> Style {
         match kind {
             MdTokenKind::Plain => base_style,
-            MdTokenKind::Bold => base_style.add_modifier(Modifier::BOLD),
+            MdTokenKind::Bold => base_style
+                .fg(self.theme.accent_color())
+                .add_modifier(Modifier::BOLD),
             MdTokenKind::Italic => base_style.add_modifier(Modifier::ITALIC),
-            MdTokenKind::BoldItalic => base_style.add_modifier(Modifier::BOLD | Modifier::ITALIC),
+            MdTokenKind::BoldItalic => base_style
+                .fg(self.theme.accent_color())
+                .add_modifier(Modifier::BOLD | Modifier::ITALIC),
             MdTokenKind::Strikethrough => {
                 base_style.add_modifier(Modifier::DIM | Modifier::CROSSED_OUT)
             }
