@@ -98,8 +98,7 @@ pub fn save_draft(base_dir: &Path, note: &Note) -> Result<()> {
     ensure_data_dirs(base_dir)?;
     let path = draft_path(base_dir, &note.id, note.is_archived);
 
-    fs::write(&path, &note.content)
-        .with_context(|| format!("Failed to save draft: {:?}", path))?;
+    fs::write(&path, &note.content).with_context(|| format!("Failed to save draft: {:?}", path))?;
 
     Ok(())
 }
@@ -108,8 +107,7 @@ pub fn delete_draft(base_dir: &Path, id: &str, is_archived: bool) -> Result<()> 
     let path = draft_path(base_dir, id, is_archived);
 
     if path.exists() {
-        fs::remove_file(&path)
-            .with_context(|| format!("Failed to delete draft: {:?}", path))?;
+        fs::remove_file(&path).with_context(|| format!("Failed to delete draft: {:?}", path))?;
     }
 
     Ok(())

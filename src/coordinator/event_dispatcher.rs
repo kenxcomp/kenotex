@@ -3,8 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use super::App;
 use crate::atoms::storage::{clipboard_copy, clipboard_paste};
-use crate::molecules::editor::list_prefix;
 use crate::molecules::editor::VimAction;
+use crate::molecules::editor::list_prefix;
 use crate::types::{AppMode, View};
 
 pub struct EventDispatcher;

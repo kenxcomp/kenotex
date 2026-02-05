@@ -62,11 +62,8 @@ impl Widget for ProcessingOverlay<'_> {
         let inner = block.inner(overlay_area);
         block.render(overlay_area, buf);
 
-        let mut constraints: Vec<Constraint> = self
-            .blocks
-            .iter()
-            .map(|_| Constraint::Length(3))
-            .collect();
+        let mut constraints: Vec<Constraint> =
+            self.blocks.iter().map(|_| Constraint::Length(3)).collect();
         constraints.push(Constraint::Min(0));
 
         let chunks = Layout::vertical(constraints).split(inner);
@@ -122,15 +119,10 @@ impl Widget for ProcessingOverlay<'_> {
                         .fg(status_color)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(
-                    format!("{} ", type_icon),
-                    Style::default().fg(type_color),
-                ),
+                Span::styled(format!("{} ", type_icon), Style::default().fg(type_color)),
                 Span::styled(
                     format!("{}: ", smart_block.block_type.as_str()),
-                    Style::default()
-                        .fg(type_color)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(type_color).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(preview, Style::default().fg(self.theme.fg_color())),
             ]);

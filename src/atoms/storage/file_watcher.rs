@@ -3,8 +3,8 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use notify_debouncer_mini::{new_debouncer, DebouncedEventKind, Debouncer};
 use notify::RecursiveMode;
+use notify_debouncer_mini::{DebouncedEventKind, Debouncer, new_debouncer};
 
 #[derive(Debug, Clone)]
 pub enum FileEvent {

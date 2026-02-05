@@ -56,17 +56,17 @@ L4 Atoms (atoms/)
 
 **L2 Coordinator** (`coordinator/`):
 - `app.rs` - Central App state struct using TEA (The Elm Architecture) pattern. Holds all application state: mode, view, buffer, notes, config.
-- `event_dispatcher.rs` - Routes keyboard events to appropriate handlers based on current mode (Normal/Insert/Visual/Search) and view (Editor/DraftList/ArchiveList).
+- `event_dispatcher.rs` - Routes keyboard events to appropriate handlers based on current mode (Normal/Insert/Visual/Search/ConfirmDelete) and view (Editor/DraftList/ArchiveList).
 
 **L3 Molecules** (`molecules/`):
-- `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation)
+- `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation), Comment (HTML comment `<!-- -->` detection and toggling), ListPrefix (list prefix detection and continuation for `- [ ]`, `N.`, `N)`)
 - `list/` - DraftList/ArchiveList (note collection management with filtering/selection), FileChangeHandler (file event classification)
 - `config/` - ThemeManager (tokyo_night/gruvbox/nord/catppuccin_mocha/catppuccin_macchiato/catppuccin_frappe/catppuccin_latte), keybindings
 - `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations)
 
 **L4 Atoms** (`atoms/`):
-- `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay
-- `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration)
+- `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities)
+- `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration), clipboard (system clipboard integration), external_editor (external editor launching)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
 
 ### Config Path vs Data Directory
@@ -94,9 +94,27 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `main.rs` (L1) — starts watcher, integrates via non-blocking `try_recv()` in event loop
 - Config: `file_watch = true` (default), `file_watch_debounce_ms = 300`
 
+### General Config Options
+
+`config.toml` `[general]` section supports:
+- `theme` - Color theme name (see ThemeManager for available themes)
+- `leader_key` - Leader key for shortcuts (default: Space)
+- `auto_save_interval_ms` - Auto-save interval in milliseconds
+- `show_hints` - Show keyboard shortcut hints bar
+- `data_dir` - Custom data directory path (supports `~` expansion)
+- `file_watch` - Enable/disable filesystem watching (default: true)
+- `file_watch_debounce_ms` - File watcher debounce interval (default: 300)
+- `tab_width` - Tab width in spaces (default: 4)
+
+### Keyboard Config
+
+`config.toml` `[keyboard]` section supports remapping of all keybindings. Notable entries:
+- `leader_comment` - Toggle HTML comment on current line (default: "c", triggered as Space+c in Normal mode)
+- `visual_comment` - Toggle HTML comment on selected lines in Visual mode (default: "gc")
+
 ### Key Data Types (`types/`)
 
-- `AppMode` - Normal, Insert, Visual, Search, Processing
+- `AppMode` - Normal, Insert, Visual, Search, Processing, ConfirmDelete
 - `View` - Editor, DraftList, ArchiveList
 - `SmartBlock` - Parsed content block with detected BlockType (Reminder/Calendar/Note)
 - `Note` - Draft/archive with id, title, content, timestamps
@@ -109,6 +127,16 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 4. EventDispatcher routes action to appropriate handler
 5. Handler mutates App state
 6. `main.rs` re-renders UI
+
+### Key VimActions
+
+- `ToggleComment` - Toggle HTML comment (`<!-- -->`) on current line (Space+c in Normal mode)
+- `VisualToggleComment` - Toggle HTML comment on selected lines (gc in Visual mode). Smart toggling: all uncommented → comment all; all commented → uncomment all; mixed → comment remaining. Empty lines are skipped.
+
+### Visual Mode Keys
+
+- `gg` - Jump to file start (changed from single `g` to free up `gc` for comment toggling)
+- `gc` - Toggle HTML comments on selected lines
 
 ### Smart Block Detection Priority
 

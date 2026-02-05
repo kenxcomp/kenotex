@@ -55,10 +55,7 @@ mod tests {
 
     /// Helper to save and restore env vars around test code.
     /// Uses unsafe blocks required by Rust 2024 edition.
-    unsafe fn with_env_vars<F: FnOnce()>(
-        vars: &[(&str, Option<&str>)],
-        f: F,
-    ) {
+    unsafe fn with_env_vars<F: FnOnce()>(vars: &[(&str, Option<&str>)], f: F) {
         // Save originals
         let originals: Vec<(&str, Option<String>)> = vars
             .iter()
@@ -87,30 +84,27 @@ mod tests {
     #[test]
     fn test_resolve_editor_visual() {
         unsafe {
-            with_env_vars(
-                &[("VISUAL", Some("nvim")), ("EDITOR", Some("vim"))],
-                || assert_eq!(resolve_editor(), "nvim"),
-            );
+            with_env_vars(&[("VISUAL", Some("nvim")), ("EDITOR", Some("vim"))], || {
+                assert_eq!(resolve_editor(), "nvim")
+            });
         }
     }
 
     #[test]
     fn test_resolve_editor_editor_fallback() {
         unsafe {
-            with_env_vars(
-                &[("VISUAL", None), ("EDITOR", Some("nano"))],
-                || assert_eq!(resolve_editor(), "nano"),
-            );
+            with_env_vars(&[("VISUAL", None), ("EDITOR", Some("nano"))], || {
+                assert_eq!(resolve_editor(), "nano")
+            });
         }
     }
 
     #[test]
     fn test_resolve_editor_vi_fallback() {
         unsafe {
-            with_env_vars(
-                &[("VISUAL", None), ("EDITOR", None)],
-                || assert_eq!(resolve_editor(), "vi"),
-            );
+            with_env_vars(&[("VISUAL", None), ("EDITOR", None)], || {
+                assert_eq!(resolve_editor(), "vi")
+            });
         }
     }
 

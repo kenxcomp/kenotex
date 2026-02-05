@@ -40,9 +40,7 @@ pub fn find_enclosing_pair(
     let marker_len = marker.len(); // byte length
 
     // Collect grapheme boundaries: Vec<(byte_start, grapheme_str)>
-    let graphemes: Vec<(usize, &str)> = line
-        .grapheme_indices(true)
-        .collect();
+    let graphemes: Vec<(usize, &str)> = line.grapheme_indices(true).collect();
 
     if graphemes.is_empty() {
         return None;
@@ -93,8 +91,8 @@ pub fn find_enclosing_pair(
         if cursor_byte >= open_byte && cursor_byte < close_end {
             // Convert byte positions to grapheme positions for the return
             let open_grapheme = line[..open_byte].graphemes(true).count();
-            let close_end_grapheme = open_grapheme
-                + line[open_byte..close_end].graphemes(true).count();
+            let close_end_grapheme =
+                open_grapheme + line[open_byte..close_end].graphemes(true).count();
             return Some((open_grapheme, close_end_grapheme));
         }
         i += 2;
@@ -177,7 +175,8 @@ pub fn toggle_inline_format_visual(
 
     // Check if the selection is already wrapped
     let selected: String = graphemes[sel_start..sel_end].iter().copied().collect();
-    if selected.starts_with(marker) && selected.ends_with(marker)
+    if selected.starts_with(marker)
+        && selected.ends_with(marker)
         && selected.len() >= marker.len() * 2
     {
         // Unwrap: remove markers from both ends
@@ -208,11 +207,7 @@ pub fn toggle_inline_format_visual(
         for g in &graphemes[sel_end..] {
             result.push_str(g);
         }
-        (
-            result,
-            sel_start,
-            sel_end + marker_grapheme_len * 2,
-        )
+        (result, sel_start, sel_end + marker_grapheme_len * 2)
     }
 }
 
@@ -260,10 +255,7 @@ pub fn is_inside_code_block(lines: &[String], cursor_row: usize) -> Option<(usiz
 ///   opening fence line (after ```) for language typing.
 ///
 /// Returns `(new_lines, new_cursor_row, new_cursor_col)`.
-pub fn toggle_code_block(
-    lines: &[String],
-    cursor_row: usize,
-) -> (Vec<String>, usize, usize) {
+pub fn toggle_code_block(lines: &[String], cursor_row: usize) -> (Vec<String>, usize, usize) {
     if let Some((open_row, close_row)) = is_inside_code_block(lines, cursor_row) {
         // Remove fences
         let mut new_lines: Vec<String> = Vec::with_capacity(lines.len() - 2);
@@ -369,8 +361,8 @@ mod tests {
         let result = find_enclosing_pair(line, 8, MarkdownFormat::Bold);
         assert!(result.is_some());
         let (start, end) = result.unwrap();
-        assert_eq!(start, 6);  // opening **
-        assert_eq!(end, 15);   // after closing **
+        assert_eq!(start, 6); // opening **
+        assert_eq!(end, 15); // after closing **
     }
 
     #[test]
@@ -453,7 +445,8 @@ mod tests {
 
     #[test]
     fn test_toggle_remove_inline_code() {
-        let (result, col) = toggle_inline_format("say `hello` there", 6, MarkdownFormat::InlineCode);
+        let (result, col) =
+            toggle_inline_format("say `hello` there", 6, MarkdownFormat::InlineCode);
         assert_eq!(result, "say hello there");
         assert_eq!(col, 5);
     }
@@ -518,8 +511,7 @@ mod tests {
 
     #[test]
     fn test_visual_empty_selection() {
-        let (result, start, end) =
-            toggle_inline_format_visual("hello", 3, 3, MarkdownFormat::Bold);
+        let (result, start, end) = toggle_inline_format_visual("hello", 3, 3, MarkdownFormat::Bold);
         // Empty selection: wraps nothing, just inserts ****
         assert_eq!(result, "hel****lo");
         assert_eq!(start, 3);
@@ -543,10 +535,7 @@ mod tests {
 
     #[test]
     fn test_not_inside_code_block() {
-        let lines: Vec<String> = vec![
-            "hello".to_string(),
-            "world".to_string(),
-        ];
+        let lines: Vec<String> = vec!["hello".to_string(), "world".to_string()];
         let result = is_inside_code_block(&lines, 0);
         assert!(result.is_none());
     }

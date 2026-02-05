@@ -11,7 +11,12 @@ pub fn parse_smart_blocks(text: &str) -> Vec<SmartBlock> {
 
     while pos < len {
         // Skip leading whitespace/newlines between blocks
-        while pos < len && (bytes[pos] == b'\n' || bytes[pos] == b' ' || bytes[pos] == b'\t' || bytes[pos] == b'\r') {
+        while pos < len
+            && (bytes[pos] == b'\n'
+                || bytes[pos] == b' '
+                || bytes[pos] == b'\t'
+                || bytes[pos] == b'\r')
+        {
             pos += 1;
         }
         if pos >= len {
@@ -80,9 +85,9 @@ fn detect_block_type(content: &str) -> BlockType {
         return BlockType::Calendar;
     }
 
-    let chinese_time_pattern = Regex::new(
-        r"(明天|今天|后天|下周|周一|周二|周三|周四|周五|周六|周日|上午|下午|晚上|早上)"
-    ).unwrap();
+    let chinese_time_pattern =
+        Regex::new(r"(明天|今天|后天|下周|周一|周二|周三|周四|周五|周六|周日|上午|下午|晚上|早上)")
+            .unwrap();
 
     if chinese_time_pattern.is_match(content) {
         return BlockType::Calendar;
@@ -97,7 +102,8 @@ mod tests {
 
     #[test]
     fn test_explicit_tags() {
-        let blocks = parse_smart_blocks(":::td Buy milk\n\n:::cal Meeting at 3pm\n\n:::note Random thought");
+        let blocks =
+            parse_smart_blocks(":::td Buy milk\n\n:::cal Meeting at 3pm\n\n:::note Random thought");
 
         assert_eq!(blocks.len(), 3);
         assert_eq!(blocks[0].block_type, BlockType::Reminder);

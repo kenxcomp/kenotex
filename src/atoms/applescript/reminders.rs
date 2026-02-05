@@ -13,10 +13,7 @@ pub fn create_reminder(
 
     let date_clause = if let Some(date) = due_date {
         let formatted = date.format("%B %d, %Y at %I:%M %p").to_string();
-        format!(
-            " with properties {{due date:date \"{}\"}}",
-            formatted
-        )
+        format!(" with properties {{due date:date \"{}\"}}", formatted)
     } else {
         String::new()
     };

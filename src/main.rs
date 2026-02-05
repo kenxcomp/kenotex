@@ -14,15 +14,15 @@ use crossterm::{
         Event, KeyCode,
     },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
-    Frame, Terminal,
 };
 
 use coordinator::{App, EventDispatcher};
@@ -32,7 +32,9 @@ use crate::atoms::storage::file_watcher::{self, FileWatcherHandle};
 use crate::atoms::storage::{
     cleanup_temp_file, read_temp_file, resolve_editor, spawn_editor, write_temp_file,
 };
-use crate::atoms::widgets::{ConfirmOverlay, EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar};
+use crate::atoms::widgets::{
+    ConfirmOverlay, EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar,
+};
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -226,15 +228,12 @@ fn ui(f: &mut Frame, app: &App) {
 
     let bg_style = Style::default().bg(theme.bg_color());
     f.render_widget(Clear, f.area());
-    f.render_widget(
-        Block::default().style(bg_style),
-        f.area(),
-    );
+    f.render_widget(Block::default().style(bg_style), f.area());
 
     let hint_height = if app.show_hints { 1 } else { 0 };
     let main_chunks = Layout::vertical([
         Constraint::Min(1),              // [0] content
-        Constraint::Length(hint_height),  // [1] hint bar
+        Constraint::Length(hint_height), // [1] hint bar
         Constraint::Length(2),           // [2] status bar
     ])
     .split(f.area());
@@ -385,10 +384,7 @@ fn render_draft_list(f: &mut Frame, app: &App, area: Rect) {
 
                 ListItem::new(Line::from(vec![
                     Span::styled(prefix, style),
-                    Span::styled(
-                        selected_marker,
-                        Style::default().fg(theme.warning_color()),
-                    ),
+                    Span::styled(selected_marker, Style::default().fg(theme.warning_color())),
                     Span::styled(&note.title, style.add_modifier(Modifier::BOLD)),
                 ]))
             })
@@ -402,7 +398,6 @@ fn render_draft_list(f: &mut Frame, app: &App, area: Rect) {
         );
         f.render_widget(list, header_chunks[1]);
     }
-
 }
 
 fn render_archive_list(f: &mut Frame, app: &App, area: Rect) {
@@ -474,5 +469,4 @@ fn render_archive_list(f: &mut Frame, app: &App, area: Rect) {
         );
         f.render_widget(list, header_chunks[1]);
     }
-
 }

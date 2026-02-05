@@ -9,10 +9,10 @@ use crate::atoms::storage::{
     resolve_data_dir, save_draft,
 };
 use crate::molecules::config::ThemeManager;
-use crate::molecules::distribution::{dispatch_block, parse_smart_blocks, DispatchResult};
+use crate::molecules::distribution::{DispatchResult, dispatch_block, parse_smart_blocks};
 use crate::molecules::editor::{TextBuffer, VimMode};
 use crate::molecules::list::{
-    classify_event, ArchiveList, DraftList, FileChangeAction, FileChangeTracker,
+    ArchiveList, DraftList, FileChangeAction, FileChangeTracker, classify_event,
 };
 use crate::types::{AppMode, Config, Note, ProcessingStatus, SmartBlock, Theme, View};
 
@@ -69,10 +69,7 @@ impl App {
         let archive_list = ArchiveList::new(archives);
 
         let (buffer, current_note) = if let Some(note) = draft_list.selected_note() {
-            (
-                TextBuffer::from_string(&note.content),
-                Some(note.clone()),
-            )
+            (TextBuffer::from_string(&note.content), Some(note.clone()))
         } else {
             (TextBuffer::new(), None)
         };
@@ -170,7 +167,10 @@ impl App {
     }
 
     pub fn auto_save_if_needed(&mut self) -> Result<()> {
-        if self.dirty && self.last_save.elapsed().as_millis() >= self.config.general.auto_save_interval_ms as u128 {
+        if self.dirty
+            && self.last_save.elapsed().as_millis()
+                >= self.config.general.auto_save_interval_ms as u128
+        {
             self.save_current_note()?;
         }
         Ok(())
@@ -388,10 +388,7 @@ impl App {
         match action {
             FileChangeAction::Suppressed => {}
             FileChangeAction::ReloadNote { id, is_archived } => {
-                let is_current = self
-                    .current_note
-                    .as_ref()
-                    .is_some_and(|n| n.id == id);
+                let is_current = self.current_note.as_ref().is_some_and(|n| n.id == id);
 
                 if is_current {
                     if self.dirty {
@@ -415,10 +412,7 @@ impl App {
                 self.refresh_lists()?;
 
                 if let FileChangeAction::DeletedNote { ref id, .. } = action {
-                    let is_current = self
-                        .current_note
-                        .as_ref()
-                        .is_some_and(|n| n.id == *id);
+                    let is_current = self.current_note.as_ref().is_some_and(|n| n.id == *id);
                     if is_current {
                         self.buffer = TextBuffer::new();
                         self.current_note = None;
@@ -478,8 +472,7 @@ impl App {
 
         let content = self.buffer.to_string();
         let lines: Vec<String> = content.lines().map(String::from).collect();
-        let vpos =
-            wrap_calc::visual_cursor_position(&lines, cursor_row, cursor_col, inner_width);
+        let vpos = wrap_calc::visual_cursor_position(&lines, cursor_row, cursor_col, inner_width);
         let cursor_display_row = vpos.rows_before + vpos.wrap_row;
 
         if inner_height == 0 {

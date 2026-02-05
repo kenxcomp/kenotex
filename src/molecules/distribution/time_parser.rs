@@ -1,5 +1,5 @@
 use chrono::{DateTime, Datelike, Duration, Local, NaiveTime, TimeZone, Utc, Weekday};
-use chrono_english::{parse_date_string, Dialect};
+use chrono_english::{Dialect, parse_date_string};
 use regex::Regex;
 
 pub fn parse_time_expression(text: &str) -> Option<DateTime<Utc>> {

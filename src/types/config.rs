@@ -181,60 +181,140 @@ pub struct KeyboardConfig {
     pub leader_code_block: String,
 }
 
-fn default_layout() -> String { "qwerty".to_string() }
+fn default_layout() -> String {
+    "qwerty".to_string()
+}
 
 // Navigation defaults
-fn default_move_left() -> String { "h".to_string() }
-fn default_move_down() -> String { "j".to_string() }
-fn default_move_up() -> String { "k".to_string() }
-fn default_move_right() -> String { "l".to_string() }
-fn default_word_forward() -> String { "w".to_string() }
-fn default_word_backward() -> String { "b".to_string() }
-fn default_line_start() -> String { "0".to_string() }
-fn default_line_end() -> String { "$".to_string() }
-fn default_file_start() -> String { "g".to_string() }
-fn default_file_end() -> String { "G".to_string() }
+fn default_move_left() -> String {
+    "h".to_string()
+}
+fn default_move_down() -> String {
+    "j".to_string()
+}
+fn default_move_up() -> String {
+    "k".to_string()
+}
+fn default_move_right() -> String {
+    "l".to_string()
+}
+fn default_word_forward() -> String {
+    "w".to_string()
+}
+fn default_word_backward() -> String {
+    "b".to_string()
+}
+fn default_line_start() -> String {
+    "0".to_string()
+}
+fn default_line_end() -> String {
+    "$".to_string()
+}
+fn default_file_start() -> String {
+    "g".to_string()
+}
+fn default_file_end() -> String {
+    "G".to_string()
+}
 
 // Insert mode defaults
-fn default_insert() -> String { "i".to_string() }
-fn default_insert_append() -> String { "a".to_string() }
-fn default_insert_line_start() -> String { "I".to_string() }
-fn default_insert_line_end() -> String { "A".to_string() }
-fn default_insert_line_below() -> String { "o".to_string() }
-fn default_insert_line_above() -> String { "O".to_string() }
+fn default_insert() -> String {
+    "i".to_string()
+}
+fn default_insert_append() -> String {
+    "a".to_string()
+}
+fn default_insert_line_start() -> String {
+    "I".to_string()
+}
+fn default_insert_line_end() -> String {
+    "A".to_string()
+}
+fn default_insert_line_below() -> String {
+    "o".to_string()
+}
+fn default_insert_line_above() -> String {
+    "O".to_string()
+}
 
 // Editing defaults
-fn default_delete_char() -> String { "x".to_string() }
-fn default_delete_line() -> String { "d".to_string() }
-fn default_undo() -> String { "u".to_string() }
-fn default_redo() -> String { "ctrl+r".to_string() }
-fn default_yank() -> String { "y".to_string() }
-fn default_paste_after() -> String { "p".to_string() }
-fn default_paste_before() -> String { "P".to_string() }
+fn default_delete_char() -> String {
+    "x".to_string()
+}
+fn default_delete_line() -> String {
+    "d".to_string()
+}
+fn default_undo() -> String {
+    "u".to_string()
+}
+fn default_redo() -> String {
+    "ctrl+r".to_string()
+}
+fn default_yank() -> String {
+    "y".to_string()
+}
+fn default_paste_after() -> String {
+    "p".to_string()
+}
+fn default_paste_before() -> String {
+    "P".to_string()
+}
 
 // Mode defaults
-fn default_visual_mode() -> String { "v".to_string() }
-fn default_search() -> String { "/".to_string() }
-fn default_search_next() -> String { "n".to_string() }
-fn default_search_prev() -> String { "N".to_string() }
+fn default_visual_mode() -> String {
+    "v".to_string()
+}
+fn default_search() -> String {
+    "/".to_string()
+}
+fn default_search_next() -> String {
+    "n".to_string()
+}
+fn default_search_prev() -> String {
+    "N".to_string()
+}
 
 // Other defaults
-fn default_cycle_theme() -> String { "T".to_string() }
+fn default_cycle_theme() -> String {
+    "T".to_string()
+}
 
 // Leader command defaults
-fn default_leader_process() -> String { "s".to_string() }
-fn default_leader_list() -> String { "l".to_string() }
-fn default_leader_new() -> String { "nn".to_string() }
-fn default_leader_quit() -> String { "q".to_string() }
-fn default_leader_comment() -> String { "c".to_string() }
-fn default_visual_comment() -> String { "gc".to_string() }
+fn default_leader_process() -> String {
+    "s".to_string()
+}
+fn default_leader_list() -> String {
+    "l".to_string()
+}
+fn default_leader_new() -> String {
+    "nn".to_string()
+}
+fn default_leader_quit() -> String {
+    "q".to_string()
+}
+fn default_leader_comment() -> String {
+    "c".to_string()
+}
+fn default_visual_comment() -> String {
+    "gc".to_string()
+}
 
 // Formatting leader key defaults
-fn default_leader_bold() -> String { "b".to_string() }
-fn default_leader_italic() -> String { "i".to_string() }
-fn default_leader_strikethrough() -> String { "x".to_string() }
-fn default_leader_code() -> String { "c".to_string() }
-fn default_leader_code_block() -> String { "C".to_string() }
+fn default_leader_bold() -> String {
+    "b".to_string()
+}
+fn default_leader_italic() -> String {
+    "i".to_string()
+}
+fn default_leader_strikethrough() -> String {
+    "x".to_string()
+}
+fn default_leader_code() -> String {
+    "c".to_string()
+}
+fn default_leader_code_block() -> String {
+    "C".to_string()
+}
 
 impl Default for KeyboardConfig {
     fn default() -> Self {

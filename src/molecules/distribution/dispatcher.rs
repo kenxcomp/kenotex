@@ -59,7 +59,11 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
 
     // Single reminder with title/body
     let (title, body) = extract_title_body(&content);
-    let body_ref = if body.is_empty() { None } else { Some(body.as_str()) };
+    let body_ref = if body.is_empty() {
+        None
+    } else {
+        Some(body.as_str())
+    };
 
     // Try parsing time from content for due date
     let due_date = parse_time_expression(&content);
@@ -77,7 +81,11 @@ fn dispatch_calendar(block: &SmartBlock, destinations: &Destinations) -> Dispatc
 
     let content = strip_tag(&block.content, ":::cal");
     let (title, body) = extract_title_body(&content);
-    let body_ref = if body.is_empty() { None } else { Some(body.as_str()) };
+    let body_ref = if body.is_empty() {
+        None
+    } else {
+        Some(body.as_str())
+    };
 
     let start_date = match parse_time_expression(&content) {
         Some(dt) => dt,
@@ -180,7 +188,11 @@ mod tests {
 
     #[test]
     fn test_dispatch_reminder_skipped_when_empty_app() {
-        let block = SmartBlock::new("t1".to_string(), ":::td Buy milk".to_string(), BlockType::Reminder);
+        let block = SmartBlock::new(
+            "t1".to_string(),
+            ":::td Buy milk".to_string(),
+            BlockType::Reminder,
+        );
         let mut destinations = Destinations::default();
         destinations.reminders.app = String::new();
 
@@ -190,7 +202,11 @@ mod tests {
 
     #[test]
     fn test_dispatch_calendar_skipped_when_empty_app() {
-        let block = SmartBlock::new("t1".to_string(), ":::cal Meeting".to_string(), BlockType::Calendar);
+        let block = SmartBlock::new(
+            "t1".to_string(),
+            ":::cal Meeting".to_string(),
+            BlockType::Calendar,
+        );
         let mut destinations = Destinations::default();
         destinations.calendar.app = String::new();
 
@@ -200,7 +216,11 @@ mod tests {
 
     #[test]
     fn test_dispatch_note_skipped_when_none_app() {
-        let block = SmartBlock::new("t1".to_string(), ":::note Hello".to_string(), BlockType::Note);
+        let block = SmartBlock::new(
+            "t1".to_string(),
+            ":::note Hello".to_string(),
+            BlockType::Note,
+        );
         let mut destinations = Destinations::default();
         destinations.notes.app = None;
 

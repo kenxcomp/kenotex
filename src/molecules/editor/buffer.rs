@@ -83,7 +83,10 @@ impl TextBuffer {
     }
 
     fn current_line(&self) -> &str {
-        self.lines.get(self.cursor_row).map(|s| s.as_str()).unwrap_or("")
+        self.lines
+            .get(self.cursor_row)
+            .map(|s| s.as_str())
+            .unwrap_or("")
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -161,11 +164,9 @@ impl TextBuffer {
                 self.lines[row] = self.lines[row][remove..].to_string();
             }
         }
-        self.cursor_col = self.cursor_col.min(
-            self.lines[self.cursor_row]
-                .graphemes(true)
-                .count(),
-        );
+        self.cursor_col = self
+            .cursor_col
+            .min(self.lines[self.cursor_row].graphemes(true).count());
     }
 
     pub fn insert_newline(&mut self) {
@@ -415,9 +416,7 @@ impl TextBuffer {
     /// If all non-empty lines are commented, uncomment all; otherwise comment all uncommented.
     pub fn toggle_comment_lines(&mut self, start_row: usize, end_row: usize) {
         let end = end_row.min(self.lines.len().saturating_sub(1));
-        let line_refs: Vec<&str> = (start_row..=end)
-            .map(|r| self.lines[r].as_str())
-            .collect();
+        let line_refs: Vec<&str> = (start_row..=end).map(|r| self.lines[r].as_str()).collect();
         let do_comment = comment::should_comment(&line_refs);
 
         for row in start_row..=end {
@@ -496,8 +495,9 @@ impl TextBuffer {
                             line_len
                         };
                         if start < end {
-                            let (new_line, _, _) =
-                                markdown_fmt::toggle_inline_format_visual(&line, start, end, format);
+                            let (new_line, _, _) = markdown_fmt::toggle_inline_format_visual(
+                                &line, start, end, format,
+                            );
                             self.lines[row] = new_line;
                         }
                     }
@@ -719,8 +719,10 @@ impl TextBuffer {
 
         // Last segment joins with text after cursor
         let last_pasted = pasted[last_idx];
-        self.lines
-            .insert(self.cursor_row + last_idx, format!("{}{}", last_pasted, after));
+        self.lines.insert(
+            self.cursor_row + last_idx,
+            format!("{}{}", last_pasted, after),
+        );
 
         self.cursor_row += last_idx;
         self.cursor_col = last_pasted.graphemes(true).count().saturating_sub(1);
@@ -728,10 +730,7 @@ impl TextBuffer {
 
     /// Paste line(s) below the current line (line-wise).
     pub fn paste_line_below(&mut self, text: &str) {
-        let lines_to_insert: Vec<String> = text
-            .lines()
-            .map(String::from)
-            .collect();
+        let lines_to_insert: Vec<String> = text.lines().map(String::from).collect();
         if lines_to_insert.is_empty() {
             return;
         }
@@ -745,10 +744,7 @@ impl TextBuffer {
 
     /// Paste line(s) above the current line (line-wise).
     pub fn paste_line_above(&mut self, text: &str) {
-        let lines_to_insert: Vec<String> = text
-            .lines()
-            .map(String::from)
-            .collect();
+        let lines_to_insert: Vec<String> = text.lines().map(String::from).collect();
         if lines_to_insert.is_empty() {
             return;
         }
@@ -813,7 +809,12 @@ impl TextBuffer {
     /// Search forward from (start_row, start_col+1) for `query` (case-insensitive).
     /// Wraps around to the beginning of the buffer.
     /// Returns Some((row, col)) of the match start, or None if not found.
-    pub fn find_next(&self, query: &str, start_row: usize, start_col: usize) -> Option<(usize, usize)> {
+    pub fn find_next(
+        &self,
+        query: &str,
+        start_row: usize,
+        start_col: usize,
+    ) -> Option<(usize, usize)> {
         if query.is_empty() || self.lines.is_empty() {
             return None;
         }
@@ -821,7 +822,9 @@ impl TextBuffer {
         let total_lines = self.lines.len();
 
         // Search current line from start_col+1 onwards
-        if let Some(col) = self.find_in_line_forward(&self.lines[start_row], start_col + 1, &query_lower) {
+        if let Some(col) =
+            self.find_in_line_forward(&self.lines[start_row], start_col + 1, &query_lower)
+        {
             return Some((start_row, col));
         }
 
@@ -846,7 +849,12 @@ impl TextBuffer {
     /// Search backward from (start_row, start_col-1) for `query` (case-insensitive).
     /// Wraps around to the end of the buffer.
     /// Returns Some((row, col)) of the match start, or None if not found.
-    pub fn find_prev(&self, query: &str, start_row: usize, start_col: usize) -> Option<(usize, usize)> {
+    pub fn find_prev(
+        &self,
+        query: &str,
+        start_row: usize,
+        start_col: usize,
+    ) -> Option<(usize, usize)> {
         if query.is_empty() || self.lines.is_empty() {
             return None;
         }
@@ -855,7 +863,8 @@ impl TextBuffer {
 
         // Search current line backward from start_col-1
         if start_col > 0
-            && let Some(col) = self.find_in_line_backward(&self.lines[start_row], start_col - 1, &query_lower)
+            && let Some(col) =
+                self.find_in_line_backward(&self.lines[start_row], start_col - 1, &query_lower)
         {
             return Some((start_row, col));
         }
@@ -864,7 +873,8 @@ impl TextBuffer {
         for offset in 1..total_lines {
             let row = (start_row + total_lines - offset) % total_lines;
             let line_len = self.lines[row].graphemes(true).count();
-            if let Some(col) = self.find_in_line_backward(&self.lines[row], line_len, &query_lower) {
+            if let Some(col) = self.find_in_line_backward(&self.lines[row], line_len, &query_lower)
+            {
                 return Some((row, col));
             }
         }
@@ -872,7 +882,8 @@ impl TextBuffer {
         // Search the start line from the end
         let line_len = self.lines[start_row].graphemes(true).count();
         if line_len > start_col
-            && let Some(col) = self.find_in_line_backward(&self.lines[start_row], line_len, &query_lower)
+            && let Some(col) =
+                self.find_in_line_backward(&self.lines[start_row], line_len, &query_lower)
             && col > start_col
         {
             return Some((start_row, col));
@@ -916,7 +927,12 @@ impl TextBuffer {
 
     /// Find the first occurrence of `query_lower` in `line` starting at grapheme index `from_col`.
     /// Returns the grapheme index of the match start, or None.
-    fn find_in_line_forward(&self, line: &str, from_col: usize, query_lower: &str) -> Option<usize> {
+    fn find_in_line_forward(
+        &self,
+        line: &str,
+        from_col: usize,
+        query_lower: &str,
+    ) -> Option<usize> {
         let graphemes: Vec<&str> = line.graphemes(true).collect();
         if from_col >= graphemes.len() {
             return None;
@@ -939,7 +955,12 @@ impl TextBuffer {
 
     /// Find the last occurrence of `query_lower` in `line` at or before grapheme index `before_col`.
     /// Returns the grapheme index of the match start, or None.
-    fn find_in_line_backward(&self, line: &str, before_col: usize, query_lower: &str) -> Option<usize> {
+    fn find_in_line_backward(
+        &self,
+        line: &str,
+        before_col: usize,
+        query_lower: &str,
+    ) -> Option<usize> {
         let graphemes: Vec<&str> = line.graphemes(true).collect();
         if graphemes.is_empty() {
             return None;
@@ -1465,8 +1486,7 @@ mod tests {
 
     #[test]
     fn test_toggle_comment_lines_all_commented() {
-        let mut buffer =
-            TextBuffer::from_string("<!-- hello -->\n<!-- world -->\n<!-- foo -->");
+        let mut buffer = TextBuffer::from_string("<!-- hello -->\n<!-- world -->\n<!-- foo -->");
         buffer.toggle_comment_lines(0, 2);
         assert_eq!(buffer.content()[0], "hello");
         assert_eq!(buffer.content()[1], "world");

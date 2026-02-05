@@ -100,8 +100,12 @@ pub fn is_prefix_only(line: &str) -> bool {
     let trimmed = line.trim_start();
 
     // Checkbox prefix-only
-    if trimmed == "- [ ] " || trimmed == "- [x] " || trimmed == "- [X] "
-        || trimmed == "- [ ]" || trimmed == "- [x]" || trimmed == "- [X]"
+    if trimmed == "- [ ] "
+        || trimmed == "- [x] "
+        || trimmed == "- [X] "
+        || trimmed == "- [ ]"
+        || trimmed == "- [x]"
+        || trimmed == "- [X]"
     {
         return true;
     }
@@ -310,10 +314,7 @@ mod tests {
 
     #[test]
     fn test_insert_checkbox_on_empty() {
-        assert_eq!(
-            insert_checkbox_prefix(""),
-            Some("- [ ] ".to_string())
-        );
+        assert_eq!(insert_checkbox_prefix(""), Some("- [ ] ".to_string()));
     }
 
     // ── toggle_checkbox_prefix ────────────────────────────────────────
@@ -356,14 +357,8 @@ mod tests {
 
     #[test]
     fn test_toggle_checkbox_bare() {
-        assert_eq!(
-            toggle_checkbox_prefix("- [ ]"),
-            Some("- [x]".to_string())
-        );
-        assert_eq!(
-            toggle_checkbox_prefix("- [x]"),
-            Some("- [ ]".to_string())
-        );
+        assert_eq!(toggle_checkbox_prefix("- [ ]"), Some("- [x]".to_string()));
+        assert_eq!(toggle_checkbox_prefix("- [x]"), Some("- [ ]".to_string()));
     }
 
     #[test]

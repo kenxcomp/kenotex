@@ -62,8 +62,7 @@ impl Widget for ListItemWidget<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let chunks =
-            Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(inner);
+        let chunks = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(inner);
 
         let icon = if self.show_archive_icon { "@" } else { "#" };
 

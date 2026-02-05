@@ -40,14 +40,12 @@ impl FileChangeTracker {
 
     pub fn cleanup(&mut self) {
         let cutoff = Duration::from_secs(10);
-        self.save_timestamps
-            .retain(|_, ts| ts.elapsed() < cutoff);
+        self.save_timestamps.retain(|_, ts| ts.elapsed() < cutoff);
     }
 }
 
 fn extract_note_id(path: &Path) -> Option<String> {
-    path.file_stem()
-        .map(|s| s.to_string_lossy().to_string())
+    path.file_stem().map(|s| s.to_string_lossy().to_string())
 }
 
 pub fn classify_event(
@@ -113,9 +111,10 @@ mod tests {
         tracker.record_save("note-123");
 
         // Simulate time passage beyond suppression window (2s)
-        tracker
-            .save_timestamps
-            .insert("note-123".to_string(), Instant::now() - Duration::from_secs(3));
+        tracker.save_timestamps.insert(
+            "note-123".to_string(),
+            Instant::now() - Duration::from_secs(3),
+        );
 
         let event = FileEvent::Modified(PathBuf::from("/tmp/drafts/note-123.md"), false);
         let action = classify_event(&event, &tracker, &["note-123".to_string()]);

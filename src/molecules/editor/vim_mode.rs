@@ -311,12 +311,8 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.line_start) => {
                 VimAction::MoveLineStart
             }
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => {
-                VimAction::MoveLineEnd
-            }
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
-                VimAction::MoveFileEnd
-            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => VimAction::MoveLineEnd,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => VimAction::MoveFileEnd,
             // 'g' now enters g-pending state instead of instant MoveFileStart
             KeyCode::Char(c)
                 if self.key_matches(c, &self.keys.file_start)
@@ -374,8 +370,12 @@ impl VimMode {
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.search) => VimAction::Search,
             KeyCode::Char('f') => VimAction::Search, // Alternative search key
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.search_next) => VimAction::SearchNext,
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.search_prev) => VimAction::SearchPrev,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.search_next) => {
+                VimAction::SearchNext
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.search_prev) => {
+                VimAction::SearchPrev
+            }
 
             // Other
             KeyCode::Char(c) if self.key_matches(c, &self.keys.cycle_theme) => {
@@ -515,16 +515,12 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.line_start) => {
                 VimAction::MoveLineStart
             }
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => {
-                VimAction::MoveLineEnd
-            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => VimAction::MoveLineEnd,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
                 self.visual_g_pending = true;
                 VimAction::None
             }
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
-                VimAction::MoveFileEnd
-            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => VimAction::MoveFileEnd,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => {
                 VimAction::VisualDelete
             }
@@ -546,9 +542,7 @@ impl VimMode {
 
     fn resolve_motion(&self, key: KeyEvent) -> Option<Motion> {
         match key.code {
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => {
-                Some(Motion::Line)
-            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => Some(Motion::Line),
             KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => Some(Motion::Line),
             KeyCode::Char(c) if self.key_matches(c, &self.keys.word_forward) => {
                 Some(Motion::WordForward)
@@ -556,15 +550,11 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.word_backward) => {
                 Some(Motion::WordBackward)
             }
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => {
-                Some(Motion::LineEnd)
-            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => Some(Motion::LineEnd),
             KeyCode::Char(c) if self.key_matches(c, &self.keys.line_start) => {
                 Some(Motion::LineStart)
             }
-            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => {
-                Some(Motion::FileEnd)
-            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => Some(Motion::FileEnd),
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
                 Some(Motion::FileStart)
             }
@@ -1001,7 +991,10 @@ mod tests {
             KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
             AppMode::Normal,
         );
-        assert_eq!(action, VimAction::ToggleFormat(MarkdownFormat::Strikethrough));
+        assert_eq!(
+            action,
+            VimAction::ToggleFormat(MarkdownFormat::Strikethrough)
+        );
     }
 
     #[test]
@@ -1050,7 +1043,10 @@ mod tests {
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
             AppMode::Visual,
         );
-        assert_eq!(action, VimAction::VisualToggleFormat(MarkdownFormat::InlineCode));
+        assert_eq!(
+            action,
+            VimAction::VisualToggleFormat(MarkdownFormat::InlineCode)
+        );
     }
 
     #[test]
