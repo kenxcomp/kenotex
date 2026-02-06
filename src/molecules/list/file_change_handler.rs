@@ -18,6 +18,12 @@ pub struct FileChangeTracker {
     save_timestamps: HashMap<String, Instant>,
 }
 
+impl Default for FileChangeTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileChangeTracker {
     pub fn new() -> Self {
         Self {

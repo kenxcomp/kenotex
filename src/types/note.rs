@@ -50,8 +50,7 @@ impl Note {
         let preview_content = self
             .content
             .lines()
-            .skip_while(|line| line.trim().starts_with('#') || line.trim().is_empty())
-            .next()
+            .find(|line| !line.trim().starts_with('#') && !line.trim().is_empty())
             .unwrap_or("");
 
         if preview_content.len() > max_len {

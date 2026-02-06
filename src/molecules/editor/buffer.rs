@@ -1,3 +1,5 @@
+use std::fmt;
+
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
@@ -52,10 +54,6 @@ impl TextBuffer {
             cursor_col: 0,
             history: UndoHistory::default(),
         }
-    }
-
-    pub fn to_string(&self) -> String {
-        self.lines.join("\n")
     }
 
     pub fn content(&self) -> &[String] {
@@ -429,10 +427,8 @@ impl TextBuffer {
                 if !comment::is_commented(line) {
                     self.lines[row] = comment::comment_line(line);
                 }
-            } else {
-                if let Some(uncommented) = comment::uncomment_line(line) {
-                    self.lines[row] = uncommented;
-                }
+            } else if let Some(uncommented) = comment::uncomment_line(line) {
+                self.lines[row] = uncommented;
             }
         }
     }
@@ -713,9 +709,9 @@ impl TextBuffer {
         self.lines[self.cursor_row] = format!("{}{}", before, pasted[0]);
 
         // Middle segments become their own lines
-        for i in 1..last_idx {
+        for (i, segment) in pasted.iter().enumerate().take(last_idx).skip(1) {
             self.lines
-                .insert(self.cursor_row + i, pasted[i].to_string());
+                .insert(self.cursor_row + i, segment.to_string());
         }
 
         // Last segment joins with text after cursor
@@ -1015,6 +1011,61 @@ impl TextBuffer {
             }
         }
         graphemes.len()
+    }
+
+    /// Get the display width of the grapheme at (row, col).
+    pub fn grapheme_display_width(&self, row: usize, col: usize) -> usize {
+        let line = self.lines.get(row).map(|s| s.as_str()).unwrap_or("");
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        graphemes
+            .get(col)
+            .map(|g| g.width().max(1))
+            .unwrap_or(1)
+    }
+
+    /// Find the grapheme index range `[start, end)` that overlaps with
+    /// display columns `[left_display, right_display]` (inclusive).
+    ///
+    /// A grapheme overlaps if any of its display cells fall within the range.
+    /// Wide characters (CJK) that partially overlap the boundary are fully included.
+    pub fn grapheme_range_for_display_cols(
+        &self,
+        row: usize,
+        left_display: usize,
+        right_display: usize,
+    ) -> (usize, usize) {
+        let line = self.lines.get(row).map(|s| s.as_str()).unwrap_or("");
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+
+        let mut start = graphemes.len();
+        let mut end = 0;
+        let mut display_col = 0;
+
+        for (idx, g) in graphemes.iter().enumerate() {
+            let gw = g.width().max(1);
+            let g_end = display_col + gw - 1; // inclusive end display col
+
+            // Grapheme overlaps [left, right] if g_start <= right AND g_end >= left
+            if display_col <= right_display && g_end >= left_display {
+                if idx < start {
+                    start = idx;
+                }
+                end = idx + 1;
+            }
+
+            display_col += gw;
+        }
+
+        if start > end {
+            start = end;
+        }
+        (start, end)
+    }
+}
+
+impl fmt::Display for TextBuffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.lines.join("\n"))
     }
 }
 

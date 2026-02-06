@@ -1,4 +1,4 @@
-/// Pure functions for detecting and toggling HTML comment markers (`<!-- -->`).
+//! Pure functions for detecting and toggling HTML comment markers (`<!-- -->`).
 
 /// Check if a line (after trimming) is an HTML comment.
 pub fn is_commented(line: &str) -> bool {

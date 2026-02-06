@@ -475,6 +475,12 @@ impl<'a> EditorWidget<'a> {
         }
     }
 
+    /// Render block selection highlighting.
+    ///
+    /// `left_col` and `right_col` are display columns (inclusive), not grapheme indices.
+    /// For each line, we find graphemes that overlap the display column range
+    /// and highlight their cells. Wide characters (CJK) that partially overlap
+    /// the boundary are fully included.
     fn render_block_selection(
         &self,
         top_row: usize,
@@ -486,8 +492,10 @@ impl<'a> EditorWidget<'a> {
     ) {
         use super::wrap_calc;
         use unicode_segmentation::UnicodeSegmentation;
+        use unicode_width::UnicodeWidthStr;
 
         let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+        let w = if inner.width == 0 { 1 } else { inner.width as usize };
 
         let mut rows_before: u16 = content_lines
             .iter()
@@ -499,31 +507,32 @@ impl<'a> EditorWidget<'a> {
             let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
             let graphemes: Vec<&str> = line.graphemes(true).collect();
 
-            // Calculate visual positions for this block row
-            let actual_left = left_col;
-            let actual_right = right_col;
+            // Walk graphemes, tracking display position and wrap state,
+            // highlighting cells that overlap [left_col, right_col].
+            let mut wrap_row: u16 = 0;
+            let mut display_col: usize = 0;
 
-            // Handle lines shorter than left_col: render virtual spaces
-            if graphemes.len() <= actual_left {
-                // Entire block is beyond line end - render spaces
-                let positions = wrap_calc::virtual_block_positions(
-                    line,
-                    actual_left,
-                    actual_right,
-                    inner.width,
-                );
+            for g in &graphemes {
+                let gw = g.width().max(1);
 
-                for (wrap_row, col, width) in positions {
+                // Check for wrap
+                if display_col + gw > w {
+                    wrap_row += 1;
+                    display_col = 0;
+                }
+
+                let g_end = display_col + gw - 1; // inclusive end
+
+                // Check if grapheme overlaps [left_col, right_col]
+                if display_col <= right_col && g_end >= left_col {
                     let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
                     if screen_y >= inner.y && screen_y < inner.y + inner.height {
-                        let screen_x = inner.x + col;
-                        for dx in 0..width {
-                            if screen_x + dx < inner.x + inner.width {
-                                // Render highlighted space
-                                buf[(screen_x + dx, screen_y)].set_char(' ');
+                        for dx in 0..gw {
+                            let screen_x = inner.x + display_col as u16 + dx as u16;
+                            if screen_x < inner.x + inner.width {
                                 Self::apply_selection_to_cell(
                                     buf,
-                                    screen_x + dx,
+                                    screen_x,
                                     screen_y,
                                     self.theme.accent_color(),
                                     self.theme.fg_color(),
@@ -532,60 +541,33 @@ impl<'a> EditorWidget<'a> {
                         }
                     }
                 }
-            } else {
-                // Line has some content in the block range
-                let col_start = actual_left;
-                let col_end = (actual_right + 1).min(graphemes.len());
 
-                // Render actual characters
-                if col_start < col_end {
-                    let positions =
-                        wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
+                display_col += gw;
+            }
 
-                    for (wrap_row, col, gw) in positions {
-                        let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
-                        if screen_y >= inner.y && screen_y < inner.y + inner.height {
-                            let screen_x = inner.x + col;
-                            for dx in 0..gw {
-                                if screen_x + dx < inner.x + inner.width {
-                                    Self::apply_selection_to_cell(
-                                        buf,
-                                        screen_x + dx,
-                                        screen_y,
-                                        self.theme.accent_color(),
-                                        self.theme.fg_color(),
-                                    );
-                                }
-                            }
-                        }
+            // Handle virtual spaces beyond line end
+            let line_display_width = display_col;
+            if right_col >= line_display_width {
+                let virtual_start = left_col.max(line_display_width);
+                for dcol in virtual_start..=right_col {
+                    // Track wrapping for virtual positions
+                    if dcol > 0 && dcol >= w && (dcol % w == 0) {
+                        wrap_row += 1;
+                        // Virtual position wrapping resets to column 0
                     }
-                }
-
-                // Render virtual spaces beyond line end if needed
-                if actual_right >= graphemes.len() {
-                    let virtual_positions = wrap_calc::virtual_block_positions(
-                        line,
-                        graphemes.len(),
-                        actual_right,
-                        inner.width,
-                    );
-
-                    for (wrap_row, col, width) in virtual_positions {
-                        let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
-                        if screen_y >= inner.y && screen_y < inner.y + inner.height {
-                            let screen_x = inner.x + col;
-                            for dx in 0..width {
-                                if screen_x + dx < inner.x + inner.width {
-                                    buf[(screen_x + dx, screen_y)].set_char(' ');
-                                    Self::apply_selection_to_cell(
-                                        buf,
-                                        screen_x + dx,
-                                        screen_y,
-                                        self.theme.accent_color(),
-                                        self.theme.fg_color(),
-                                    );
-                                }
-                            }
+                    let col_in_row = dcol % w;
+                    let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                    if screen_y >= inner.y && screen_y < inner.y + inner.height {
+                        let screen_x = inner.x + col_in_row as u16;
+                        if screen_x < inner.x + inner.width {
+                            buf[(screen_x, screen_y)].set_char(' ');
+                            Self::apply_selection_to_cell(
+                                buf,
+                                screen_x,
+                                screen_y,
+                                self.theme.accent_color(),
+                                self.theme.fg_color(),
+                            );
                         }
                     }
                 }

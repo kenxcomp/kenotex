@@ -136,11 +136,10 @@ impl DraftList {
     }
 
     pub fn toggle_selected(&mut self) {
-        if let Some(&real_idx) = self.filtered_indices.get(self.selected_index) {
-            if let Some(note) = self.notes.get_mut(real_idx) {
+        if let Some(&real_idx) = self.filtered_indices.get(self.selected_index)
+            && let Some(note) = self.notes.get_mut(real_idx) {
                 note.selected = !note.selected;
             }
-        }
     }
 
     pub fn get_selected_notes(&self) -> Vec<&Note> {

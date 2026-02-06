@@ -22,6 +22,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Syntax Highlighting**: Real-time visual highlighting for inline code, bold, italic, strikethrough, code blocks, and list markers in the editor
 - **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
 - **Auto-save**: Configurable auto-save interval
+- **CJK/Wide-Character Support**: Full support for Chinese, Japanese, and Korean characters in all editing modes — Visual Block selection uses display-column alignment so selections remain rectangular across mixed-width lines, cursor movement tracks display columns correctly, and soft-wrap never splits a wide character
 
 ## Installation
 

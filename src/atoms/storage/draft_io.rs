@@ -79,15 +79,14 @@ pub fn load_all_drafts(base_dir: &Path, archived: bool) -> Result<Vec<Note>> {
         let entry = entry?;
         let path = entry.path();
 
-        if path.extension().is_some_and(|ext| ext == "md") {
-            if let Some(stem) = path.file_stem() {
+        if path.extension().is_some_and(|ext| ext == "md")
+            && let Some(stem) = path.file_stem() {
                 let id = stem.to_string_lossy().to_string();
                 match load_draft(base_dir, &id, archived) {
                     Ok(note) => notes.push(note),
                     Err(e) => eprintln!("Warning: Failed to load draft {}: {}", id, e),
                 }
             }
-        }
     }
 
     notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));

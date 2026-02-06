@@ -32,8 +32,8 @@ pub enum RenderSelection {
     BlockRegion {
         top_row: usize,
         bottom_row: usize,
-        left_col: usize,
-        right_col: usize,
+        left_col: usize,  // display column (not grapheme index)
+        right_col: usize, // display column, inclusive (not grapheme index)
     },
 }
 
@@ -53,7 +53,7 @@ impl VisualMode {
         self.anchor
     }
 
-    pub fn render_data(&self, cursor: (usize, usize)) -> RenderSelection {
+    pub fn render_data(&self, buffer: &TextBuffer, cursor: (usize, usize)) -> RenderSelection {
         match self.visual_type {
             VisualType::Character => {
                 let (start, end) = Self::normalize_range(self.anchor, cursor);
@@ -67,8 +67,8 @@ impl VisualMode {
             VisualType::Block => {
                 let top_row = self.anchor.0.min(cursor.0);
                 let bottom_row = self.anchor.0.max(cursor.0);
-                let left_col = self.anchor.1.min(cursor.1);
-                let right_col = self.anchor.1.max(cursor.1);
+                let (left_col, right_col) =
+                    Self::block_display_range(buffer, self.anchor, cursor);
                 RenderSelection::BlockRegion {
                     top_row,
                     bottom_row,
@@ -98,19 +98,22 @@ impl VisualMode {
             VisualType::Block => {
                 let top_row = self.anchor.0.min(cursor.0);
                 let bottom_row = self.anchor.0.max(cursor.0);
-                let left_col = self.anchor.1.min(cursor.1);
-                let right_col = self.anchor.1.max(cursor.1);
+                let (left_display, right_display) =
+                    Self::block_display_range(buffer, self.anchor, cursor);
 
                 let mut deleted = String::new();
                 for row in (top_row..=bottom_row).rev() {
-                    let text = buffer.delete_range(row, left_col, row, right_col + 1);
+                    let (g_start, g_end) =
+                        buffer.grapheme_range_for_display_cols(row, left_display, right_display);
+                    let text = buffer.delete_range(row, g_start, row, g_end);
                     if row > top_row {
                         deleted.insert_str(0, &format!("\n{}", text));
                     } else {
                         deleted.insert_str(0, &text);
                     }
                 }
-                buffer.set_cursor(top_row, left_col);
+                let cursor_col = buffer.grapheme_at_display_col(top_row, left_display);
+                buffer.set_cursor(top_row, cursor_col);
                 deleted
             }
         }
@@ -137,12 +140,14 @@ impl VisualMode {
             VisualType::Block => {
                 let top_row = self.anchor.0.min(cursor.0);
                 let bottom_row = self.anchor.0.max(cursor.0);
-                let left_col = self.anchor.1.min(cursor.1);
-                let right_col = self.anchor.1.max(cursor.1);
+                let (left_display, right_display) =
+                    Self::block_display_range(buffer, self.anchor, cursor);
 
                 let mut yanked = String::new();
                 for row in top_row..=bottom_row {
-                    let text = buffer.extract_range(row, left_col, row, right_col + 1);
+                    let (g_start, g_end) =
+                        buffer.grapheme_range_for_display_cols(row, left_display, right_display);
+                    let text = buffer.extract_range(row, g_start, row, g_end);
                     yanked.push_str(&text);
                     if row < bottom_row {
                         yanked.push('\n');
@@ -206,11 +211,12 @@ impl VisualMode {
 
         let top_row = self.anchor.0.min(cursor.0);
         let bottom_row = self.anchor.0.max(cursor.0);
-        let left_col = self.anchor.1.min(cursor.1);
+        let (left_display, _) = Self::block_display_range(buffer, self.anchor, cursor);
 
         let mut positions = Vec::new();
         for row in top_row..=bottom_row {
-            positions.push((row, left_col));
+            let col = buffer.grapheme_at_display_col(row, left_display);
+            positions.push((row, col));
         }
         positions
     }
@@ -226,20 +232,47 @@ impl VisualMode {
 
         let top_row = self.anchor.0.min(cursor.0);
         let bottom_row = self.anchor.0.max(cursor.0);
-        let right_col = self.anchor.1.max(cursor.1) + 1;
+        let (_, right_display) = Self::block_display_range(buffer, self.anchor, cursor);
 
         let mut positions = Vec::new();
         for row in top_row..=bottom_row {
-            // Get actual line length
+            // Find grapheme just past the right edge of the block
+            let (_, g_end) =
+                buffer.grapheme_range_for_display_cols(row, right_display, right_display);
             let line_len = buffer
                 .content()
                 .get(row)
                 .map(|l| l.graphemes(true).count())
                 .unwrap_or(0);
-            let insert_col = right_col.min(line_len);
+            let insert_col = g_end.min(line_len);
             positions.push((row, insert_col));
         }
         positions
+    }
+
+    /// Compute the display column range for a block selection.
+    ///
+    /// Returns `(left_display, right_display)` where both are inclusive display
+    /// column indices. The range encompasses the full display width of the
+    /// characters at both anchor and cursor positions, ensuring wide characters
+    /// (CJK) are never partially selected.
+    fn block_display_range(
+        buffer: &TextBuffer,
+        anchor: (usize, usize),
+        cursor: (usize, usize),
+    ) -> (usize, usize) {
+        let anchor_start = buffer.display_col_at(anchor.0, anchor.1);
+        let anchor_width = buffer.grapheme_display_width(anchor.0, anchor.1);
+        let anchor_end = anchor_start + anchor_width - 1;
+
+        let cursor_start = buffer.display_col_at(cursor.0, cursor.1);
+        let cursor_width = buffer.grapheme_display_width(cursor.0, cursor.1);
+        let cursor_end = cursor_start + cursor_width - 1;
+
+        let left = anchor_start.min(cursor_start);
+        let right = anchor_end.max(cursor_end);
+
+        (left, right)
     }
 
     fn normalize_range(

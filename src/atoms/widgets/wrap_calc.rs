@@ -157,7 +157,7 @@ pub fn virtual_block_positions(
     let mut result = Vec::new();
 
     let graphemes: Vec<&str> = line.graphemes(true).collect();
-    let line_len = graphemes.len();
+    let _line_len = graphemes.len();
 
     // Start by processing actual graphemes up to line_len, tracking wrap position
     let mut wrap_row: u16 = 0;

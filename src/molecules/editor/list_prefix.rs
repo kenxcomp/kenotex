@@ -162,8 +162,8 @@ pub fn toggle_checkbox_prefix(line: &str) -> Option<String> {
     let indent_len = line.len() - trimmed.len();
     let indent = &line[..indent_len];
 
-    if trimmed.starts_with("- [ ] ") {
-        Some(format!("{}- [x] {}", indent, &trimmed[6..]))
+    if let Some(rest) = trimmed.strip_prefix("- [ ] ") {
+        Some(format!("{}- [x] {}", indent, rest))
     } else if trimmed == "- [ ]" {
         Some(format!("{}- [x]", indent))
     } else if trimmed.starts_with("- [x] ") || trimmed.starts_with("- [X] ") {

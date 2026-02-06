@@ -159,12 +159,11 @@ impl VimMode {
 
     fn key_event_matches(&self, key: &KeyEvent, binding: &str) -> bool {
         if let Some(ch_str) = binding.strip_prefix("ctrl+") {
-            if let Some(c) = ch_str.chars().next() {
-                if ch_str.len() == 1 {
+            if let Some(c) = ch_str.chars().next()
+                && ch_str.len() == 1 {
                     return key.code == KeyCode::Char(c)
                         && key.modifiers.contains(KeyModifiers::CONTROL);
                 }
-            }
             return false;
         }
         if let KeyCode::Char(c) = key.code {

@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::molecules::editor::VisualType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum AppMode {
+    #[default]
     Normal,
     Insert,
     Visual(VisualType),
@@ -12,11 +14,6 @@ pub enum AppMode {
     ConfirmDelete,
 }
 
-impl Default for AppMode {
-    fn default() -> Self {
-        AppMode::Normal
-    }
-}
 
 impl AppMode {
     pub fn as_str(&self) -> &'static str {

@@ -1,8 +1,3 @@
-mod atoms;
-mod coordinator;
-mod molecules;
-mod types;
-
 use std::io;
 use std::time::Duration;
 
@@ -25,14 +20,14 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 
-use coordinator::{App, EventDispatcher};
-use types::{AppMode, View};
+use kenotex::coordinator::{App, EventDispatcher};
+use kenotex::types::{AppMode, View};
 
-use crate::atoms::storage::file_watcher::{self, FileWatcherHandle};
-use crate::atoms::storage::{
+use kenotex::atoms::storage::file_watcher::{self, FileWatcherHandle};
+use kenotex::atoms::storage::{
     cleanup_temp_file, read_temp_file, resolve_editor, spawn_editor, write_temp_file,
 };
-use crate::atoms::widgets::{
+use kenotex::atoms::widgets::{
     ConfirmOverlay, EditorWidget, HintBar, LeaderPopup, ProcessingOverlay, StatusBar,
 };
 
@@ -127,11 +122,9 @@ fn run_app(
                     if matches!(app.view, View::DraftList | View::ArchiveList)
                         && app.mode == AppMode::Normal
                         && !app.vim_mode.is_leader_pending()
-                    {
-                        if EventDispatcher::handle_list_key(app, key)? {
+                        && EventDispatcher::handle_list_key(app, key)? {
                             continue;
                         }
-                    }
 
                     EventDispatcher::handle_key(app, key)?;
 
@@ -306,7 +299,7 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
 
     // In Insert mode, show native terminal cursor (I-beam)
     if app.mode == AppMode::Insert {
-        use crate::atoms::widgets::wrap_calc;
+        use kenotex::atoms::widgets::wrap_calc;
 
         let (cursor_row, cursor_col) = app.buffer.cursor_position();
         let inner_x = area.x + 1; // Account for border

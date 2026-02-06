@@ -121,8 +121,8 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
         }
 
         // Try italic (single *)
-        if !handled && chars[i] == '*' {
-            if let Some((content, end)) = scan_delimited(&chars, i, "*") {
+        if !handled && chars[i] == '*'
+            && let Some((content, end)) = scan_delimited(&chars, i, "*") {
                 if !plain_buffer.is_empty() {
                     tokens.push(MdToken {
                         text: plain_buffer.clone(),
@@ -145,11 +145,10 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
                 i = end;
                 handled = true;
             }
-        }
 
         // Try inline code
-        if !handled && chars[i] == '`' {
-            if let Some((content, end)) = scan_delimited(&chars, i, "`") {
+        if !handled && chars[i] == '`'
+            && let Some((content, end)) = scan_delimited(&chars, i, "`") {
                 if !plain_buffer.is_empty() {
                     tokens.push(MdToken {
                         text: plain_buffer.clone(),
@@ -172,11 +171,10 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
                 i = end;
                 handled = true;
             }
-        }
 
         // Try strikethrough
-        if !handled && i + 1 < chars.len() && chars[i] == '~' && chars[i + 1] == '~' {
-            if let Some((content, end)) = scan_delimited(&chars, i, "~~") {
+        if !handled && i + 1 < chars.len() && chars[i] == '~' && chars[i + 1] == '~'
+            && let Some((content, end)) = scan_delimited(&chars, i, "~~") {
                 if !plain_buffer.is_empty() {
                     tokens.push(MdToken {
                         text: plain_buffer.clone(),
@@ -199,7 +197,6 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
                 i = end;
                 handled = true;
             }
-        }
 
         // Plain character (if no delimiter matched)
         if !handled {

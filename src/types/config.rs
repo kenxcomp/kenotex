@@ -1,6 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Config {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -10,15 +11,6 @@ pub struct Config {
     pub destinations: Destinations,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            keyboard: KeyboardConfig::default(),
-            destinations: Destinations::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
@@ -388,6 +380,7 @@ impl KeyboardConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct Destinations {
     #[serde(default)]
     pub reminders: DestinationApp,
@@ -397,15 +390,6 @@ pub struct Destinations {
     pub notes: NotesDestination,
 }
 
-impl Default for Destinations {
-    fn default() -> Self {
-        Self {
-            reminders: DestinationApp::default(),
-            calendar: DestinationApp::default(),
-            notes: NotesDestination::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DestinationApp {

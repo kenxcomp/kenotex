@@ -204,8 +204,8 @@ impl App {
     }
 
     pub fn archive_selected_note(&mut self) -> Result<()> {
-        if self.view == View::DraftList {
-            if let Some(mut note) = self.draft_list.remove_selected() {
+        if self.view == View::DraftList
+            && let Some(mut note) = self.draft_list.remove_selected() {
                 note.is_archived = true;
                 let old_id = note.id.clone();
                 delete_draft(&self.data_dir, &old_id, false)?;
@@ -216,13 +216,12 @@ impl App {
 
                 self.set_message("Note archived");
             }
-        }
         Ok(())
     }
 
     pub fn restore_selected_note(&mut self) -> Result<()> {
-        if self.view == View::ArchiveList {
-            if let Some(mut note) = self.archive_list.remove_selected() {
+        if self.view == View::ArchiveList
+            && let Some(mut note) = self.archive_list.remove_selected() {
                 note.is_archived = false;
                 let old_id = note.id.clone();
                 delete_draft(&self.data_dir, &old_id, true)?;
@@ -233,7 +232,6 @@ impl App {
 
                 self.set_message("Note restored");
             }
-        }
         Ok(())
     }
 
@@ -494,7 +492,7 @@ impl App {
     pub fn get_visual_selection(&self) -> Option<RenderSelection> {
         let visual_mode = self.visual_mode.as_ref()?;
         let cursor = self.buffer.cursor_position();
-        Some(visual_mode.render_data(cursor))
+        Some(visual_mode.render_data(&self.buffer, cursor))
     }
 
     pub fn enter_visual_mode(&mut self, visual_type: crate::molecules::editor::VisualType) {
