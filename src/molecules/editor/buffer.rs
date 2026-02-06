@@ -1,4 +1,5 @@
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 use super::comment;
 use super::list_prefix;
@@ -979,6 +980,42 @@ impl TextBuffer {
             None
         }
     }
+
+    /// Calculate display column (visual column) for a given (row, col) position.
+    /// Accounts for CJK characters with width 2, ASCII with width 1.
+    pub fn display_col_at(&self, row: usize, col: usize) -> usize {
+        let line = self.lines.get(row).map(|s| s.as_str()).unwrap_or("");
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+
+        let mut display_col = 0;
+        for (idx, g) in graphemes.iter().enumerate() {
+            if idx >= col {
+                break;
+            }
+            display_col += g.width().max(1);
+        }
+        display_col
+    }
+
+    /// Find grapheme index closest to target display column.
+    /// Returns grapheme that would place cursor at or just before target.
+    pub fn grapheme_at_display_col(&self, row: usize, target_display_col: usize) -> usize {
+        let line = self.lines.get(row).map(|s| s.as_str()).unwrap_or("");
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+
+        let mut display_col = 0;
+        for (idx, g) in graphemes.iter().enumerate() {
+            let g_width = g.width().max(1);
+            if display_col + g_width > target_display_col {
+                return idx;
+            }
+            display_col += g_width;
+            if display_col >= target_display_col {
+                return idx + 1;
+            }
+        }
+        graphemes.len()
+    }
 }
 
 #[cfg(test)]
@@ -1509,5 +1546,38 @@ mod tests {
         assert_eq!(buffer.content()[0], "<!-- hello -->");
         assert_eq!(buffer.content()[1], "");
         assert_eq!(buffer.content()[2], "<!-- world -->");
+    }
+
+    #[test]
+    fn test_display_col_at_cjk() {
+        let buffer = TextBuffer::from_string("你好世界");
+        assert_eq!(buffer.display_col_at(0, 0), 0);
+        assert_eq!(buffer.display_col_at(0, 1), 2); // 你 is width 2
+        assert_eq!(buffer.display_col_at(0, 2), 4); // 你好 is width 4
+    }
+
+    #[test]
+    fn test_display_col_at_mixed() {
+        let buffer = TextBuffer::from_string("AB中文EF");
+        assert_eq!(buffer.display_col_at(0, 2), 2); // AB
+        assert_eq!(buffer.display_col_at(0, 3), 4); // AB中
+        assert_eq!(buffer.display_col_at(0, 4), 6); // AB中文
+    }
+
+    #[test]
+    fn test_grapheme_at_display_col_cjk() {
+        let buffer = TextBuffer::from_string("你好世界");
+        assert_eq!(buffer.grapheme_at_display_col(0, 0), 0);
+        assert_eq!(buffer.grapheme_at_display_col(0, 2), 1); // Start of 好
+        assert_eq!(buffer.grapheme_at_display_col(0, 3), 1); // Middle of 好
+    }
+
+    #[test]
+    fn test_grapheme_at_display_col_mixed() {
+        let buffer = TextBuffer::from_string("AB中文EF");
+        assert_eq!(buffer.grapheme_at_display_col(0, 0), 0);
+        assert_eq!(buffer.grapheme_at_display_col(0, 2), 2); // Start of 中
+        assert_eq!(buffer.grapheme_at_display_col(0, 3), 2); // Middle of 中
+        assert_eq!(buffer.grapheme_at_display_col(0, 4), 3); // Start of 文
     }
 }

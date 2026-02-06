@@ -1,7 +1,7 @@
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
@@ -10,6 +10,7 @@ use std::sync::LazyLock;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
+use crate::molecules::editor::RenderSelection;
 use crate::types::{AppMode, Theme};
 
 use super::md_highlight::{MdTokenKind, tokenize_inline};
@@ -130,7 +131,7 @@ pub struct EditorWidget<'a> {
     mode: AppMode,
     title: &'a str,
     scroll_offset: u16,
-    visual_selection: Option<((usize, usize), (usize, usize))>,
+    visual_selection: Option<RenderSelection>,
     search_matches: &'a [(usize, usize, usize)],
 }
 
@@ -159,7 +160,7 @@ impl<'a> EditorWidget<'a> {
         self
     }
 
-    pub fn visual_selection(mut self, sel: Option<((usize, usize), (usize, usize))>) -> Self {
+    pub fn visual_selection(mut self, sel: Option<RenderSelection>) -> Self {
         self.visual_selection = sel;
         self
     }
@@ -167,6 +168,45 @@ impl<'a> EditorWidget<'a> {
     pub fn search_matches(mut self, matches: &'a [(usize, usize, usize)]) -> Self {
         self.search_matches = matches;
         self
+    }
+
+    /// Applies selection background while preserving markdown formatting.
+    ///
+    /// Ratatui's `Cell::set_style()` replaces the entire style, so we must manually
+    /// preserve formatting from the original cell. This function:
+    /// - Preserves all text modifiers (BOLD, ITALIC, CROSSED_OUT, etc.)
+    /// - Preserves foreground color (for markdown syntax highlighting)
+    /// - Overrides background color only (for selection visibility)
+    ///
+    /// # Arguments
+    /// * `buf` - The buffer to modify
+    /// * `x`, `y` - Coordinates of the cell to modify
+    /// * `selection_bg` - Background color for selection
+    /// * `default_fg` - Foreground color to use if cell has no custom foreground
+    fn apply_selection_to_cell(
+        buf: &mut Buffer,
+        x: u16,
+        y: u16,
+        selection_bg: Color,
+        default_fg: Color,
+    ) {
+        let cell = &buf[(x, y)];
+        let old_fg = cell.fg;
+        let old_modifiers = cell.modifier;
+
+        // Use the cell's foreground color if set, otherwise use default
+        let fg_color = if matches!(old_fg, Color::Reset) {
+            default_fg
+        } else {
+            old_fg
+        };
+
+        let new_style = Style::default()
+            .bg(selection_bg)
+            .fg(fg_color)
+            .add_modifier(old_modifiers);
+
+        buf[(x, y)].set_style(new_style);
     }
 
     /// Map MdTokenKind to ratatui Style based on theme colors.
@@ -308,6 +348,252 @@ impl<'a> EditorWidget<'a> {
 
         Line::from(spans)
     }
+
+    fn render_selection(&self, selection: &RenderSelection, inner: Rect, buf: &mut Buffer) {
+        match selection {
+            RenderSelection::CharacterRange { start, end } => {
+                self.render_character_selection(*start, *end, inner, buf);
+            }
+            RenderSelection::LineRange { start_row, end_row } => {
+                self.render_line_selection(*start_row, *end_row, inner, buf);
+            }
+            RenderSelection::BlockRegion {
+                top_row,
+                bottom_row,
+                left_col,
+                right_col,
+            } => {
+                self.render_block_selection(
+                    *top_row,
+                    *bottom_row,
+                    *left_col,
+                    *right_col,
+                    inner,
+                    buf,
+                );
+            }
+        }
+    }
+
+    fn render_character_selection(
+        &self,
+        start: (usize, usize),
+        end: (usize, usize),
+        inner: Rect,
+        buf: &mut Buffer,
+    ) {
+        use super::wrap_calc;
+        use unicode_segmentation::UnicodeSegmentation;
+
+        let (sr, sc) = start;
+        let (er, ec) = end;
+
+        let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+
+        let mut rows_before: u16 = content_lines
+            .iter()
+            .take(sr)
+            .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+            .sum();
+
+        for row in sr..=er {
+            let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
+            let graphemes: Vec<&str> = line.graphemes(true).collect();
+
+            let col_start = if row == sr { sc } else { 0 };
+            let col_end = if row == er {
+                ec + 1
+            } else {
+                graphemes.len() + 1
+            };
+            let col_end = col_end.min(graphemes.len() + 1);
+
+            let positions =
+                wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
+
+            for (wrap_row, col, gw) in positions {
+                let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                if screen_y < inner.y || screen_y >= inner.y + inner.height {
+                    continue;
+                }
+                let screen_x = inner.x + col;
+                for dx in 0..gw {
+                    if screen_x + dx < inner.x + inner.width {
+                        Self::apply_selection_to_cell(
+                            buf,
+                            screen_x + dx,
+                            screen_y,
+                            self.theme.accent_color(),
+                            self.theme.fg_color(),
+                        );
+                    }
+                }
+            }
+
+            rows_before += wrap_calc::display_rows_for_line(line, inner.width);
+        }
+    }
+
+    fn render_line_selection(
+        &self,
+        start_row: usize,
+        end_row: usize,
+        inner: Rect,
+        buf: &mut Buffer,
+    ) {
+        use super::wrap_calc;
+
+        let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+
+        let mut rows_before: u16 = content_lines
+            .iter()
+            .take(start_row)
+            .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+            .sum();
+
+        for row in start_row..=end_row {
+            let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
+            let num_display_rows = wrap_calc::display_rows_for_line(line, inner.width);
+
+            for wrap_row in 0..num_display_rows {
+                let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                if screen_y >= inner.y && screen_y < inner.y + inner.height {
+                    // Highlight entire line width
+                    for x in 0..inner.width {
+                        Self::apply_selection_to_cell(
+                            buf,
+                            inner.x + x,
+                            screen_y,
+                            self.theme.accent_color(),
+                            self.theme.fg_color(),
+                        );
+                    }
+                }
+            }
+
+            rows_before += num_display_rows;
+        }
+    }
+
+    fn render_block_selection(
+        &self,
+        top_row: usize,
+        bottom_row: usize,
+        left_col: usize,
+        right_col: usize,
+        inner: Rect,
+        buf: &mut Buffer,
+    ) {
+        use super::wrap_calc;
+        use unicode_segmentation::UnicodeSegmentation;
+
+        let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
+
+        let mut rows_before: u16 = content_lines
+            .iter()
+            .take(top_row)
+            .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+            .sum();
+
+        for row in top_row..=bottom_row {
+            let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
+            let graphemes: Vec<&str> = line.graphemes(true).collect();
+
+            // Calculate visual positions for this block row
+            let actual_left = left_col;
+            let actual_right = right_col;
+
+            // Handle lines shorter than left_col: render virtual spaces
+            if graphemes.len() <= actual_left {
+                // Entire block is beyond line end - render spaces
+                let positions = wrap_calc::virtual_block_positions(
+                    line,
+                    actual_left,
+                    actual_right,
+                    inner.width,
+                );
+
+                for (wrap_row, col, width) in positions {
+                    let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                    if screen_y >= inner.y && screen_y < inner.y + inner.height {
+                        let screen_x = inner.x + col;
+                        for dx in 0..width {
+                            if screen_x + dx < inner.x + inner.width {
+                                // Render highlighted space
+                                buf[(screen_x + dx, screen_y)].set_char(' ');
+                                Self::apply_selection_to_cell(
+                                    buf,
+                                    screen_x + dx,
+                                    screen_y,
+                                    self.theme.accent_color(),
+                                    self.theme.fg_color(),
+                                );
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Line has some content in the block range
+                let col_start = actual_left;
+                let col_end = (actual_right + 1).min(graphemes.len());
+
+                // Render actual characters
+                if col_start < col_end {
+                    let positions =
+                        wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
+
+                    for (wrap_row, col, gw) in positions {
+                        let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                        if screen_y >= inner.y && screen_y < inner.y + inner.height {
+                            let screen_x = inner.x + col;
+                            for dx in 0..gw {
+                                if screen_x + dx < inner.x + inner.width {
+                                    Self::apply_selection_to_cell(
+                                        buf,
+                                        screen_x + dx,
+                                        screen_y,
+                                        self.theme.accent_color(),
+                                        self.theme.fg_color(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Render virtual spaces beyond line end if needed
+                if actual_right >= graphemes.len() {
+                    let virtual_positions = wrap_calc::virtual_block_positions(
+                        line,
+                        graphemes.len(),
+                        actual_right,
+                        inner.width,
+                    );
+
+                    for (wrap_row, col, width) in virtual_positions {
+                        let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
+                        if screen_y >= inner.y && screen_y < inner.y + inner.height {
+                            let screen_x = inner.x + col;
+                            for dx in 0..width {
+                                if screen_x + dx < inner.x + inner.width {
+                                    buf[(screen_x + dx, screen_y)].set_char(' ');
+                                    Self::apply_selection_to_cell(
+                                        buf,
+                                        screen_x + dx,
+                                        screen_y,
+                                        self.theme.accent_color(),
+                                        self.theme.fg_color(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            rows_before += wrap_calc::display_rows_for_line(line, inner.width);
+        }
+    }
 }
 
 impl Widget for EditorWidget<'_> {
@@ -344,62 +630,13 @@ impl Widget for EditorWidget<'_> {
         paragraph.render(inner, buf);
 
         // Render visual selection highlight
-        if let Some(((sr, sc), (er, ec))) = self.visual_selection {
-            use super::wrap_calc;
-            use unicode_segmentation::UnicodeSegmentation;
-
-            let selection_style = Style::default()
-                .bg(self.theme.accent_color())
-                .fg(self.theme.bg_color());
-
-            let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
-
-            // Compute rows_before for the first selected line
-            let mut rows_before: u16 = content_lines
-                .iter()
-                .take(sr)
-                .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
-                .sum();
-
-            for row in sr..=er {
-                let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
-                let graphemes: Vec<&str> = line.graphemes(true).collect();
-
-                let col_start = if row == sr { sc } else { 0 };
-                let col_end = if row == er {
-                    ec + 1
-                } else {
-                    graphemes.len() + 1
-                };
-                let col_end = col_end.min(graphemes.len() + 1);
-
-                let positions =
-                    wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
-
-                for (wrap_row, col, gw) in positions {
-                    let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
-                    if screen_y < inner.y || screen_y >= inner.y + inner.height {
-                        continue;
-                    }
-                    let screen_x = inner.x + col;
-                    for dx in 0..gw {
-                        if screen_x + dx < inner.x + inner.width {
-                            buf[(screen_x + dx, screen_y)].set_style(selection_style);
-                        }
-                    }
-                }
-
-                rows_before += wrap_calc::display_rows_for_line(line, inner.width);
-            }
+        if let Some(ref selection) = self.visual_selection {
+            self.render_selection(selection, inner, buf);
         }
 
         // Render search match highlights
         if !self.search_matches.is_empty() {
             use super::wrap_calc;
-
-            let search_style = Style::default()
-                .bg(self.theme.warning_color())
-                .fg(self.theme.bg_color());
 
             let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
 
@@ -430,7 +667,13 @@ impl Widget for EditorWidget<'_> {
                     let screen_x = inner.x + col;
                     for dx in 0..gw {
                         if screen_x + dx < inner.x + inner.width {
-                            buf[(screen_x + dx, screen_y)].set_style(search_style);
+                            Self::apply_selection_to_cell(
+                                buf,
+                                screen_x + dx,
+                                screen_y,
+                                self.theme.warning_color(),
+                                self.theme.fg_color(),
+                            );
                         }
                     }
                 }

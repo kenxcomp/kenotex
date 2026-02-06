@@ -45,7 +45,7 @@ impl EventDispatcher {
         match app.mode {
             AppMode::Normal => Self::handle_normal_action(app, action)?,
             AppMode::Insert => Self::handle_insert_action(app, action)?,
-            AppMode::Visual => Self::handle_visual_action(app, action)?,
+            AppMode::Visual(_) => Self::handle_visual_action(app, action)?,
             AppMode::Search => Self::handle_search_action(app, action, key)?,
             AppMode::Processing | AppMode::ConfirmDelete => {}
         }
@@ -203,9 +203,24 @@ impl EventDispatcher {
             }
 
             VimAction::EnterVisualMode => {
-                app.visual_anchor = Some(app.buffer.cursor_position());
-                app.set_mode(AppMode::Visual);
+                // Legacy action - treat as character mode
+                app.enter_visual_mode(crate::molecules::editor::VisualType::Character);
                 app.set_message("-- VISUAL --");
+            }
+
+            VimAction::EnterVisualCharacter => {
+                app.enter_visual_mode(crate::molecules::editor::VisualType::Character);
+                app.set_message("-- VISUAL --");
+            }
+
+            VimAction::EnterVisualLine => {
+                app.enter_visual_mode(crate::molecules::editor::VisualType::Line);
+                app.set_message("-- VISUAL LINE --");
+            }
+
+            VimAction::EnterVisualBlock => {
+                app.enter_visual_mode(crate::molecules::editor::VisualType::Block);
+                app.set_message("-- VISUAL BLOCK --");
             }
 
             VimAction::LeaderKey => {
@@ -453,7 +468,7 @@ impl EventDispatcher {
             VimAction::MoveLineStart => app.buffer.move_to_line_start(),
             VimAction::MoveLineEnd => app.buffer.move_to_line_end(),
             VimAction::ExitToNormal => {
-                app.set_mode(AppMode::Normal);
+                app.exit_insert_mode();
                 app.clear_message();
             }
             VimAction::ExternalEditor => {
@@ -465,11 +480,70 @@ impl EventDispatcher {
     }
 
     fn handle_visual_action(app: &mut App, action: VimAction) -> Result<()> {
+        use crate::molecules::editor::VisualType;
+
+        let is_block_mode = matches!(app.mode, crate::types::AppMode::Visual(VisualType::Block));
+
         match action {
-            VimAction::MoveLeft => app.buffer.move_left(),
-            VimAction::MoveRight => app.buffer.move_right(),
-            VimAction::MoveUp => app.buffer.move_up(),
-            VimAction::MoveDown => app.buffer.move_down(),
+            // Movement actions with display-aware handling for Visual Block mode
+            VimAction::MoveLeft => {
+                if is_block_mode {
+                    let (row, col) = app.buffer.cursor_position();
+                    let current_display_col = app.buffer.display_col_at(row, col);
+                    let target = current_display_col.saturating_sub(1);
+                    app.visual_target_display_col = Some(target);
+
+                    let new_col = app.buffer.grapheme_at_display_col(row, target);
+                    app.buffer.set_cursor(row, new_col);
+                } else {
+                    app.buffer.move_left();
+                }
+            }
+            VimAction::MoveRight => {
+                if is_block_mode {
+                    let (row, col) = app.buffer.cursor_position();
+                    let current_display_col = app.buffer.display_col_at(row, col);
+                    let target = current_display_col + 1;
+                    app.visual_target_display_col = Some(target);
+
+                    let new_col = app.buffer.grapheme_at_display_col(row, target);
+                    app.buffer.set_cursor(row, new_col);
+                } else {
+                    app.buffer.move_right();
+                }
+            }
+            VimAction::MoveUp => {
+                if is_block_mode {
+                    let (row, col) = app.buffer.cursor_position();
+                    let target_col = app
+                        .visual_target_display_col
+                        .unwrap_or_else(|| app.buffer.display_col_at(row, col));
+
+                    app.buffer.move_up();
+                    let new_row = app.buffer.cursor_position().0;
+                    let new_col = app.buffer.grapheme_at_display_col(new_row, target_col);
+                    app.buffer.set_cursor(new_row, new_col);
+                    app.visual_target_display_col = Some(target_col);
+                } else {
+                    app.buffer.move_up();
+                }
+            }
+            VimAction::MoveDown => {
+                if is_block_mode {
+                    let (row, col) = app.buffer.cursor_position();
+                    let target_col = app
+                        .visual_target_display_col
+                        .unwrap_or_else(|| app.buffer.display_col_at(row, col));
+
+                    app.buffer.move_down();
+                    let new_row = app.buffer.cursor_position().0;
+                    let new_col = app.buffer.grapheme_at_display_col(new_row, target_col);
+                    app.buffer.set_cursor(new_row, new_col);
+                    app.visual_target_display_col = Some(target_col);
+                } else {
+                    app.buffer.move_down();
+                }
+            }
             VimAction::MoveWordForward => app.buffer.move_word_forward(),
             VimAction::MoveWordBackward => app.buffer.move_word_backward(),
             VimAction::MoveLineStart => app.buffer.move_to_line_start(),
@@ -477,108 +551,106 @@ impl EventDispatcher {
             VimAction::MoveFileStart => app.buffer.move_to_first_line(),
             VimAction::MoveFileEnd => app.buffer.move_to_last_line(),
 
+            // Mode switching
+            VimAction::SwitchToVisualCharacter => {
+                app.switch_visual_type(crate::molecules::editor::VisualType::Character);
+                app.set_message("-- VISUAL --");
+            }
+            VimAction::SwitchToVisualLine => {
+                app.switch_visual_type(crate::molecules::editor::VisualType::Line);
+                app.set_message("-- VISUAL LINE --");
+            }
+            VimAction::SwitchToVisualBlock => {
+                app.switch_visual_type(crate::molecules::editor::VisualType::Block);
+                app.set_message("-- VISUAL BLOCK --");
+            }
+
+            // Visual operations
             VimAction::VisualDelete => {
-                if let Some(((sr, sc), (er, ec))) = app.visual_selection() {
-                    app.buffer.save_undo_snapshot();
-                    // Include the end character in the deletion
-                    let delete_ec = if er < app.buffer.line_count() {
-                        let line = app.buffer.content().get(er).map(|l| l.len()).unwrap_or(0);
-                        (ec + 1).min(
-                            app.buffer
-                                .content()
-                                .get(er)
-                                .map(|l| {
-                                    use unicode_segmentation::UnicodeSegmentation;
-                                    l.graphemes(true).count()
-                                })
-                                .unwrap_or(line),
-                        )
-                    } else {
-                        ec + 1
-                    };
-                    let text = app.buffer.delete_range(sr, sc, er, delete_ec);
-                    app.buffer.set_cursor(sr, sc);
-                    let _ = clipboard_copy(&text);
+                app.buffer.save_undo_snapshot();
+                if let Some(deleted) = app.visual_delete() {
+                    let _ = clipboard_copy(&deleted);
                     app.last_yank_linewise = false;
-                    app.dirty = true;
                 }
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
                 app.clear_message();
             }
+
             VimAction::VisualYank => {
-                if let Some(((sr, sc), (er, ec))) = app.visual_selection() {
-                    let extract_ec = if er < app.buffer.line_count() {
-                        (ec + 1).min(
-                            app.buffer
-                                .content()
-                                .get(er)
-                                .map(|l| {
-                                    use unicode_segmentation::UnicodeSegmentation;
-                                    l.graphemes(true).count()
-                                })
-                                .unwrap_or(ec + 1),
-                        )
-                    } else {
-                        ec + 1
-                    };
-                    let text = app.buffer.extract_range(sr, sc, er, extract_ec);
-                    let _ = clipboard_copy(&text);
+                if let Some(yanked) = app.visual_yank() {
+                    let _ = clipboard_copy(&yanked);
                     app.last_yank_linewise = false;
                     app.set_message("Yanked");
                 }
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
+                app.exit_visual_mode();
             }
 
-            VimAction::Indent => {
-                if let Some(((sr, _), (er, _))) = app.visual_selection() {
-                    app.buffer.save_undo_snapshot();
-                    let tab_width = app.config.general.tab_width;
-                    app.buffer.indent_lines(sr, er, tab_width);
-                    app.dirty = true;
-                }
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
+            VimAction::VisualIndent => {
+                app.buffer.save_undo_snapshot();
+                app.visual_indent();
                 app.clear_message();
             }
-            VimAction::Dedent => {
-                if let Some(((sr, _), (er, _))) = app.visual_selection() {
-                    app.buffer.save_undo_snapshot();
-                    let tab_width = app.config.general.tab_width;
-                    app.buffer.dedent_lines(sr, er, tab_width);
-                    app.dirty = true;
-                }
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
+
+            VimAction::VisualDedent => {
+                app.buffer.save_undo_snapshot();
+                app.visual_dedent();
                 app.clear_message();
             }
+
             VimAction::VisualToggleComment => {
-                if let Some(((sr, _), (er, _))) = app.visual_selection() {
-                    app.buffer.save_undo_snapshot();
-                    app.buffer.toggle_comment_lines(sr, er);
-                    app.dirty = true;
-                }
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
+                app.buffer.save_undo_snapshot();
+                app.visual_toggle_comment();
                 app.clear_message();
             }
+
             VimAction::VisualToggleFormat(f) => {
-                if let Some(((sr, sc), (er, ec))) = app.visual_selection() {
-                    app.buffer.save_undo_snapshot();
-                    app.buffer.toggle_format_visual(sr, sc, er, ec, f);
-                    app.dirty = true;
+                // For formatting, we need character-wise coordinates
+                if let Some(render_selection) = app.get_visual_selection() {
+                    if let crate::molecules::editor::RenderSelection::CharacterRange {
+                        start,
+                        end,
+                    } = render_selection
+                    {
+                        app.buffer.save_undo_snapshot();
+                        app.buffer
+                            .toggle_format_visual(start.0, start.1, end.0, end.1, f);
+                        app.dirty = true;
+                    }
                 }
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
+                app.exit_visual_mode();
                 app.clear_message();
+            }
+
+            // Block-specific operations
+            VimAction::VisualBlockInsertStart => {
+                app.buffer.save_undo_snapshot();
+                app.visual_block_insert_start();
+                app.set_message("-- (block) INSERT --");
+            }
+
+            VimAction::VisualBlockInsertEnd => {
+                app.buffer.save_undo_snapshot();
+                app.visual_block_insert_end();
+                app.set_message("-- (block) INSERT --");
+            }
+
+            VimAction::VisualLineInsertStart => {
+                app.buffer.save_undo_snapshot();
+                app.visual_line_insert_start();
+                app.set_message("-- INSERT --");
+            }
+
+            VimAction::VisualLineInsertEnd => {
+                app.buffer.save_undo_snapshot();
+                app.visual_line_insert_end();
+                app.set_message("-- INSERT --");
             }
 
             VimAction::ExitToNormal => {
-                app.visual_anchor = None;
-                app.set_mode(AppMode::Normal);
+                app.visual_target_display_col = None;
+                app.exit_visual_mode();
                 app.clear_message();
             }
+
             _ => {}
         }
         Ok(())

@@ -143,6 +143,10 @@ pub struct KeyboardConfig {
     // Modes
     #[serde(default = "default_visual_mode")]
     pub visual_mode: String,
+    #[serde(default = "default_visual_line_mode")]
+    pub visual_line_mode: String,
+    #[serde(default = "default_visual_block_mode")]
+    pub visual_block_mode: String,
     #[serde(default = "default_search")]
     pub search: String,
     #[serde(default = "default_search_next")]
@@ -264,6 +268,12 @@ fn default_paste_before() -> String {
 fn default_visual_mode() -> String {
     "v".to_string()
 }
+fn default_visual_line_mode() -> String {
+    "V".to_string()
+}
+fn default_visual_block_mode() -> String {
+    "ctrl+v".to_string()
+}
 fn default_search() -> String {
     "/".to_string()
 }
@@ -344,6 +354,8 @@ impl Default for KeyboardConfig {
             paste_after: default_paste_after(),
             paste_before: default_paste_before(),
             visual_mode: default_visual_mode(),
+            visual_line_mode: default_visual_line_mode(),
+            visual_block_mode: default_visual_block_mode(),
             search: default_search(),
             search_next: default_search_next(),
             search_prev: default_search_prev(),

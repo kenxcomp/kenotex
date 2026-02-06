@@ -1,14 +1,21 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+use crate::molecules::editor::VisualType;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AppMode {
-    #[default]
     Normal,
     Insert,
-    Visual,
+    Visual(VisualType),
     Processing,
     Search,
     ConfirmDelete,
+}
+
+impl Default for AppMode {
+    fn default() -> Self {
+        AppMode::Normal
+    }
 }
 
 impl AppMode {
@@ -16,7 +23,9 @@ impl AppMode {
         match self {
             AppMode::Normal => "NORMAL",
             AppMode::Insert => "INSERT",
-            AppMode::Visual => "VISUAL",
+            AppMode::Visual(VisualType::Character) => "VISUAL",
+            AppMode::Visual(VisualType::Line) => "VISUAL LINE",
+            AppMode::Visual(VisualType::Block) => "VISUAL BLOCK",
             AppMode::Processing => "PROCESSING",
             AppMode::Search => "SEARCH",
             AppMode::ConfirmDelete => "CONFIRM",

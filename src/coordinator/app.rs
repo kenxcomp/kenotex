@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use crate::atoms::storage::file_watcher::FileEvent;
@@ -10,7 +11,7 @@ use crate::atoms::storage::{
 };
 use crate::molecules::config::ThemeManager;
 use crate::molecules::distribution::{DispatchResult, dispatch_block, parse_smart_blocks};
-use crate::molecules::editor::{TextBuffer, VimMode};
+use crate::molecules::editor::{RenderSelection, TextBuffer, VimMode, VisualMode};
 use crate::molecules::list::{
     ArchiveList, DraftList, FileChangeAction, FileChangeTracker, classify_event,
 };
@@ -41,8 +42,10 @@ pub struct App {
     pub external_editor_requested: bool,
     pub last_save: std::time::Instant,
 
-    pub visual_anchor: Option<(usize, usize)>,
+    pub visual_mode: Option<VisualMode>,
+    pub block_insert_positions: Vec<(usize, usize)>,
     pub last_yank_linewise: bool,
+    pub visual_target_display_col: Option<usize>,
 
     pub data_dir: PathBuf,
     pub file_change_tracker: FileChangeTracker,
@@ -95,8 +98,10 @@ impl App {
             dirty: false,
             external_editor_requested: false,
             last_save: std::time::Instant::now(),
-            visual_anchor: None,
+            visual_mode: None,
+            block_insert_positions: Vec::new(),
             last_yank_linewise: false,
+            visual_target_display_col: None,
             data_dir,
             file_change_tracker: FileChangeTracker::new(),
             pending_external_reload: None,
@@ -486,15 +491,185 @@ impl App {
         }
     }
 
-    /// Returns the visual selection as (start, end) sorted, or None if not in visual mode.
-    pub fn visual_selection(&self) -> Option<((usize, usize), (usize, usize))> {
-        let anchor = self.visual_anchor?;
+    pub fn get_visual_selection(&self) -> Option<RenderSelection> {
+        let visual_mode = self.visual_mode.as_ref()?;
         let cursor = self.buffer.cursor_position();
-        if anchor <= cursor {
-            Some((anchor, cursor))
-        } else {
-            Some((cursor, anchor))
+        Some(visual_mode.render_data(cursor))
+    }
+
+    pub fn enter_visual_mode(&mut self, visual_type: crate::molecules::editor::VisualType) {
+        use crate::molecules::editor::VisualType;
+
+        let cursor = self.buffer.cursor_position();
+        self.visual_mode = Some(VisualMode::new(visual_type, cursor));
+        self.mode = AppMode::Visual(visual_type);
+
+        // Initialize target display column for Visual Block mode
+        if visual_type == VisualType::Block {
+            self.visual_target_display_col =
+                Some(self.buffer.display_col_at(cursor.0, cursor.1));
         }
+    }
+
+    pub fn switch_visual_type(&mut self, new_type: crate::molecules::editor::VisualType) {
+        use crate::molecules::editor::VisualType;
+
+        if let Some(ref mut visual_mode) = self.visual_mode {
+            visual_mode.set_type(new_type);
+            self.mode = AppMode::Visual(new_type);
+
+            // Initialize target display column when switching to Block mode
+            if new_type == VisualType::Block {
+                let cursor = self.buffer.cursor_position();
+                self.visual_target_display_col =
+                    Some(self.buffer.display_col_at(cursor.0, cursor.1));
+            } else {
+                // Clear target column when switching away from Block mode
+                self.visual_target_display_col = None;
+            }
+        }
+    }
+
+    pub fn exit_visual_mode(&mut self) {
+        self.visual_mode = None;
+        self.mode = AppMode::Normal;
+        self.visual_target_display_col = None;
+    }
+
+    pub fn visual_delete(&mut self) -> Option<String> {
+        let visual_mode = self.visual_mode.take()?;
+        let cursor = self.buffer.cursor_position();
+        let deleted = visual_mode.delete_selection(&mut self.buffer, cursor);
+        self.dirty = true;
+        self.mode = AppMode::Normal;
+        Some(deleted)
+    }
+
+    pub fn visual_yank(&self) -> Option<String> {
+        let visual_mode = self.visual_mode.as_ref()?;
+        let cursor = self.buffer.cursor_position();
+        Some(visual_mode.yank_selection(&self.buffer, cursor))
+    }
+
+    pub fn visual_indent(&mut self) {
+        if let Some(ref visual_mode) = self.visual_mode {
+            let cursor = self.buffer.cursor_position();
+            let tab_width = self.config.general.tab_width;
+            visual_mode.indent_selection(&mut self.buffer, cursor, tab_width);
+            self.dirty = true;
+        }
+        self.visual_mode = None;
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn visual_dedent(&mut self) {
+        if let Some(ref visual_mode) = self.visual_mode {
+            let cursor = self.buffer.cursor_position();
+            let tab_width = self.config.general.tab_width;
+            visual_mode.dedent_selection(&mut self.buffer, cursor, tab_width);
+            self.dirty = true;
+        }
+        self.visual_mode = None;
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn visual_toggle_comment(&mut self) {
+        if let Some(ref visual_mode) = self.visual_mode {
+            let cursor = self.buffer.cursor_position();
+            visual_mode.toggle_comment(&mut self.buffer, cursor);
+            self.dirty = true;
+        }
+        self.visual_mode = None;
+        self.mode = AppMode::Normal;
+    }
+
+    pub fn visual_block_insert_start(&mut self) {
+        if let Some(ref mut visual_mode) = self.visual_mode {
+            let cursor = self.buffer.cursor_position();
+            self.block_insert_positions =
+                visual_mode.prepare_insert_start(&mut self.buffer, cursor);
+            if let Some(&first_pos) = self.block_insert_positions.first() {
+                self.buffer.set_cursor(first_pos.0, first_pos.1);
+                self.mode = AppMode::Insert;
+                self.visual_mode = None;
+            }
+        }
+    }
+
+    pub fn visual_block_insert_end(&mut self) {
+        if let Some(ref mut visual_mode) = self.visual_mode {
+            let cursor = self.buffer.cursor_position();
+            self.block_insert_positions = visual_mode.prepare_insert_end(&mut self.buffer, cursor);
+            if let Some(&first_pos) = self.block_insert_positions.first() {
+                self.buffer.set_cursor(first_pos.0, first_pos.1);
+                self.mode = AppMode::Insert;
+                self.visual_mode = None;
+            }
+        }
+    }
+
+    pub fn visual_line_insert_start(&mut self) {
+        if let Some(visual_mode) = self.visual_mode.take() {
+            let anchor = visual_mode.anchor();
+            let cursor = self.buffer.cursor_position();
+
+            // Move to start of first selected line
+            let first_row = anchor.0.min(cursor.0);
+            self.buffer.set_cursor(first_row, 0);
+            self.buffer.move_to_line_start();
+
+            self.mode = AppMode::Insert;
+        }
+    }
+
+    pub fn visual_line_insert_end(&mut self) {
+        if let Some(visual_mode) = self.visual_mode.take() {
+            let anchor = visual_mode.anchor();
+            let cursor = self.buffer.cursor_position();
+
+            // Move to end of last selected line
+            let last_row = anchor.0.max(cursor.0);
+            self.buffer.set_cursor(last_row, 0);
+            self.buffer.move_to_line_end();
+
+            self.mode = AppMode::Insert;
+        }
+    }
+
+    pub fn exit_insert_mode(&mut self) {
+        // Handle block insert replay
+        if !self.block_insert_positions.is_empty() {
+            if let Some(&first_pos) = self.block_insert_positions.first() {
+                // Calculate what was inserted at the first position
+                if let Some(line) = self.buffer.content().get(first_pos.0) {
+                    let current_col = self.buffer.cursor_position().1;
+
+                    // Extract inserted text using GRAPHEME indices, not byte offsets
+                    let graphemes: Vec<&str> = line.graphemes(true).collect();
+                    let grapheme_count = graphemes.len();
+
+                    let inserted_text = if first_pos.1 < grapheme_count && current_col > first_pos.1
+                    {
+                        // Extract graphemes from start column to current column
+                        graphemes[first_pos.1..current_col.min(grapheme_count)].join("")
+                    } else {
+                        String::new()
+                    };
+
+                    // Replay to remaining positions (skip first)
+                    if !inserted_text.is_empty() {
+                        for &(row, col) in self.block_insert_positions.iter().skip(1) {
+                            self.buffer.set_cursor(row, col);
+                            self.buffer.insert_text(&inserted_text);
+                        }
+                        self.dirty = true;
+                    }
+                }
+            }
+            self.block_insert_positions.clear();
+        }
+
+        self.mode = AppMode::Normal;
     }
 
     pub fn request_external_editor(&mut self) {

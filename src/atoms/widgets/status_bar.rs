@@ -48,7 +48,7 @@ impl<'a> StatusBar<'a> {
         match self.mode {
             AppMode::Normal => self.theme.accent_color(),
             AppMode::Insert => self.theme.success_color(),
-            AppMode::Visual => self.theme.warning_color(),
+            AppMode::Visual(_) => self.theme.warning_color(),
             AppMode::Processing => self.theme.error_color(),
             AppMode::Search => self.theme.warning_color(),
             AppMode::ConfirmDelete => self.theme.warning_color(),

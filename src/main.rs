@@ -299,7 +299,7 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         title,
     )
     .scroll_offset(app.scroll_offset(area.width, area.height))
-    .visual_selection(app.visual_selection())
+    .visual_selection(app.get_visual_selection())
     .search_matches(&search_matches);
 
     f.render_widget(editor, area);

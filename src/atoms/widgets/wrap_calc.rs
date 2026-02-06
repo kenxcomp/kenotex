@@ -134,6 +134,72 @@ pub fn visual_positions_in_range(
     result
 }
 
+/// Compute visual positions for a "virtual" block range that may extend beyond the line's content.
+///
+/// This is used for Visual Block mode when the selection rectangle extends past the end of shorter lines.
+/// Returns positions for virtual spaces that should be rendered as part of the block selection.
+///
+/// # Arguments
+/// * `line` - The line content
+/// * `start_col` - Starting grapheme index (may be beyond line length)
+/// * `end_col` - Ending grapheme index (may be beyond line length)
+/// * `width` - Display width for wrapping
+///
+/// # Returns
+/// Vector of `(wrap_row, col, width)` tuples for each position to render
+pub fn virtual_block_positions(
+    line: &str,
+    start_col: usize,
+    end_col: usize,
+    width: u16,
+) -> Vec<(u16, u16, u16)> {
+    let w = if width == 0 { 1 } else { width as usize };
+    let mut result = Vec::new();
+
+    let graphemes: Vec<&str> = line.graphemes(true).collect();
+    let line_len = graphemes.len();
+
+    // Start by processing actual graphemes up to line_len, tracking wrap position
+    let mut wrap_row: u16 = 0;
+    let mut col: usize = 0;
+    let mut grapheme_idx: usize = 0;
+
+    // Process actual graphemes to establish display position
+    for g in &graphemes {
+        let gw = g.width();
+        if gw > 0 && col + gw > w {
+            wrap_row += 1;
+            col = 0;
+        }
+        // If this grapheme is in our range, output it
+        if grapheme_idx >= start_col && grapheme_idx < end_col {
+            result.push((wrap_row, col as u16, gw as u16));
+        }
+        if gw > 0 {
+            col += gw;
+        }
+        grapheme_idx += 1;
+    }
+
+    // Now handle virtual positions beyond the line end
+    // grapheme_idx is now at line_len, col is at the display position after last char
+    while grapheme_idx < end_col {
+        // Check if we need to wrap
+        if col + 1 > w {
+            wrap_row += 1;
+            col = 0;
+        }
+        // Only output if in range
+        if grapheme_idx >= start_col {
+            result.push((wrap_row, col as u16, 1));
+        }
+        col += 1;
+        grapheme_idx += 1;
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,5 +352,49 @@ mod tests {
         let positions = visual_positions_in_range("ab", 0, 3, 10);
         assert_eq!(positions.len(), 3);
         assert_eq!(positions[2], (0, 2, 1)); // virtual trailing position
+    }
+
+    #[test]
+    fn test_virtual_block_positions_beyond_line() {
+        // Line "ab" (2 graphemes), block selection from col 3 to 5 (all virtual)
+        let positions = virtual_block_positions("ab", 3, 5, 10);
+        assert_eq!(positions.len(), 2);
+        assert_eq!(positions[0], (0, 3, 1)); // Virtual space at col 3
+        assert_eq!(positions[1], (0, 4, 1)); // Virtual space at col 4
+    }
+
+    #[test]
+    fn test_virtual_block_positions_partial_virtual() {
+        // Line "abc" (3 graphemes), block from col 2 to 5 (mix of real and virtual)
+        let positions = virtual_block_positions("abc", 2, 5, 10);
+        assert_eq!(positions.len(), 3);
+        assert_eq!(positions[0], (0, 2, 1)); // Real 'c'
+        assert_eq!(positions[1], (0, 3, 1)); // Virtual
+        assert_eq!(positions[2], (0, 4, 1)); // Virtual
+    }
+
+    #[test]
+    fn test_virtual_block_positions_with_cjk() {
+        // Line "你好" (2 graphemes, 4 display width)
+        // Grapheme 0 "你" at display cols [0,1], grapheme 1 "好" at display cols [2,3]
+        // After processing both, we're at display col 4
+        // Requesting graphemes 3-5 means virtual graphemes 3 and 4
+        // Since grapheme 2 would be at col 4, grapheme 3 is at col 5, grapheme 4 at col 6
+        let positions = virtual_block_positions("你好", 3, 5, 10);
+        assert_eq!(positions.len(), 2);
+        assert_eq!(positions[0], (0, 5, 1)); // Grapheme 3 at display col 5
+        assert_eq!(positions[1], (0, 6, 1)); // Grapheme 4 at display col 6
+    }
+
+    #[test]
+    fn test_virtual_block_positions_wrapping() {
+        // Line "ab", width 5, block from col 3 to 8 should wrap
+        let positions = virtual_block_positions("ab", 3, 8, 5);
+        assert_eq!(positions.len(), 5);
+        assert_eq!(positions[0], (0, 3, 1)); // col 3
+        assert_eq!(positions[1], (0, 4, 1)); // col 4
+        assert_eq!(positions[2], (1, 0, 1)); // wraps to row 1
+        assert_eq!(positions[3], (1, 1, 1));
+        assert_eq!(positions[4], (1, 2, 1));
     }
 }

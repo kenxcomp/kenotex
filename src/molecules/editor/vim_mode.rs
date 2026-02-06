@@ -42,6 +42,18 @@ pub enum VimAction {
     Dedent,
     InsertNewline,
     EnterVisualMode,
+    EnterVisualCharacter,
+    EnterVisualLine,
+    EnterVisualBlock,
+    SwitchToVisualCharacter,
+    SwitchToVisualLine,
+    SwitchToVisualBlock,
+    VisualBlockInsertStart,
+    VisualBlockInsertEnd,
+    VisualLineInsertStart,
+    VisualLineInsertEnd,
+    VisualIndent,
+    VisualDedent,
     ExitToNormal,
     Undo,
     Redo,
@@ -166,7 +178,7 @@ impl VimMode {
         match mode {
             AppMode::Normal => self.handle_normal_mode(key),
             AppMode::Insert => self.handle_insert_mode(key),
-            AppMode::Visual => self.handle_visual_mode(key),
+            AppMode::Visual(visual_type) => self.handle_visual_mode(key, visual_type),
             AppMode::Search => self.handle_search_mode(key),
             AppMode::Processing | AppMode::ConfirmDelete => VimAction::None,
         }
@@ -364,9 +376,15 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.undo) => VimAction::Undo,
             KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.redo) => VimAction::Redo,
 
-            // Modes
+            // Modes - Check ctrl+v FIRST before plain v
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.visual_block_mode) => {
+                VimAction::EnterVisualBlock
+            }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.visual_mode) => {
-                VimAction::EnterVisualMode
+                VimAction::EnterVisualCharacter
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.visual_line_mode) => {
+                VimAction::EnterVisualLine
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.search) => VimAction::Search,
             KeyCode::Char('f') => VimAction::Search, // Alternative search key
@@ -434,7 +452,13 @@ impl VimMode {
         }
     }
 
-    fn handle_visual_mode(&mut self, key: KeyEvent) -> VimAction {
+    fn handle_visual_mode(
+        &mut self,
+        key: KeyEvent,
+        visual_type: crate::molecules::editor::VisualType,
+    ) -> VimAction {
+        use crate::molecules::editor::VisualType;
+
         // Leader key handling in Visual mode
         match &self.leader_state {
             LeaderState::AwaitingFirst => {
@@ -489,6 +513,46 @@ impl VimMode {
             return VimAction::None;
         }
 
+        // Handle mode switching
+        match key.code {
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.visual_mode) => {
+                return match visual_type {
+                    VisualType::Character => VimAction::ExitToNormal,
+                    _ => VimAction::SwitchToVisualCharacter,
+                };
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.visual_line_mode) => {
+                return match visual_type {
+                    VisualType::Line => VimAction::ExitToNormal,
+                    _ => VimAction::SwitchToVisualLine,
+                };
+            }
+            _ if self.key_event_matches(&key, &self.keys.visual_block_mode) => {
+                return match visual_type {
+                    VisualType::Block => VimAction::ExitToNormal,
+                    _ => VimAction::SwitchToVisualBlock,
+                };
+            }
+            _ => {}
+        }
+
+        // Visual mode specific operations for I and A
+        match visual_type {
+            VisualType::Block => match key.code {
+                KeyCode::Char('I') => return VimAction::VisualBlockInsertStart,
+                KeyCode::Char('A') => return VimAction::VisualBlockInsertEnd,
+                _ => {}
+            },
+            VisualType::Line => match key.code {
+                KeyCode::Char('I') => return VimAction::VisualLineInsertStart,
+                KeyCode::Char('A') => return VimAction::VisualLineInsertEnd,
+                _ => {}
+            },
+            VisualType::Character => {
+                // Character mode doesn't have special I/A behavior
+            }
+        }
+
         match key.code {
             KeyCode::Esc => VimAction::ExitToNormal,
 
@@ -525,8 +589,8 @@ impl VimMode {
                 VimAction::VisualDelete
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => VimAction::VisualYank,
-            KeyCode::Char('>') => VimAction::Indent,
-            KeyCode::Char('<') => VimAction::Dedent,
+            KeyCode::Char('>') => VimAction::VisualIndent,
+            KeyCode::Char('<') => VimAction::VisualDedent,
             _ => VimAction::None,
         }
     }
@@ -815,7 +879,7 @@ mod tests {
         let mut vim = VimMode::new();
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::VisualDelete);
     }
@@ -825,7 +889,7 @@ mod tests {
         let mut vim = VimMode::new();
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::VisualYank);
     }
@@ -1019,14 +1083,14 @@ mod tests {
         // Space in Visual -> AwaitingFirst
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::LeaderKey);
 
         // 'b' -> VisualToggleFormat(Bold)
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::VisualToggleFormat(MarkdownFormat::Bold));
     }
@@ -1037,11 +1101,11 @@ mod tests {
 
         vim.handle_key(
             KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(
             action,
@@ -1056,14 +1120,14 @@ mod tests {
         // 'g' in visual mode -> pending
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::None);
 
         // 'c' -> VisualToggleComment
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::VisualToggleComment);
     }
@@ -1075,14 +1139,14 @@ mod tests {
         // 'g' in visual mode -> pending
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::None);
 
         // 'g' again -> MoveFileStart
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::MoveFileStart);
     }
@@ -1094,14 +1158,14 @@ mod tests {
         // 'g' in visual mode -> pending
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::None);
 
         // 'z' (invalid) -> None, pending cancelled
         let action = vim.handle_key(
             KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE),
-            AppMode::Visual,
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::None);
     }

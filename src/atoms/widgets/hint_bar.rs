@@ -34,13 +34,14 @@ impl<'a> HintBar<'a> {
                 ("^Q", "Quit"),
             ],
             (View::Editor, AppMode::Insert) => vec![("Esc", "Normal"), ("^G", "ExtEdit")],
-            (View::Editor, AppMode::Visual) => vec![
+            (View::Editor, AppMode::Visual(_)) => vec![
                 ("Esc", "Normal"),
                 ("d", "Delete"),
                 ("y", "Yank"),
                 ("gc", "Comment"),
                 ("Space", "Format"),
                 ("hjkl", "Move"),
+                ("v/V/^V", "Switch"),
             ],
             (_, AppMode::Search) => vec![("Enter", "Confirm"), ("Esc", "Cancel")],
             (_, AppMode::ConfirmDelete) => vec![("y", "Confirm"), ("n/Esc", "Cancel")],
