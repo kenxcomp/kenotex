@@ -17,3 +17,6 @@ Thumbs.db
 
 # Local config (user's personal config)
 # Note: docs/default.toml is the reference config and should be tracked
+
+# Claude Code local overrides
+.claude.local.md

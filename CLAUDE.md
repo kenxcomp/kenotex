@@ -59,13 +59,13 @@ L4 Atoms (atoms/)
 - `event_dispatcher.rs` - Routes keyboard events to appropriate handlers based on current mode (Normal/Insert/Visual/Search/ConfirmDelete) and view (Editor/DraftList/ArchiveList).
 
 **L3 Molecules** (`molecules/`):
-- `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation), Comment (HTML comment `<!-- -->` detection and toggling), ListPrefix (list prefix detection and continuation for `- [ ]`, `N.`, `N)`)
+- `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation), VisualMode (visual selection state with Character/Line/Block types, RenderSelection), Comment (HTML comment `<!-- -->` detection and toggling), ListPrefix (list prefix detection and continuation for `- [ ]`, `N.`, `N)`), MarkdownFmt (inline format detection/toggling for bold/italic/strikethrough/code)
 - `list/` - DraftList/ArchiveList (note collection management with filtering/selection), FileChangeHandler (file event classification)
 - `config/` - ThemeManager (tokyo_night/gruvbox/nord/catppuccin_mocha/catppuccin_macchiato/catppuccin_frappe/catppuccin_latte), keybindings
 - `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations)
 
 **L4 Atoms** (`atoms/`):
-- `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities)
+- `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities), MdHighlight (markdown inline syntax tokenizer for editor highlighting)
 - `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration), clipboard (system clipboard integration), external_editor (external editor launching)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
 
@@ -106,17 +106,33 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `file_watch_debounce_ms` - File watcher debounce interval (default: 300)
 - `tab_width` - Tab width in spaces (default: 4)
 
+### Destinations Config
+
+`config.toml` `[destinations]` section routes parsed blocks to macOS apps:
+- `[destinations.reminders]` - `app` (default: "apple"), `list` (optional Reminders list name)
+- `[destinations.calendar]` - `app` (default: "apple"), `calendar_name` (optional calendar name)
+- `[destinations.notes]` - `app` (apple_notes/bear/obsidian, default: apple_notes), `folder` (optional), `vault` (optional, Obsidian only)
+
 ### Keyboard Config
 
 `config.toml` `[keyboard]` section supports remapping of all keybindings. Notable entries:
 - `leader_comment` - Toggle HTML comment on current line (default: "c", triggered as Space+c in Normal mode)
 - `visual_comment` - Toggle HTML comment on selected lines in Visual mode (default: "gc")
+- `visual_line_mode` - Enter Visual Line mode (default: "V")
+- `visual_block_mode` - Enter Visual Block mode (default: "ctrl+v")
+- `leader_bold` - Toggle bold formatting (default: "b")
+- `leader_italic` - Toggle italic formatting (default: "i")
+- `leader_strikethrough` - Toggle strikethrough formatting (default: "x")
+- `leader_code` - Toggle inline code formatting (default: "c")
+- `leader_code_block` - Toggle code block formatting (default: "C")
 
 ### Key Data Types (`types/`)
 
-- `AppMode` - Normal, Insert, Visual, Search, Processing, ConfirmDelete
+- `AppMode` - Normal, Insert, Visual(VisualType) (Character/Line/Block), Search, Processing, ConfirmDelete
 - `View` - Editor, DraftList, ArchiveList
-- `SmartBlock` - Parsed content block with detected BlockType (Reminder/Calendar/Note)
+- `SmartBlock` - Parsed content block with detected BlockType (Reminder/Calendar/Note) and ProcessingStatus (Pending/Sent/Failed/Skipped)
+- `BlockType` - Reminder, Calendar, Note (in `types/block.rs`)
+- `Theme` - Color theme struct with bg/fg/cursor/selection/border/accent/success/warning/error/panel fields (in `types/theme.rs`)
 - `Note` - Draft/archive with id, title, content, timestamps
 
 ### Event Flow
