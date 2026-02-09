@@ -154,9 +154,51 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `gg` - Jump to file start (changed from single `g` to free up `gc` for comment toggling)
 - `gc` - Toggle HTML comments on selected lines
 
-### Smart Block Detection Priority
+### Smart Block Parsing (Strict Tag-Only System)
 
-1. Explicit tags: `:::td` (Reminder), `:::cal` (Calendar), `:::note` (Note)
-2. Checkbox pattern: `- [ ]` → Reminder
-3. Time expressions (English/Chinese) → Calendar
-4. Default → Note
+**IMPORTANT**: Kenotex uses a **strict tag-only system**. Only content wrapped in explicit tag pairs is processed.
+
+**Tag format**:
+- Opening tag: `:::td`, `:::cal`, or `:::note` on its own line
+- Closing tag: `:::` on its own line
+- Content between tags is processed
+- Content outside tags is ignored
+
+**Example**:
+```
+:::td
+- Buy milk @明天早上8点
+- Walk dog @9pm
+* Feed cat
+:::
+
+:::cal
+Team meeting @下周一上午9点
+Room 301
+:::
+
+:::note
+Random thought
+:::
+```
+
+**Block types**:
+- `:::td ... :::` → Reminder
+- `:::cal ... :::` → Calendar event
+- `:::note ... :::` → Note (Apple Notes/Bear/Obsidian)
+
+**List handling** (within `:::td` blocks):
+- Detects: `-`, `*`, `- [ ]`, `- []` at line start
+- Creates separate reminder for each list item
+- Strips list prefix before creating reminder
+
+**Time expressions**:
+- `@time` syntax: `@明天早上8点`, `@tomorrow`, `@9pm`, `@下周一`
+- Works in both `:::td` and `:::cal` blocks
+- Provides explicit time specification
+- Editor highlights `@time` in bold accent color for visual feedback
+
+**Warnings**:
+- Unclosed tags show warning with line number
+- Empty blocks (no content between tags) are ignored
+- Invalid `@time` expressions (like `@john`) are not parsed

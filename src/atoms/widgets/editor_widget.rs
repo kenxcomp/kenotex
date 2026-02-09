@@ -230,6 +230,9 @@ impl<'a> EditorWidget<'a> {
             MdTokenKind::OrderedListPrefix | MdTokenKind::UnorderedListPrefix => {
                 base_style.fg(self.theme.border_color())
             }
+            MdTokenKind::TimeExpression => base_style
+                .fg(self.theme.accent_color())
+                .add_modifier(Modifier::BOLD),
         }
     }
 

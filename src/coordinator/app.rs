@@ -286,7 +286,15 @@ impl App {
 
         // Parse from current buffer so byte offsets match the live content
         let buffer_content = self.buffer.to_string();
-        let blocks = parse_smart_blocks(&buffer_content);
+        let (blocks, warnings) = parse_smart_blocks(&buffer_content);
+
+        if !warnings.is_empty() {
+            // Display warnings to user via message system
+            let warning_msg = warnings.join("; ");
+            self.set_message(&format!("Parsing warnings: {}", warning_msg));
+            // Don't block processing - continue with valid blocks
+        }
+
         if blocks.is_empty() {
             self.set_message("No blocks to process");
             return;

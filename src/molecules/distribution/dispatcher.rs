@@ -2,7 +2,7 @@ use crate::atoms::applescript::{
     create_apple_note, create_bear_note, create_calendar_event, create_obsidian_note,
     create_reminder,
 };
-use crate::molecules::distribution::parse_time_expression;
+use crate::molecules::distribution::{parse_at_time_expression, parse_time_expression};
 use crate::types::{BlockType, Destinations, NotesApp, SmartBlock};
 
 #[derive(Debug)]
@@ -34,23 +34,33 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
     let content = strip_tag(&block.content, ":::td");
     let list_name = destinations.reminders.list.as_deref();
 
-    // Check for checkbox items: create one reminder per item
-    let checkbox_items: Vec<&str> = content
+    // Enhanced list item detection: "- ", "* ", "- [ ]", "- []"
+    let list_items: Vec<&str> = content
         .lines()
         .filter(|line| {
             let trimmed = line.trim();
-            trimmed.starts_with("- [ ]") || trimmed.starts_with("- []")
+            trimmed.starts_with("- ")
+                || trimmed.starts_with("* ")
+                || trimmed.starts_with("- [ ]")
+                || trimmed.starts_with("- []")
         })
         .collect();
 
-    if !checkbox_items.is_empty() {
-        for item in &checkbox_items {
+    if !list_items.is_empty() {
+        for item in &list_items {
+            // Strip list prefix: "- ", "* ", "- [ ] ", "- [] "
             let title = item
                 .trim()
                 .trim_start_matches("- [ ]")
                 .trim_start_matches("- []")
+                .trim_start_matches("- ")
+                .trim_start_matches("* ")
                 .trim();
-            if let Err(e) = create_reminder(title, None, None, list_name) {
+
+            // Parse @time from the line
+            let due_date = parse_at_time_expression(title);
+
+            if let Err(e) = create_reminder(title, None, due_date, list_name) {
                 return DispatchResult::Failed(format!("Reminder failed: {}", e));
             }
         }
@@ -65,8 +75,8 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
         Some(body.as_str())
     };
 
-    // Try parsing time from content for due date
-    let due_date = parse_time_expression(&content);
+    // Parse @time from content
+    let due_date = parse_at_time_expression(&content);
 
     match create_reminder(&title, body_ref, due_date, list_name) {
         Ok(()) => DispatchResult::Sent,
@@ -87,9 +97,13 @@ fn dispatch_calendar(block: &SmartBlock, destinations: &Destinations) -> Dispatc
         Some(body.as_str())
     };
 
-    let start_date = match parse_time_expression(&content) {
+    // Try @time first, fallback to natural language
+    let start_date = match parse_at_time_expression(&content) {
         Some(dt) => dt,
-        None => return DispatchResult::Failed("Could not parse time".to_string()),
+        None => match parse_time_expression(&content) {
+            Some(dt) => dt,
+            None => return DispatchResult::Failed("Could not parse time".to_string()),
+        },
     };
 
     let calendar_name = destinations.calendar.calendar_name.as_deref();
@@ -157,7 +171,8 @@ mod tests {
 
     #[test]
     fn test_strip_tag_reminder() {
-        assert_eq!(strip_tag(":::td Buy milk", ":::td"), "Buy milk");
+        // Content should already be tag-free from parser
+        assert_eq!(strip_tag("Buy milk", ":::td"), "Buy milk");
     }
 
     #[test]
@@ -167,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_strip_tag_multiline() {
-        let input = ":::cal Meeting tomorrow\nWith team";
+        let input = "Meeting tomorrow\nWith team";
         let result = strip_tag(input, ":::cal");
         assert_eq!(result, "Meeting tomorrow\nWith team");
     }
@@ -190,7 +205,7 @@ mod tests {
     fn test_dispatch_reminder_skipped_when_empty_app() {
         let block = SmartBlock::new(
             "t1".to_string(),
-            ":::td Buy milk".to_string(),
+            "Buy milk".to_string(), // Content no longer includes tags
             BlockType::Reminder,
         );
         let mut destinations = Destinations::default();
@@ -204,7 +219,7 @@ mod tests {
     fn test_dispatch_calendar_skipped_when_empty_app() {
         let block = SmartBlock::new(
             "t1".to_string(),
-            ":::cal Meeting".to_string(),
+            "Meeting".to_string(), // Content no longer includes tags
             BlockType::Calendar,
         );
         let mut destinations = Destinations::default();
@@ -218,7 +233,7 @@ mod tests {
     fn test_dispatch_note_skipped_when_none_app() {
         let block = SmartBlock::new(
             "t1".to_string(),
-            ":::note Hello".to_string(),
+            "Hello".to_string(), // Content no longer includes tags
             BlockType::Note,
         );
         let mut destinations = Destinations::default();
@@ -232,7 +247,7 @@ mod tests {
     fn test_dispatch_skips_commented_block() {
         let block = SmartBlock::new(
             "t1".to_string(),
-            "<!-- :::td Buy milk -->".to_string(),
+            "<!-- Buy milk -->".to_string(), // Tags removed by parser
             BlockType::Reminder,
         );
         let destinations = Destinations::default();
@@ -245,7 +260,7 @@ mod tests {
     fn test_dispatch_skips_multiline_commented_block() {
         let block = SmartBlock::new(
             "t1".to_string(),
-            "<!-- :::cal Meeting tomorrow\nWith team -->".to_string(),
+            "<!-- Meeting tomorrow\nWith team -->".to_string(), // Tags removed by parser
             BlockType::Calendar,
         );
         let destinations = Destinations::default();
