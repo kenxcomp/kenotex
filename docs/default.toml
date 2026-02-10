@@ -67,14 +67,20 @@ move_right = "l"     # Move cursor right / 光标右移
 # Word movement / 单词移动
 word_forward = "w"   # Next word / 下一个单词
 word_backward = "b"  # Previous word / 上一个单词
+word_end = "e"       # Word end / 词尾
 
 # Line movement / 行内移动
 line_start = "0"     # Line start / 行首
 line_end = "$"       # Line end / 行尾
+first_non_blank = "^"  # First non-blank character / 第一个非空白字符
 
 # File movement / 文件移动
 file_start = "g"     # File start / 文件开头
 file_end = "G"       # File end / 文件结尾
+
+# Scroll / 滚动
+scroll_up = "ctrl+u"   # Scroll up 5 lines / 向上滚动5行
+scroll_down = "ctrl+d" # Scroll down 5 lines / 向下滚动5行
 
 # -----------------------------------------------------------------------------
 # Insert Mode Entry / 进入插入模式

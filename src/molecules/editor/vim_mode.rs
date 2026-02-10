@@ -8,10 +8,14 @@ pub enum Motion {
     Line,
     WordForward,
     WordBackward,
+    WordEnd,
     LineEnd,
     LineStart,
+    FirstNonBlank,
     FileEnd,
     FileStart,
+    LinesUp5,
+    LinesDown5,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,8 +29,12 @@ pub enum VimAction {
     MoveWordBackward,
     MoveLineStart,
     MoveLineEnd,
+    MoveFirstNonBlank,
     MoveFileStart,
     MoveFileEnd,
+    MoveWordEnd,
+    MoveUp5Lines,
+    MoveDown5Lines,
     InsertMode,
     InsertModeAppend,
     InsertModeLineEnd,
@@ -309,6 +317,14 @@ impl VimMode {
             KeyCode::Home => VimAction::MoveLineStart,
             KeyCode::End => VimAction::MoveLineEnd,
 
+            // Ctrl+ combos must be checked before plain char matches (key_matches ignores modifiers)
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.scroll_up) => {
+                VimAction::MoveUp5Lines
+            }
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.scroll_down) => {
+                VimAction::MoveDown5Lines
+            }
+
             // Navigation - configurable keys
             KeyCode::Char(c) if self.key_matches(c, &self.keys.move_left) => VimAction::MoveLeft,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.move_right) => VimAction::MoveRight,
@@ -324,6 +340,10 @@ impl VimMode {
                 VimAction::MoveLineStart
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => VimAction::MoveLineEnd,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.first_non_blank) => {
+                VimAction::MoveFirstNonBlank
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_end) => VimAction::MoveWordEnd,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => VimAction::MoveFileEnd,
             // 'g' now enters g-pending state instead of instant MoveFileStart
             KeyCode::Char(c)
@@ -580,11 +600,22 @@ impl VimMode {
                 VimAction::MoveLineStart
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.line_end) => VimAction::MoveLineEnd,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.first_non_blank) => {
+                VimAction::MoveFirstNonBlank
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_end) => VimAction::MoveWordEnd,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
                 self.visual_g_pending = true;
                 VimAction::None
             }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => VimAction::MoveFileEnd,
+            // ctrl+u/ctrl+d MUST be before plain d/y to avoid conflict
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.scroll_up) => {
+                VimAction::MoveUp5Lines
+            }
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.scroll_down) => {
+                VimAction::MoveDown5Lines
+            }
             KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => {
                 VimAction::VisualDelete
             }
@@ -621,6 +652,16 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_end) => Some(Motion::FileEnd),
             KeyCode::Char(c) if self.key_matches(c, &self.keys.file_start) => {
                 Some(Motion::FileStart)
+            }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.word_end) => Some(Motion::WordEnd),
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.first_non_blank) => {
+                Some(Motion::FirstNonBlank)
+            }
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.scroll_up) => {
+                Some(Motion::LinesUp5)
+            }
+            KeyCode::Char(_) if self.key_event_matches(&key, &self.keys.scroll_down) => {
+                Some(Motion::LinesDown5)
             }
             _ => None,
         }
@@ -1168,5 +1209,357 @@ mod tests {
             AppMode::Visual(crate::molecules::editor::VisualType::Character),
         );
         assert_eq!(action, VimAction::None);
+    }
+
+    // --- New navigation key tests ---
+
+    #[test]
+    fn test_caret_first_non_blank_normal() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::MoveFirstNonBlank);
+    }
+
+    #[test]
+    fn test_e_word_end_normal() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::MoveWordEnd);
+    }
+
+    #[test]
+    fn test_ctrl_u_scroll_up_normal() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::MoveUp5Lines);
+    }
+
+    #[test]
+    fn test_ctrl_d_scroll_down_normal() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::MoveDown5Lines);
+    }
+
+    #[test]
+    fn test_de_delete_word_end() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Delete(Motion::WordEnd));
+    }
+
+    #[test]
+    fn test_ye_yank_word_end() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Yank(Motion::WordEnd));
+    }
+
+    #[test]
+    fn test_d_caret_delete_first_non_blank() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Delete(Motion::FirstNonBlank));
+    }
+
+    #[test]
+    fn test_visual_e_word_end() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
+        );
+        assert_eq!(action, VimAction::MoveWordEnd);
+    }
+
+    #[test]
+    fn test_visual_caret_first_non_blank() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
+        );
+        assert_eq!(action, VimAction::MoveFirstNonBlank);
+    }
+
+    #[test]
+    fn test_visual_ctrl_u_scroll_up() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
+        );
+        assert_eq!(action, VimAction::MoveUp5Lines);
+    }
+
+    #[test]
+    fn test_visual_ctrl_d_not_delete() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Character),
+        );
+        // ctrl+d should be MoveDown5Lines, NOT VisualDelete
+        assert_eq!(action, VimAction::MoveDown5Lines);
+    }
+
+    // =========================================================================
+    // Supplementary edge-case tests for navigation keys
+    // =========================================================================
+
+    // --- Verify ctrl+u doesn't interfere with plain u (undo) ---
+
+    #[test]
+    fn test_plain_u_is_undo_not_scroll() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Undo);
+    }
+
+    #[test]
+    fn test_ctrl_u_is_scroll_not_undo() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::MoveUp5Lines);
+    }
+
+    // --- Operator-pending: d ctrl+u, d ctrl+d ---
+
+    #[test]
+    fn test_d_ctrl_u_delete_lines_up() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert!(vim.is_operator_pending());
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Delete(Motion::LinesUp5));
+        assert!(!vim.is_operator_pending());
+    }
+
+    #[test]
+    fn test_d_ctrl_d_resolves_as_dd() {
+        // In resolve_motion, key_matches ignores modifiers so ctrl+d matches
+        // delete_line='d' first, producing Motion::Line (same as dd).
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert!(vim.is_operator_pending());
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Delete(Motion::Line));
+        assert!(!vim.is_operator_pending());
+    }
+
+    // --- Operator-pending: y^ (yank to first non-blank) ---
+
+    #[test]
+    fn test_y_caret_yank_first_non_blank() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert!(vim.is_operator_pending());
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Yank(Motion::FirstNonBlank));
+        assert!(!vim.is_operator_pending());
+    }
+
+    // --- Operator-pending: y ctrl+u, y ctrl+d ---
+
+    #[test]
+    fn test_y_ctrl_u_yank_lines_up() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Yank(Motion::LinesUp5));
+    }
+
+    #[test]
+    fn test_y_ctrl_d_resolves_as_yy() {
+        // In resolve_motion, key_matches ignores modifiers so ctrl+d matches
+        // delete_line='d' first, producing Motion::Line (same as yy).
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Normal,
+        );
+        assert_eq!(action, VimAction::Yank(Motion::Line));
+    }
+
+    // --- Visual Line mode: all 4 navigation keys ---
+
+    #[test]
+    fn test_visual_line_caret_first_non_blank() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Visual(crate::molecules::editor::VisualType::Line),
+        );
+        assert_eq!(action, VimAction::MoveFirstNonBlank);
+    }
+
+    #[test]
+    fn test_visual_line_e_word_end() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+            AppMode::Visual(crate::molecules::editor::VisualType::Line),
+        );
+        assert_eq!(action, VimAction::MoveWordEnd);
+    }
+
+    #[test]
+    fn test_visual_line_ctrl_u_scroll_up() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Line),
+        );
+        assert_eq!(action, VimAction::MoveUp5Lines);
+    }
+
+    #[test]
+    fn test_visual_line_ctrl_d_scroll_down() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Line),
+        );
+        assert_eq!(action, VimAction::MoveDown5Lines);
+    }
+
+    // --- Visual Block mode: all 4 navigation keys ---
+
+    #[test]
+    fn test_visual_block_caret_first_non_blank() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Visual(crate::molecules::editor::VisualType::Block),
+        );
+        assert_eq!(action, VimAction::MoveFirstNonBlank);
+    }
+
+    #[test]
+    fn test_visual_block_e_word_end() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE),
+            AppMode::Visual(crate::molecules::editor::VisualType::Block),
+        );
+        assert_eq!(action, VimAction::MoveWordEnd);
+    }
+
+    #[test]
+    fn test_visual_block_ctrl_u_scroll_up() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Block),
+        );
+        assert_eq!(action, VimAction::MoveUp5Lines);
+    }
+
+    #[test]
+    fn test_visual_block_ctrl_d_scroll_down() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Block),
+        );
+        // ctrl+d should be scroll, NOT VisualDelete even in Block mode
+        assert_eq!(action, VimAction::MoveDown5Lines);
+    }
+
+    // --- Visual Line ctrl+d should not be VisualDelete ---
+
+    #[test]
+    fn test_visual_line_ctrl_d_not_delete() {
+        let mut vim = VimMode::new();
+        let action = vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            AppMode::Visual(crate::molecules::editor::VisualType::Line),
+        );
+        // ctrl+d must be MoveDown5Lines, not VisualDelete
+        assert_eq!(action, VimAction::MoveDown5Lines);
+    }
+
+    // --- Operator-pending: d^ (delete to first non-blank, already tested above, add ye variant) ---
+
+    #[test]
+    fn test_d_caret_operator_clears_pending() {
+        let mut vim = VimMode::new();
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert!(vim.is_operator_pending());
+        vim.handle_key(
+            KeyEvent::new(KeyCode::Char('^'), KeyModifiers::NONE),
+            AppMode::Normal,
+        );
+        assert!(!vim.is_operator_pending());
     }
 }

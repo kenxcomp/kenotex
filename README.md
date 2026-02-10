@@ -180,14 +180,16 @@ All keybindings are fully customizable. See [docs/default.toml](docs/default.tom
 | `V` | Enter Visual Line mode |
 | `Ctrl+V` | Enter Visual Block mode |
 | `h/j/k/l` | Navigation (left/down/up/right) |
-| `w/b` | Word forward/backward |
+| `w/b/e` | Word forward/backward/end |
 | `0/$` | Line start/end |
+| `^` | First non-blank character on line |
 | `gg/G` | File start/end |
+| `Ctrl+U/Ctrl+D` | Scroll up/down 5 lines |
 | `x` | Delete character |
 | `dd` | Delete line |
-| `dw/d$/d0/dG/dg/db` | Delete with motion (word/end/start/file-end/file-start/word-back) |
+| `dw/de/d$/d0/d^/dG/dg/db` | Delete with motion (word/word-end/end/start/first-non-blank/file-end/file-start/word-back) |
 | `yy` | Yank (copy) line to clipboard |
-| `yw/y$/y0/yG/yg/yb` | Yank with motion |
+| `yw/ye/y$/y0/y^/yG/yg/yb` | Yank with motion |
 | `p` | Paste after cursor (or below for linewise) |
 | `P` | Paste before cursor (or above for linewise) |
 | `gcc` | Toggle HTML comment (`<!-- -->`) on current line |
@@ -209,9 +211,11 @@ All keybindings are fully customizable. See [docs/default.toml](docs/default.tom
 | Key | Action |
 |-----|--------|
 | `h/j/k/l` | Extend selection |
-| `w/b` | Extend by word |
+| `w/b/e` | Extend by word forward/backward/end |
 | `0/$` | Extend to line start/end |
+| `^` | Extend to first non-blank character |
 | `G` | Extend to file end |
+| `Ctrl+U/Ctrl+D` | Extend selection 5 lines up/down |
 | `d` | Delete selection (copies to clipboard) |
 | `y` | Yank (copy) selection to clipboard |
 | `gc` | Toggle HTML comment on selected lines |

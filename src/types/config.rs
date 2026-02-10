@@ -95,10 +95,18 @@ pub struct KeyboardConfig {
     pub line_start: String,
     #[serde(default = "default_line_end")]
     pub line_end: String,
+    #[serde(default = "default_first_non_blank")]
+    pub first_non_blank: String,
+    #[serde(default = "default_word_end")]
+    pub word_end: String,
     #[serde(default = "default_file_start")]
     pub file_start: String,
     #[serde(default = "default_file_end")]
     pub file_end: String,
+    #[serde(default = "default_scroll_up")]
+    pub scroll_up: String,
+    #[serde(default = "default_scroll_down")]
+    pub scroll_down: String,
 
     // Insert mode entry
     #[serde(default = "default_insert")]
@@ -204,11 +212,23 @@ fn default_line_start() -> String {
 fn default_line_end() -> String {
     "$".to_string()
 }
+fn default_first_non_blank() -> String {
+    "^".to_string()
+}
+fn default_word_end() -> String {
+    "e".to_string()
+}
 fn default_file_start() -> String {
     "g".to_string()
 }
 fn default_file_end() -> String {
     "G".to_string()
+}
+fn default_scroll_up() -> String {
+    "ctrl+u".to_string()
+}
+fn default_scroll_down() -> String {
+    "ctrl+d".to_string()
 }
 
 // Insert mode defaults
@@ -328,8 +348,12 @@ impl Default for KeyboardConfig {
             word_backward: default_word_backward(),
             line_start: default_line_start(),
             line_end: default_line_end(),
+            first_non_blank: default_first_non_blank(),
+            word_end: default_word_end(),
             file_start: default_file_start(),
             file_end: default_file_end(),
+            scroll_up: default_scroll_up(),
+            scroll_down: default_scroll_down(),
             insert: default_insert(),
             insert_append: default_insert_append(),
             insert_line_start: default_insert_line_start(),
@@ -512,6 +536,10 @@ mod tests {
         assert_eq!(kb.word_backward, "b");
         assert_eq!(kb.line_start, "0");
         assert_eq!(kb.line_end, "$");
+        assert_eq!(kb.first_non_blank, "^");
+        assert_eq!(kb.word_end, "e");
+        assert_eq!(kb.scroll_up, "ctrl+u");
+        assert_eq!(kb.scroll_down, "ctrl+d");
     }
 
     #[test]
@@ -626,5 +654,112 @@ theme = "gruvbox"
     fn test_config_deserialize_empty_toml() {
         let config: Config = toml::from_str("").unwrap();
         assert_eq!(config.general.theme, "tokyo_night");
+    }
+
+    // =========================================================================
+    // Supplementary tests: custom overrides for new navigation fields
+    // =========================================================================
+
+    #[test]
+    fn test_config_custom_first_non_blank_override() {
+        let toml_str = r#"
+[keyboard]
+first_non_blank = "_"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.keyboard.first_non_blank, "_");
+        // Other navigation fields should remain default
+        assert_eq!(config.keyboard.word_end, "e");
+        assert_eq!(config.keyboard.scroll_up, "ctrl+u");
+        assert_eq!(config.keyboard.scroll_down, "ctrl+d");
+    }
+
+    #[test]
+    fn test_config_custom_word_end_override() {
+        let toml_str = r#"
+[keyboard]
+word_end = "E"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.keyboard.word_end, "E");
+        assert_eq!(config.keyboard.first_non_blank, "^");
+    }
+
+    #[test]
+    fn test_config_custom_scroll_up_override() {
+        let toml_str = r#"
+[keyboard]
+scroll_up = "ctrl+b"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.keyboard.scroll_up, "ctrl+b");
+        assert_eq!(config.keyboard.scroll_down, "ctrl+d");
+    }
+
+    #[test]
+    fn test_config_custom_scroll_down_override() {
+        let toml_str = r#"
+[keyboard]
+scroll_down = "ctrl+f"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.keyboard.scroll_down, "ctrl+f");
+        assert_eq!(config.keyboard.scroll_up, "ctrl+u");
+    }
+
+    #[test]
+    fn test_config_all_new_nav_fields_override() {
+        let toml_str = r#"
+[keyboard]
+first_non_blank = "_"
+word_end = "E"
+scroll_up = "ctrl+b"
+scroll_down = "ctrl+f"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.keyboard.first_non_blank, "_");
+        assert_eq!(config.keyboard.word_end, "E");
+        assert_eq!(config.keyboard.scroll_up, "ctrl+b");
+        assert_eq!(config.keyboard.scroll_down, "ctrl+f");
+        // Other keys remain default
+        assert_eq!(config.keyboard.move_left, "h");
+        assert_eq!(config.keyboard.move_right, "l");
+    }
+
+    #[test]
+    fn test_colemak_new_nav_defaults() {
+        let kb = KeyboardConfig::colemak();
+        // Colemak overrides: move_up=u, move_down=e, undo=z
+        // New nav fields should use their defaults since colemak() uses ..Default::default()
+        assert_eq!(kb.first_non_blank, "^");
+        assert_eq!(kb.word_end, "e"); // Note: 'e' is also move_down in colemak
+        assert_eq!(kb.scroll_up, "ctrl+u");
+        assert_eq!(kb.scroll_down, "ctrl+d");
+    }
+
+    #[test]
+    fn test_config_roundtrip_preserves_new_nav_fields() {
+        let config = Config::default();
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        let parsed: Config = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.keyboard.first_non_blank, "^");
+        assert_eq!(parsed.keyboard.word_end, "e");
+        assert_eq!(parsed.keyboard.scroll_up, "ctrl+u");
+        assert_eq!(parsed.keyboard.scroll_down, "ctrl+d");
+    }
+
+    #[test]
+    fn test_config_partial_keyboard_preserves_new_defaults() {
+        // If user only sets layout, new fields should still default correctly
+        let toml_str = r#"
+[keyboard]
+layout = "qwerty"
+move_left = "h"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.keyboard.first_non_blank, "^");
+        assert_eq!(config.keyboard.word_end, "e");
+        assert_eq!(config.keyboard.scroll_up, "ctrl+u");
+        assert_eq!(config.keyboard.scroll_down, "ctrl+d");
     }
 }

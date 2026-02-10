@@ -125,6 +125,10 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `leader_strikethrough` - Toggle strikethrough formatting (default: "x")
 - `leader_code` - Toggle inline code formatting (default: "c")
 - `leader_code_block` - Toggle code block formatting (default: "C")
+- `first_non_blank` - Jump to first non-whitespace character (default: "^")
+- `word_end` - Jump to end of current/next word (default: "e")
+- `scroll_up` - Scroll up 5 lines (default: "ctrl+u")
+- `scroll_down` - Scroll down 5 lines (default: "ctrl+d")
 
 ### Key Data Types (`types/`)
 
@@ -148,11 +152,19 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 
 - `ToggleComment` - Toggle HTML comment (`<!-- -->`) on current line (Space+c in Normal mode)
 - `VisualToggleComment` - Toggle HTML comment on selected lines (gc in Visual mode). Smart toggling: all uncommented → comment all; all commented → uncomment all; mixed → comment remaining. Empty lines are skipped.
+- `MoveFirstNonBlank` - Jump to first non-whitespace character on line (^ in Normal/Visual mode)
+- `MoveWordEnd` - Jump to end of current/next word (e in Normal/Visual mode)
+- `MoveUp5Lines` - Scroll up 5 lines (Ctrl+U in Normal/Visual mode)
+- `MoveDown5Lines` - Scroll down 5 lines (Ctrl+D in Normal/Visual mode)
 
 ### Visual Mode Keys
 
 - `gg` - Jump to file start (changed from single `g` to free up `gc` for comment toggling)
 - `gc` - Toggle HTML comments on selected lines
+- `^` - Extend selection to first non-blank character
+- `e` - Extend selection to word end
+- `Ctrl+U` - Extend selection 5 lines up
+- `Ctrl+D` - Extend selection 5 lines down
 
 ### Smart Block Parsing (Strict Tag-Only System)
 

@@ -71,6 +71,10 @@ impl EventDispatcher {
             VimAction::MoveWordBackward => app.buffer.move_word_backward(),
             VimAction::MoveLineStart => app.buffer.move_to_line_start(),
             VimAction::MoveLineEnd => app.buffer.move_to_line_end(),
+            VimAction::MoveFirstNonBlank => app.buffer.move_to_first_non_blank(),
+            VimAction::MoveWordEnd => app.buffer.move_word_end(),
+            VimAction::MoveUp5Lines => app.buffer.move_up_5_lines(),
+            VimAction::MoveDown5Lines => app.buffer.move_down_5_lines(),
             VimAction::MoveFileStart => app.buffer.move_to_first_line(),
             VimAction::MoveFileEnd => app.buffer.move_to_last_line(),
 
@@ -548,6 +552,40 @@ impl EventDispatcher {
             VimAction::MoveWordBackward => app.buffer.move_word_backward(),
             VimAction::MoveLineStart => app.buffer.move_to_line_start(),
             VimAction::MoveLineEnd => app.buffer.move_to_line_end(),
+            VimAction::MoveFirstNonBlank => app.buffer.move_to_first_non_blank(),
+            VimAction::MoveWordEnd => app.buffer.move_word_end(),
+            VimAction::MoveUp5Lines => {
+                if is_block_mode {
+                    let (row, col) = app.buffer.cursor_position();
+                    let target_col = app
+                        .visual_target_display_col
+                        .unwrap_or_else(|| app.buffer.display_col_at(row, col));
+
+                    app.buffer.move_up_5_lines();
+                    let new_row = app.buffer.cursor_position().0;
+                    let new_col = app.buffer.grapheme_at_display_col(new_row, target_col);
+                    app.buffer.set_cursor(new_row, new_col);
+                    app.visual_target_display_col = Some(target_col);
+                } else {
+                    app.buffer.move_up_5_lines();
+                }
+            }
+            VimAction::MoveDown5Lines => {
+                if is_block_mode {
+                    let (row, col) = app.buffer.cursor_position();
+                    let target_col = app
+                        .visual_target_display_col
+                        .unwrap_or_else(|| app.buffer.display_col_at(row, col));
+
+                    app.buffer.move_down_5_lines();
+                    let new_row = app.buffer.cursor_position().0;
+                    let new_col = app.buffer.grapheme_at_display_col(new_row, target_col);
+                    app.buffer.set_cursor(new_row, new_col);
+                    app.visual_target_display_col = Some(target_col);
+                } else {
+                    app.buffer.move_down_5_lines();
+                }
+            }
             VimAction::MoveFileStart => app.buffer.move_to_first_line(),
             VimAction::MoveFileEnd => app.buffer.move_to_last_line(),
 
