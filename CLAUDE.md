@@ -214,3 +214,11 @@ Random thought
 - Unclosed tags show warning with line number
 - Empty blocks (no content between tags) are ignored
 - Invalid `@time` expressions (like `@john`) are not parsed
+
+### Auto-Archive After Processing
+
+When blocks are processed via `Space+s`, successfully sent blocks are wrapped in HTML comments (`<!-- -->`). If **all content** in the draft ends up commented (i.e., every block was sent successfully), the draft is automatically archived and the view switches back to the DraftList.
+
+- `is_all_commented()` in `comment.rs` (L3) detects whether the entire buffer is wrapped in multi-line HTML comment blocks
+- `archive_current_note()` in `app.rs` (L2) handles the archive operation
+- `finish_processing()` checks for auto-archive after processing completes

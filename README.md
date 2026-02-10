@@ -35,6 +35,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Destination Skip**: Set `app = ""` to disable any destination; skipped blocks show "-" in the processing overlay
 - **Comment on Success**: Successfully dispatched blocks are wrapped with `<!-- -->` in the editor buffer
 - **Idempotent Dispatch**: Already-commented blocks are automatically skipped on re-dispatch, preventing duplicates
+- **Auto-Archive**: When all blocks in a draft are successfully sent, the draft is automatically archived and the view returns to the draft list
 
 ### Notes Management
 

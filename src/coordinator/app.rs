@@ -6,9 +6,10 @@ use uuid::Uuid;
 
 use crate::atoms::storage::file_watcher::FileEvent;
 use crate::atoms::storage::{
-    delete_draft, ensure_config_dir, ensure_data_dirs, load_all_drafts, load_config, load_draft,
-    resolve_data_dir, save_draft,
+    archive_draft, delete_draft, ensure_config_dir, ensure_data_dirs, load_all_drafts, load_config,
+    load_draft, resolve_data_dir, save_draft,
 };
+use crate::molecules::editor::comment::is_all_commented;
 use crate::molecules::config::ThemeManager;
 use crate::molecules::distribution::{DispatchResult, dispatch_block, parse_smart_blocks};
 use crate::molecules::editor::{RenderSelection, TextBuffer, VimMode, VisualMode};
@@ -376,8 +377,48 @@ impl App {
 
         self.processing_blocks.clear();
         self.processing_index = 0;
+
+        // Auto-archive: if all content is now commented, archive the draft
+        let content = self.buffer.to_string();
+        if is_all_commented(&content) {
+            match self.archive_current_note() {
+                Ok(true) => {
+                    self.set_mode(AppMode::Normal);
+                    self.set_message(&format!("{} Auto-archived.", summary));
+                    return;
+                }
+                Ok(false) => {} // no note to archive, fall through
+                Err(e) => {
+                    self.set_mode(AppMode::Normal);
+                    self.set_message(&format!("{} Auto-archive failed: {}", summary, e));
+                    return;
+                }
+            }
+        }
+
         self.set_mode(AppMode::Normal);
         self.set_message(&summary);
+    }
+
+    fn archive_current_note(&mut self) -> Result<bool> {
+        if let Some(mut note) = self.current_note.take() {
+            note.update_content(self.buffer.to_string());
+            self.file_change_tracker.record_save(&note.id);
+            save_draft(&self.data_dir, &note)?;
+            archive_draft(&self.data_dir, &mut note)?;
+
+            let drafts = load_all_drafts(&self.data_dir, false)?;
+            let archives = load_all_drafts(&self.data_dir, true)?;
+            self.draft_list.update_notes(drafts);
+            self.archive_list.update_notes(archives);
+
+            self.buffer = TextBuffer::from_string("");
+            self.dirty = false;
+            self.set_view(View::DraftList);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn refresh_lists(&mut self) -> Result<()> {
