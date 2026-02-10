@@ -1,3 +1,4 @@
+pub mod auto_pair;
 mod buffer;
 pub mod comment;
 pub mod list_prefix;

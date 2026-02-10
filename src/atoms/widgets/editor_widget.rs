@@ -23,6 +23,8 @@ static CHECKBOX_UNCHECKED_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\s*-\s*\[\s*\]\s?").unwrap());
 static SMART_TAG_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^:::(?:td|cal|note)\s?").unwrap());
+static CLOSING_TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^:::\s*$").unwrap());
 
 /// Split a styled `Line` into multiple display lines using character-level wrapping.
 ///
@@ -341,6 +343,13 @@ impl<'a> EditorWidget<'a> {
                 let token_style = self.style_for_token(&token.kind, base_style);
                 spans.push(Span::styled(token.text, token_style));
             }
+        } else if CLOSING_TAG_RE.is_match(line) {
+            spans.push(Span::styled(
+                line.to_string(),
+                base_style
+                    .fg(self.theme.error_color())
+                    .add_modifier(Modifier::ITALIC),
+            ));
         } else {
             // Plain line: tokenize inline
             for token in tokenize_inline(line) {

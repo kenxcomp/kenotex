@@ -90,6 +90,7 @@ pub enum VimAction {
     VisualToggleComment,
     ToggleFormat(MarkdownFormat),
     VisualToggleFormat(MarkdownFormat),
+    VisualWrapPair(char, char),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -622,6 +623,17 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => VimAction::VisualYank,
             KeyCode::Char('>') => VimAction::VisualIndent,
             KeyCode::Char('<') => VimAction::VisualDedent,
+
+            // Wrap selection with pairs
+            KeyCode::Char('(') | KeyCode::Char(')') => VimAction::VisualWrapPair('(', ')'),
+            KeyCode::Char('[') | KeyCode::Char(']') => VimAction::VisualWrapPair('[', ']'),
+            KeyCode::Char('{') | KeyCode::Char('}') => VimAction::VisualWrapPair('{', '}'),
+            KeyCode::Char('\'') => VimAction::VisualWrapPair('\'', '\''),
+            KeyCode::Char('"') => VimAction::VisualWrapPair('"', '"'),
+            KeyCode::Char('`') => VimAction::VisualWrapPair('`', '`'),
+            KeyCode::Char('*') => VimAction::VisualWrapPair('*', '*'),
+            KeyCode::Char('~') => VimAction::VisualWrapPair('~', '~'),
+
             _ => VimAction::None,
         }
     }

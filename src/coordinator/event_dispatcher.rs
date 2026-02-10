@@ -4,6 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use super::App;
 use crate::atoms::storage::{clipboard_copy, clipboard_paste};
 use crate::molecules::editor::VimAction;
+use crate::molecules::editor::auto_pair::{self, BackspaceAction, PairAction};
 use crate::molecules::editor::list_prefix;
 use crate::types::{AppMode, View};
 
@@ -431,7 +432,46 @@ impl EventDispatcher {
     fn handle_insert_action(app: &mut App, action: VimAction) -> Result<()> {
         match action {
             VimAction::InsertChar(c) => {
-                app.buffer.insert_char(c);
+                let before_1 = app.buffer.grapheme_before_cursor();
+                let after_1 = app.buffer.grapheme_after_cursor();
+                let before_2 = app.buffer.grapheme_at_offset(-2);
+                let after_2 = app.buffer.grapheme_at_offset(1);
+                let action = auto_pair::on_char_insert(
+                    c,
+                    before_1.as_deref(),
+                    after_1.as_deref(),
+                    before_2.as_deref(),
+                    after_2.as_deref(),
+                );
+                match action {
+                    PairAction::InsertPair(close) => {
+                        app.buffer.insert_char(c);
+                        app.buffer.insert_after_cursor(&close.to_string());
+                    }
+                    PairAction::Absorb(close) => {
+                        app.buffer.insert_char(c);
+                        app.buffer.insert_after_cursor(&close.to_string());
+                    }
+                    PairAction::CodeBlock => {
+                        let line = app.buffer.current_line_content().to_string();
+                        if line.trim().chars().all(|ch| ch == '`') {
+                            app.buffer.delete_after_cursor();
+                            app.buffer.delete_after_cursor();
+                            app.buffer.insert_char(c);
+                            app.buffer.insert_newline();
+                            app.buffer.insert_line_below_no_move("```");
+                        } else {
+                            app.buffer.insert_char(c);
+                            app.buffer.insert_after_cursor("`");
+                        }
+                    }
+                    PairAction::Skip => {
+                        app.buffer.move_right();
+                    }
+                    PairAction::None => {
+                        app.buffer.insert_char(c);
+                    }
+                }
                 app.dirty = true;
             }
             VimAction::InsertTab => {
@@ -446,7 +486,10 @@ impl EventDispatcher {
             }
             VimAction::InsertNewline => {
                 let line = app.buffer.current_line_content().to_string();
-                if list_prefix::is_prefix_only(&line) {
+                if auto_pair::is_opening_tag(&line) {
+                    app.buffer.insert_newline();
+                    app.buffer.insert_line_below_no_move(":::");
+                } else if list_prefix::is_prefix_only(&line) {
                     app.buffer.clear_current_line();
                     app.buffer.insert_newline();
                 } else if let Some(prefix) = list_prefix::detect_list_prefix(&line) {
@@ -458,7 +501,21 @@ impl EventDispatcher {
                 app.dirty = true;
             }
             VimAction::Backspace => {
-                app.buffer.backspace();
+                let before_1 = app.buffer.grapheme_before_cursor();
+                let after_1 = app.buffer.grapheme_after_cursor();
+                let bs_action = auto_pair::on_backspace(
+                    before_1.as_deref(),
+                    after_1.as_deref(),
+                );
+                match bs_action {
+                    BackspaceAction::DeletePair => {
+                        app.buffer.backspace();
+                        app.buffer.delete_after_cursor();
+                    }
+                    BackspaceAction::None => {
+                        app.buffer.backspace();
+                    }
+                }
                 app.dirty = true;
             }
             VimAction::DeleteChar => {
@@ -650,6 +707,34 @@ impl EventDispatcher {
                     app.buffer
                         .toggle_format_visual(start.0, start.1, end.0, end.1, f);
                     app.dirty = true;
+                }
+                app.exit_visual_mode();
+                app.clear_message();
+            }
+
+            VimAction::VisualWrapPair(open, close) => {
+                if let Some(ref visual_mode) = app.visual_mode {
+                    let cursor = app.buffer.cursor_position();
+                    let render = visual_mode.render_data(&app.buffer, cursor);
+                    if let crate::molecules::editor::RenderSelection::CharacterRange {
+                        start,
+                        end,
+                    } = render
+                    {
+                        app.buffer.save_undo_snapshot();
+                        // Insert close char first (at end+1) so start position isn't shifted
+                        let (er, ec) = end;
+                        let (sr, sc) = start;
+                        // Insert closing char after end position
+                        app.buffer.set_cursor(er, ec + 1);
+                        app.buffer.insert_after_cursor(&close.to_string());
+                        // Insert opening char at start position
+                        app.buffer.set_cursor(sr, sc);
+                        app.buffer.insert_after_cursor(&open.to_string());
+                        // Restore cursor to start
+                        app.buffer.set_cursor(sr, sc);
+                        app.dirty = true;
+                    }
                 }
                 app.exit_visual_mode();
                 app.clear_message();

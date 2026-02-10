@@ -426,6 +426,73 @@ impl TextBuffer {
         self.current_line()
     }
 
+    /// Get grapheme immediately before cursor (None if at line start).
+    pub fn grapheme_before_cursor(&self) -> Option<String> {
+        if self.cursor_col == 0 {
+            return None;
+        }
+        let line = self.current_line();
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        graphemes.get(self.cursor_col - 1).map(|g| g.to_string())
+    }
+
+    /// Get grapheme immediately after cursor (None if at/past line end).
+    pub fn grapheme_after_cursor(&self) -> Option<String> {
+        let line = self.current_line();
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        graphemes.get(self.cursor_col).map(|g| g.to_string())
+    }
+
+    /// Get grapheme at cursor + offset.
+    /// offset -1 = before cursor (same as grapheme_before_cursor),
+    /// 0 = at cursor (same as grapheme_after_cursor),
+    /// 1 = one past cursor, -2 = two before cursor, etc.
+    pub fn grapheme_at_offset(&self, offset: isize) -> Option<String> {
+        let idx = self.cursor_col as isize + offset;
+        if idx < 0 {
+            return None;
+        }
+        let idx = idx as usize;
+        let line = self.current_line();
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        graphemes.get(idx).map(|g| g.to_string())
+    }
+
+    /// Insert string right after cursor position without moving cursor.
+    pub fn insert_after_cursor(&mut self, s: &str) {
+        let line = &self.lines[self.cursor_row];
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        let pos = self.cursor_col.min(graphemes.len());
+        let new_line: String = graphemes[..pos]
+            .iter()
+            .copied()
+            .chain(std::iter::once(s))
+            .chain(graphemes[pos..].iter().copied())
+            .collect();
+        self.lines[self.cursor_row] = new_line;
+    }
+
+    /// Delete one grapheme after cursor without moving cursor.
+    pub fn delete_after_cursor(&mut self) {
+        let line = &self.lines[self.cursor_row];
+        let graphemes: Vec<&str> = line.graphemes(true).collect();
+        let pos = self.cursor_col;
+        if pos < graphemes.len() {
+            let new_line: String = graphemes[..pos]
+                .iter()
+                .chain(graphemes[pos + 1..].iter())
+                .copied()
+                .collect();
+            self.lines[self.cursor_row] = new_line;
+        }
+    }
+
+    /// Insert a new line below cursor's current row without moving cursor.
+    pub fn insert_line_below_no_move(&mut self, content: &str) {
+        self.lines
+            .insert(self.cursor_row + 1, content.to_string());
+    }
+
     /// Insert a new line below the current one with a given prefix.
     /// Cursor moves to the new line, positioned at the end of the prefix.
     pub fn insert_line_below_with_prefix(&mut self, prefix: &str) {

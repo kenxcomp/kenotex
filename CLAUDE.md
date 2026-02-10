@@ -59,7 +59,7 @@ L4 Atoms (atoms/)
 - `event_dispatcher.rs` - Routes keyboard events to appropriate handlers based on current mode (Normal/Insert/Visual/Search/ConfirmDelete) and view (Editor/DraftList/ArchiveList).
 
 **L3 Molecules** (`molecules/`):
-- `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation), VisualMode (visual selection state with Character/Line/Block types, RenderSelection), Comment (HTML comment `<!-- -->` detection and toggling), ListPrefix (list prefix detection and continuation for `- [ ]`, `N.`, `N)`), MarkdownFmt (inline format detection/toggling for bold/italic/strikethrough/code)
+- `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation), VisualMode (visual selection state with Character/Line/Block types, RenderSelection), Comment (HTML comment `<!-- -->` detection and toggling), ListPrefix (list prefix detection and continuation for `- [ ]`, `N.`, `N)`), MarkdownFmt (inline format detection/toggling for bold/italic/strikethrough/code), AutoPair (auto-pair insertion for brackets/quotes/markdown formatting and closing `:::` tags, visual selection wrapping)
 - `list/` - DraftList/ArchiveList (note collection management with filtering/selection), FileChangeHandler (file event classification)
 - `config/` - ThemeManager (tokyo_night/gruvbox/nord/catppuccin_mocha/catppuccin_macchiato/catppuccin_frappe/catppuccin_latte), keybindings
 - `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations)
@@ -156,6 +156,7 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `MoveWordEnd` - Jump to end of current/next word (e in Normal/Visual mode)
 - `MoveUp5Lines` - Scroll up 5 lines (Ctrl+U in Normal/Visual mode)
 - `MoveDown5Lines` - Scroll down 5 lines (Ctrl+D in Normal/Visual mode)
+- `VisualWrapPair(char, char)` - Wrap visual selection with a character pair (brackets, quotes, or markdown formatting characters in Visual mode)
 
 ### Visual Mode Keys
 

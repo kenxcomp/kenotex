@@ -23,7 +23,9 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Editor Search**: Case-insensitive forward/backward search with wrap-around, incremental match highlighting (`/` to search, `n`/`N` to navigate matches)
 - **Comment Toggle**: Toggle HTML comments (`<!-- -->`) per-line with `gcc` in Normal mode or `gc` on visual selection
 - **Markdown Formatting**: Toggle bold, italic, strikethrough, inline code, and code block formatting via `Space+key` in Normal and Visual modes
-- **Syntax Highlighting**: Real-time visual highlighting for inline code, bold, italic, strikethrough, code blocks, and list markers in the editor
+- **Syntax Highlighting**: Real-time visual highlighting for inline code, bold, italic, strikethrough, code blocks, list markers, and `:::` tags (both opening and closing) in the editor
+- **Auto-Pair Insertion**: Automatically inserts matching pairs in Insert mode — brackets (`()`, `[]`, `{}`), quotes (`''`, `""`), markdown formatting (`**`, `~~`, `` ` ``), and closing `:::` tags after opening tag lines. Typing a closing character skips over it if already present; backspace between a pair deletes both
+- **Visual Selection Wrapping**: In Visual mode, typing a bracket, quote, or formatting character wraps the selection with the matching pair
 - **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
 - **List Continuation**: Auto-continue list prefixes (`- [ ]`, `-`, `1.`, `1)`) when pressing `o` or `Enter`
 - **CJK/Wide-Character Support**: Full support for Chinese, Japanese, and Korean characters in all editing modes — Visual Block selection uses display-column alignment so selections remain rectangular across mixed-width lines, cursor movement tracks display columns correctly, and soft-wrap never splits a wide character
@@ -221,6 +223,7 @@ All keybindings are fully customizable. See [docs/default.toml](docs/default.tom
 | `y` | Yank (copy) selection to clipboard |
 | `gc` | Toggle HTML comment on selected lines |
 | `Space + b/i/x/c/C` | Toggle bold/italic/strikethrough/code/code-block on selection |
+| `(` `)` `[` `]` `{` `}` `'` `"` `` ` `` `*` `~` | Wrap selection with matching pair |
 | `>` | Indent selected lines |
 | `<` | Dedent selected lines |
 | `gg` | Move to file start |
@@ -230,6 +233,12 @@ All keybindings are fully customizable. See [docs/default.toml](docs/default.tom
 
 | Key | Action |
 |-----|--------|
+| `(` `[` `{` | Auto-insert matching closing bracket |
+| `'` `"` | Auto-insert matching quote |
+| `*` `~` `` ` `` | Auto-insert matching pair; repeat to extend (`**\|**`, `~~\|~~`, ` `` \| `` `) |
+| Closing char | Skip over if already present after cursor |
+| `Enter` after `:::tag` | Auto-insert closing `:::` on next line |
+| `Backspace` in pair | Delete both opening and closing characters |
 | `Tab` | Insert spaces (tab_width) |
 | `Shift+Tab` | Dedent current line |
 | `Esc` | Return to Normal mode |
