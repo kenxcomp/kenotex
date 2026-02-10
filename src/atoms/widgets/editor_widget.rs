@@ -498,7 +498,11 @@ impl<'a> EditorWidget<'a> {
         use unicode_width::UnicodeWidthStr;
 
         let content_lines: Vec<String> = self.content.lines().map(String::from).collect();
-        let w = if inner.width == 0 { 1 } else { inner.width as usize };
+        let w = if inner.width == 0 {
+            1
+        } else {
+            inner.width as usize
+        };
 
         let mut rows_before: u16 = content_lines
             .iter()

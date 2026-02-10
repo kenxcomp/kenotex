@@ -206,7 +206,8 @@ mod tests {
 
     #[test]
     fn test_explicit_tags() {
-        let input = ":::td\nBuy milk\n:::\n\n:::cal\nMeeting at 3pm\n:::\n\n:::note\nRandom thought\n:::";
+        let input =
+            ":::td\nBuy milk\n:::\n\n:::cal\nMeeting at 3pm\n:::\n\n:::note\nRandom thought\n:::";
         let (blocks, warnings) = parse_smart_blocks(input);
 
         assert!(warnings.is_empty());
@@ -252,8 +253,7 @@ mod tests {
 
     #[test]
     fn test_mixed_tagged_and_untagged_content() {
-        let input =
-            "Untagged intro\n\n:::td\nTask 1\n:::\n\nUntagged middle\n\n:::note\nNote 1\n:::\n\nUntagged end";
+        let input = "Untagged intro\n\n:::td\nTask 1\n:::\n\nUntagged middle\n\n:::note\nNote 1\n:::\n\nUntagged end";
         let (blocks, warnings) = parse_smart_blocks(input);
 
         assert_eq!(blocks.len(), 2);

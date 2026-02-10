@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::molecules::editor::VisualType;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AppMode {
     #[default]
     Normal,
@@ -13,7 +12,6 @@ pub enum AppMode {
     Search,
     ConfirmDelete,
 }
-
 
 impl AppMode {
     pub fn as_str(&self) -> &'static str {

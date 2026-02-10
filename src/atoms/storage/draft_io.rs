@@ -80,13 +80,14 @@ pub fn load_all_drafts(base_dir: &Path, archived: bool) -> Result<Vec<Note>> {
         let path = entry.path();
 
         if path.extension().is_some_and(|ext| ext == "md")
-            && let Some(stem) = path.file_stem() {
-                let id = stem.to_string_lossy().to_string();
-                match load_draft(base_dir, &id, archived) {
-                    Ok(note) => notes.push(note),
-                    Err(e) => eprintln!("Warning: Failed to load draft {}: {}", id, e),
-                }
+            && let Some(stem) = path.file_stem()
+        {
+            let id = stem.to_string_lossy().to_string();
+            match load_draft(base_dir, &id, archived) {
+                Ok(note) => notes.push(note),
+                Err(e) => eprintln!("Warning: Failed to load draft {}: {}", id, e),
             }
+        }
     }
 
     notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
@@ -144,4 +145,223 @@ pub fn restore_draft(base_dir: &Path, note: &mut Note) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_base_dir() -> PathBuf {
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("kenotex_test_{}", ts));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn cleanup(dir: &Path) {
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    fn make_note(id: &str, content: &str) -> Note {
+        Note::new(
+            id.to_string(),
+            Note::extract_title(content),
+            content.to_string(),
+        )
+    }
+
+    #[test]
+    fn test_ensure_data_dirs() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        assert!(base.join("drafts").exists());
+        assert!(base.join("archives").exists());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_ensure_data_dirs_idempotent() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        ensure_data_dirs(&base).unwrap();
+        assert!(base.join("drafts").exists());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_save_and_load_draft() {
+        let base = temp_base_dir();
+        let note = make_note("note1", "# Hello\nWorld");
+        save_draft(&base, &note).unwrap();
+
+        let loaded = load_draft(&base, "note1", false).unwrap();
+        assert_eq!(loaded.id, "note1");
+        assert_eq!(loaded.content, "# Hello\nWorld");
+        assert_eq!(loaded.title, "Hello");
+        assert!(!loaded.is_archived);
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_load_draft_not_found() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        let result = load_draft(&base, "nonexistent", false);
+        assert!(result.is_err());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_save_and_delete_draft() {
+        let base = temp_base_dir();
+        let note = make_note("note2", "content");
+        save_draft(&base, &note).unwrap();
+        assert!(base.join("drafts/note2.md").exists());
+
+        delete_draft(&base, "note2", false).unwrap();
+        assert!(!base.join("drafts/note2.md").exists());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_delete_nonexistent_draft() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        // Should not error
+        delete_draft(&base, "nonexistent", false).unwrap();
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_load_all_drafts_empty() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        let drafts = load_all_drafts(&base, false).unwrap();
+        assert!(drafts.is_empty());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_load_all_drafts_nonexistent_dir() {
+        let base = temp_base_dir();
+        // Don't create dirs
+        let drafts = load_all_drafts(&base, false).unwrap();
+        assert!(drafts.is_empty());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_load_all_drafts_multiple() {
+        let base = temp_base_dir();
+        save_draft(&base, &make_note("a", "First")).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        save_draft(&base, &make_note("b", "Second")).unwrap();
+
+        let drafts = load_all_drafts(&base, false).unwrap();
+        assert_eq!(drafts.len(), 2);
+        // Should be sorted by updated_at descending
+        assert_eq!(drafts[0].id, "b");
+        assert_eq!(drafts[1].id, "a");
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_archive_draft() {
+        let base = temp_base_dir();
+        let mut note = make_note("note3", "to archive");
+        save_draft(&base, &note).unwrap();
+        assert!(base.join("drafts/note3.md").exists());
+
+        archive_draft(&base, &mut note).unwrap();
+        assert!(note.is_archived);
+        assert!(!base.join("drafts/note3.md").exists());
+        assert!(base.join("archives/note3.md").exists());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_restore_draft() {
+        let base = temp_base_dir();
+        let mut note = make_note("note4", "archived content");
+        note.is_archived = true;
+        save_draft(&base, &note).unwrap();
+        assert!(base.join("archives/note4.md").exists());
+
+        restore_draft(&base, &mut note).unwrap();
+        assert!(!note.is_archived);
+        assert!(!base.join("archives/note4.md").exists());
+        assert!(base.join("drafts/note4.md").exists());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_archive_and_restore_roundtrip() {
+        let base = temp_base_dir();
+        let mut note = make_note("note5", "roundtrip");
+        save_draft(&base, &note).unwrap();
+
+        archive_draft(&base, &mut note).unwrap();
+        assert!(note.is_archived);
+
+        restore_draft(&base, &mut note).unwrap();
+        assert!(!note.is_archived);
+
+        let loaded = load_draft(&base, "note5", false).unwrap();
+        assert_eq!(loaded.content, "roundtrip");
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_load_all_archived() {
+        let base = temp_base_dir();
+        let mut note = make_note("arch1", "archived");
+        note.is_archived = true;
+        save_draft(&base, &note).unwrap();
+
+        let archives = load_all_drafts(&base, true).unwrap();
+        assert_eq!(archives.len(), 1);
+        assert_eq!(archives[0].id, "arch1");
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_save_draft_cjk_content() {
+        let base = temp_base_dir();
+        let note = make_note("cjk1", "# 你好世界\n这是内容");
+        save_draft(&base, &note).unwrap();
+
+        let loaded = load_draft(&base, "cjk1", false).unwrap();
+        assert_eq!(loaded.content, "# 你好世界\n这是内容");
+        assert_eq!(loaded.title, "你好世界");
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_archive_nonexistent_file_saves_instead() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        let mut note = make_note("nosource", "content");
+        // Archive without saving first - should save to archive
+        archive_draft(&base, &mut note).unwrap();
+        assert!(note.is_archived);
+        assert!(base.join("archives/nosource.md").exists());
+        cleanup(&base);
+    }
+
+    #[test]
+    fn test_restore_nonexistent_file_saves_instead() {
+        let base = temp_base_dir();
+        ensure_data_dirs(&base).unwrap();
+        let mut note = make_note("nosource2", "content");
+        note.is_archived = true;
+        // Restore without an archive file - should save to drafts
+        restore_draft(&base, &mut note).unwrap();
+        assert!(!note.is_archived);
+        assert!(base.join("drafts/nosource2.md").exists());
+        cleanup(&base);
+    }
 }

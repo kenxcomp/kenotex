@@ -45,3 +45,80 @@ impl Default for Keybindings {
         Self::qwerty()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::KeyboardConfig;
+
+    #[test]
+    fn test_qwerty_defaults() {
+        let kb = Keybindings::qwerty();
+        assert_eq!(kb.move_up, "k");
+        assert_eq!(kb.move_down, "j");
+        assert_eq!(kb.layout, "qwerty");
+    }
+
+    #[test]
+    fn test_colemak_defaults() {
+        let kb = Keybindings::colemak();
+        assert_eq!(kb.move_up, "u");
+        assert_eq!(kb.move_down, "e");
+        assert_eq!(kb.layout, "colemak");
+    }
+
+    #[test]
+    fn test_default_is_qwerty() {
+        let kb = Keybindings::default();
+        assert_eq!(kb.layout, "qwerty");
+        assert_eq!(kb.move_up, "k");
+        assert_eq!(kb.move_down, "j");
+    }
+
+    #[test]
+    fn test_from_config_qwerty() {
+        let config = KeyboardConfig::default();
+        let kb = Keybindings::from_config(&config);
+        assert_eq!(kb.move_up, "k");
+        assert_eq!(kb.move_down, "j");
+        assert_eq!(kb.layout, "qwerty");
+    }
+
+    #[test]
+    fn test_from_config_colemak() {
+        let config = KeyboardConfig::colemak();
+        let kb = Keybindings::from_config(&config);
+        assert_eq!(kb.move_up, "u");
+        assert_eq!(kb.move_down, "e");
+        assert_eq!(kb.layout, "colemak");
+    }
+
+    #[test]
+    fn test_is_up_key() {
+        let kb = Keybindings::qwerty();
+        assert!(kb.is_up_key("k"));
+        assert!(!kb.is_up_key("j"));
+        assert!(!kb.is_up_key("u"));
+    }
+
+    #[test]
+    fn test_is_down_key() {
+        let kb = Keybindings::qwerty();
+        assert!(kb.is_down_key("j"));
+        assert!(!kb.is_down_key("k"));
+    }
+
+    #[test]
+    fn test_colemak_is_up_key() {
+        let kb = Keybindings::colemak();
+        assert!(kb.is_up_key("u"));
+        assert!(!kb.is_up_key("k"));
+    }
+
+    #[test]
+    fn test_colemak_is_down_key() {
+        let kb = Keybindings::colemak();
+        assert!(kb.is_down_key("e"));
+        assert!(!kb.is_down_key("j"));
+    }
+}

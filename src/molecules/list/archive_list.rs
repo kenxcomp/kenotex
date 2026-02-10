@@ -136,3 +136,162 @@ impl ArchiveList {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    fn make_note(id: &str, title: &str, content: &str) -> Note {
+        Note {
+            id: id.to_string(),
+            title: title.to_string(),
+            content: content.to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            is_archived: true,
+            selected: false,
+        }
+    }
+
+    #[test]
+    fn test_new_empty() {
+        let list = ArchiveList::new(vec![]);
+        assert!(list.is_empty());
+        assert_eq!(list.len(), 0);
+    }
+
+    #[test]
+    fn test_new_with_notes() {
+        let notes = vec![make_note("1", "A", "a"), make_note("2", "B", "b")];
+        let list = ArchiveList::new(notes);
+        assert_eq!(list.len(), 2);
+        assert_eq!(list.selected_index(), 0);
+    }
+
+    #[test]
+    fn test_selected_note() {
+        let notes = vec![make_note("1", "A", "a")];
+        let list = ArchiveList::new(notes);
+        let selected = list.selected_note().unwrap();
+        assert_eq!(selected.id, "1");
+    }
+
+    #[test]
+    fn test_selected_note_empty() {
+        let list = ArchiveList::new(vec![]);
+        assert!(list.selected_note().is_none());
+    }
+
+    #[test]
+    fn test_move_up_down() {
+        let notes = vec![
+            make_note("1", "A", "a"),
+            make_note("2", "B", "b"),
+            make_note("3", "C", "c"),
+        ];
+        let mut list = ArchiveList::new(notes);
+        list.move_down();
+        assert_eq!(list.selected_index(), 1);
+        list.move_down();
+        assert_eq!(list.selected_index(), 2);
+        list.move_down(); // clamped
+        assert_eq!(list.selected_index(), 2);
+        list.move_up();
+        assert_eq!(list.selected_index(), 1);
+        list.move_up();
+        assert_eq!(list.selected_index(), 0);
+        list.move_up(); // clamped
+        assert_eq!(list.selected_index(), 0);
+    }
+
+    #[test]
+    fn test_search_filter() {
+        let notes = vec![
+            make_note("1", "Hello World", "content"),
+            make_note("2", "Goodbye", "world stuff"),
+            make_note("3", "Test", "nothing"),
+        ];
+        let mut list = ArchiveList::new(notes);
+        list.set_search_query("world".to_string());
+        assert_eq!(list.len(), 2);
+        list.clear_search();
+        assert_eq!(list.len(), 3);
+    }
+
+    #[test]
+    fn test_add_remove_search_char() {
+        let notes = vec![make_note("1", "Hello", "c"), make_note("2", "World", "c")];
+        let mut list = ArchiveList::new(notes);
+        list.add_search_char('h');
+        assert_eq!(list.search_query(), "h");
+        assert_eq!(list.len(), 1);
+        list.remove_search_char();
+        assert_eq!(list.search_query(), "");
+        assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn test_remove_selected() {
+        let notes = vec![make_note("1", "A", "a"), make_note("2", "B", "b")];
+        let mut list = ArchiveList::new(notes);
+        let removed = list.remove_selected().unwrap();
+        assert_eq!(removed.id, "1");
+        assert_eq!(list.len(), 1);
+    }
+
+    #[test]
+    fn test_remove_selected_empty() {
+        let mut list = ArchiveList::new(vec![]);
+        assert!(list.remove_selected().is_none());
+    }
+
+    #[test]
+    fn test_update_notes() {
+        let mut list = ArchiveList::new(vec![make_note("1", "A", "a")]);
+        let new_notes = vec![make_note("2", "B", "b"), make_note("3", "C", "c")];
+        list.update_notes(new_notes);
+        assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn test_all_note_ids() {
+        let notes = vec![make_note("x", "A", "a"), make_note("y", "B", "b")];
+        let list = ArchiveList::new(notes);
+        assert_eq!(list.all_note_ids(), vec!["x", "y"]);
+    }
+
+    #[test]
+    fn test_update_single_note() {
+        let notes = vec![make_note("1", "Old Title", "old content")];
+        let mut list = ArchiveList::new(notes);
+        let updated = make_note("1", "New Title", "new content");
+        list.update_single_note(updated);
+        assert_eq!(list.notes()[0].title, "New Title");
+        assert_eq!(list.notes()[0].content, "new content");
+    }
+
+    #[test]
+    fn test_filtered_notes() {
+        let notes = vec![
+            make_note("1", "Alpha", "content"),
+            make_note("2", "Beta", "content"),
+        ];
+        let list = ArchiveList::new(notes);
+        let filtered = list.filtered_notes();
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered[0].id, "1");
+    }
+
+    #[test]
+    fn test_search_cjk() {
+        let notes = vec![
+            make_note("1", "你好世界", "content"),
+            make_note("2", "Hello", "content"),
+        ];
+        let mut list = ArchiveList::new(notes);
+        list.set_search_query("你好".to_string());
+        assert_eq!(list.len(), 1);
+        assert_eq!(list.selected_note().unwrap().id, "1");
+    }
+}

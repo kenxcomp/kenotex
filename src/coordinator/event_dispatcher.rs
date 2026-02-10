@@ -147,27 +147,29 @@ impl EventDispatcher {
             }
             VimAction::PasteAfter => {
                 if let Ok(text) = clipboard_paste()
-                    && !text.is_empty() {
-                        app.buffer.save_undo_snapshot();
-                        if app.last_yank_linewise {
-                            app.buffer.paste_line_below(&text);
-                        } else {
-                            app.buffer.paste_after_cursor(&text);
-                        }
-                        app.dirty = true;
+                    && !text.is_empty()
+                {
+                    app.buffer.save_undo_snapshot();
+                    if app.last_yank_linewise {
+                        app.buffer.paste_line_below(&text);
+                    } else {
+                        app.buffer.paste_after_cursor(&text);
                     }
+                    app.dirty = true;
+                }
             }
             VimAction::PasteBefore => {
                 if let Ok(text) = clipboard_paste()
-                    && !text.is_empty() {
-                        app.buffer.save_undo_snapshot();
-                        if app.last_yank_linewise {
-                            app.buffer.paste_line_above(&text);
-                        } else {
-                            app.buffer.paste_before_cursor(&text);
-                        }
-                        app.dirty = true;
+                    && !text.is_empty()
+                {
+                    app.buffer.save_undo_snapshot();
+                    if app.last_yank_linewise {
+                        app.buffer.paste_line_above(&text);
+                    } else {
+                        app.buffer.paste_before_cursor(&text);
                     }
+                    app.dirty = true;
+                }
             }
 
             VimAction::Undo => {
@@ -603,16 +605,14 @@ impl EventDispatcher {
             VimAction::VisualToggleFormat(f) => {
                 // For formatting, we need character-wise coordinates
                 if let Some(render_selection) = app.get_visual_selection()
-                    && let crate::molecules::editor::RenderSelection::CharacterRange {
-                        start,
-                        end,
-                    } = render_selection
-                    {
-                        app.buffer.save_undo_snapshot();
-                        app.buffer
-                            .toggle_format_visual(start.0, start.1, end.0, end.1, f);
-                        app.dirty = true;
-                    }
+                    && let crate::molecules::editor::RenderSelection::CharacterRange { start, end } =
+                        render_selection
+                {
+                    app.buffer.save_undo_snapshot();
+                    app.buffer
+                        .toggle_format_visual(start.0, start.1, end.0, end.1, f);
+                    app.dirty = true;
+                }
                 app.exit_visual_mode();
                 app.clear_message();
             }

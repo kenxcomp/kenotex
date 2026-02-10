@@ -52,9 +52,30 @@ fn extract_at_time(text: &str) -> Option<String> {
 fn is_valid_time_keyword(text: &str) -> bool {
     let has_digit = text.chars().any(|c| c.is_ascii_digit());
     let keywords = [
-        "明天", "今天", "后天", "下周", "周", "早上", "上午", "下午", "晚上", "中午", "tomorrow",
-        "today", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-        "morning", "evening", "afternoon", "am", "pm",
+        "明天",
+        "今天",
+        "后天",
+        "下周",
+        "周",
+        "早上",
+        "上午",
+        "下午",
+        "晚上",
+        "中午",
+        "tomorrow",
+        "today",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "morning",
+        "evening",
+        "afternoon",
+        "am",
+        "pm",
     ];
     let has_keyword = keywords.iter().any(|kw| text.contains(kw));
 
@@ -269,7 +290,10 @@ mod tests {
     #[test]
     fn test_extract_at_time() {
         assert_eq!(extract_at_time("Task @明天"), Some("明天".to_string()));
-        assert_eq!(extract_at_time("Meeting @3pm in room"), Some("3pm".to_string()));
+        assert_eq!(
+            extract_at_time("Meeting @3pm in room"),
+            Some("3pm".to_string())
+        );
         assert_eq!(extract_at_time("No symbol"), None);
         assert_eq!(
             extract_at_time("Meeting @tomorrow at 5pm"),
@@ -279,6 +303,9 @@ mod tests {
 
     #[test]
     fn test_extract_at_time_stops_at_comma() {
-        assert_eq!(extract_at_time("Task @9am, room 5"), Some("9am".to_string()));
+        assert_eq!(
+            extract_at_time("Task @9am, room 5"),
+            Some("9am".to_string())
+        );
     }
 }

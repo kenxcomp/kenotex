@@ -67,8 +67,7 @@ impl VisualMode {
             VisualType::Block => {
                 let top_row = self.anchor.0.min(cursor.0);
                 let bottom_row = self.anchor.0.max(cursor.0);
-                let (left_col, right_col) =
-                    Self::block_display_range(buffer, self.anchor, cursor);
+                let (left_col, right_col) = Self::block_display_range(buffer, self.anchor, cursor);
                 RenderSelection::BlockRegion {
                     top_row,
                     bottom_row,
@@ -174,12 +173,7 @@ impl VisualMode {
         }
     }
 
-    pub fn dedent_selection(
-        &self,
-        buffer: &mut TextBuffer,
-        cursor: (usize, usize),
-        tab_width: u8,
-    ) {
+    pub fn dedent_selection(&self, buffer: &mut TextBuffer, cursor: (usize, usize), tab_width: u8) {
         match self.visual_type {
             VisualType::Line | VisualType::Block => {
                 let start_row = self.anchor.0.min(cursor.0);
@@ -284,5 +278,357 @@ impl VisualMode {
         } else {
             (cursor, anchor)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_buffer(content: &str) -> TextBuffer {
+        TextBuffer::from_string(content)
+    }
+
+    // ---- Construction & accessors ----
+
+    #[test]
+    fn test_new_character() {
+        let vm = VisualMode::new(VisualType::Character, (1, 2));
+        assert_eq!(vm.anchor(), (1, 2));
+    }
+
+    #[test]
+    fn test_new_line() {
+        let vm = VisualMode::new(VisualType::Line, (3, 0));
+        assert_eq!(vm.anchor(), (3, 0));
+    }
+
+    #[test]
+    fn test_new_block() {
+        let vm = VisualMode::new(VisualType::Block, (0, 5));
+        assert_eq!(vm.anchor(), (0, 5));
+    }
+
+    #[test]
+    fn test_set_type() {
+        let mut vm = VisualMode::new(VisualType::Character, (0, 0));
+        vm.set_type(VisualType::Line);
+        // After set_type, render_data should produce LineRange
+        let buf = make_buffer("hello\nworld");
+        let sel = vm.render_data(&buf, (1, 0));
+        match sel {
+            RenderSelection::LineRange { start_row, end_row } => {
+                assert_eq!(start_row, 0);
+                assert_eq!(end_row, 1);
+            }
+            _ => panic!("expected LineRange"),
+        }
+    }
+
+    // ---- render_data: Character ----
+
+    #[test]
+    fn test_render_data_character_forward() {
+        let vm = VisualMode::new(VisualType::Character, (0, 1));
+        let buf = make_buffer("hello");
+        match vm.render_data(&buf, (0, 3)) {
+            RenderSelection::CharacterRange { start, end } => {
+                assert_eq!(start, (0, 1));
+                assert_eq!(end, (0, 3));
+            }
+            _ => panic!("expected CharacterRange"),
+        }
+    }
+
+    #[test]
+    fn test_render_data_character_backward() {
+        let vm = VisualMode::new(VisualType::Character, (0, 4));
+        let buf = make_buffer("hello");
+        match vm.render_data(&buf, (0, 1)) {
+            RenderSelection::CharacterRange { start, end } => {
+                assert_eq!(start, (0, 1));
+                assert_eq!(end, (0, 4));
+            }
+            _ => panic!("expected CharacterRange"),
+        }
+    }
+
+    #[test]
+    fn test_render_data_character_multiline() {
+        let vm = VisualMode::new(VisualType::Character, (0, 2));
+        let buf = make_buffer("hello\nworld");
+        match vm.render_data(&buf, (1, 3)) {
+            RenderSelection::CharacterRange { start, end } => {
+                assert_eq!(start, (0, 2));
+                assert_eq!(end, (1, 3));
+            }
+            _ => panic!("expected CharacterRange"),
+        }
+    }
+
+    // ---- render_data: Line ----
+
+    #[test]
+    fn test_render_data_line_single() {
+        let vm = VisualMode::new(VisualType::Line, (1, 0));
+        let buf = make_buffer("aaa\nbbb\nccc");
+        match vm.render_data(&buf, (1, 2)) {
+            RenderSelection::LineRange { start_row, end_row } => {
+                assert_eq!(start_row, 1);
+                assert_eq!(end_row, 1);
+            }
+            _ => panic!("expected LineRange"),
+        }
+    }
+
+    #[test]
+    fn test_render_data_line_multi() {
+        let vm = VisualMode::new(VisualType::Line, (0, 0));
+        let buf = make_buffer("aaa\nbbb\nccc");
+        match vm.render_data(&buf, (2, 0)) {
+            RenderSelection::LineRange { start_row, end_row } => {
+                assert_eq!(start_row, 0);
+                assert_eq!(end_row, 2);
+            }
+            _ => panic!("expected LineRange"),
+        }
+    }
+
+    // ---- render_data: Block ----
+
+    #[test]
+    fn test_render_data_block_basic() {
+        let vm = VisualMode::new(VisualType::Block, (0, 1));
+        let buf = make_buffer("abcde\nfghij");
+        match vm.render_data(&buf, (1, 3)) {
+            RenderSelection::BlockRegion {
+                top_row,
+                bottom_row,
+                left_col,
+                right_col,
+            } => {
+                assert_eq!(top_row, 0);
+                assert_eq!(bottom_row, 1);
+                assert_eq!(left_col, 1);
+                assert_eq!(right_col, 3);
+            }
+            _ => panic!("expected BlockRegion"),
+        }
+    }
+
+    #[test]
+    fn test_render_data_block_cjk() {
+        // CJK characters have display width 2
+        let vm = VisualMode::new(VisualType::Block, (0, 0));
+        let buf = make_buffer("你好世界\nabcdefgh");
+        match vm.render_data(&buf, (1, 3)) {
+            RenderSelection::BlockRegion {
+                left_col,
+                right_col,
+                ..
+            } => {
+                // anchor 你 starts at display 0, width 2 → anchor_end = 1
+                // cursor 'd' at grapheme 3, display 3, width 1 → cursor_end = 3
+                assert_eq!(left_col, 0);
+                assert_eq!(right_col, 3);
+            }
+            _ => panic!("expected BlockRegion"),
+        }
+    }
+
+    // ---- yank_selection ----
+
+    #[test]
+    fn test_yank_character_single_line() {
+        let vm = VisualMode::new(VisualType::Character, (0, 1));
+        let buf = make_buffer("hello world");
+        let yanked = vm.yank_selection(&buf, (0, 4));
+        assert_eq!(yanked, "ello");
+    }
+
+    #[test]
+    fn test_yank_character_multiline() {
+        let vm = VisualMode::new(VisualType::Character, (0, 3));
+        let buf = make_buffer("hello\nworld");
+        let yanked = vm.yank_selection(&buf, (1, 2));
+        assert_eq!(yanked, "lo\nwor");
+    }
+
+    #[test]
+    fn test_yank_line_single() {
+        let vm = VisualMode::new(VisualType::Line, (1, 0));
+        let buf = make_buffer("aaa\nbbb\nccc");
+        let yanked = vm.yank_selection(&buf, (1, 2));
+        assert_eq!(yanked, "bbb\n");
+    }
+
+    #[test]
+    fn test_yank_line_multi() {
+        let vm = VisualMode::new(VisualType::Line, (0, 0));
+        let buf = make_buffer("aaa\nbbb\nccc");
+        let yanked = vm.yank_selection(&buf, (2, 0));
+        assert_eq!(yanked, "aaa\nbbb\nccc\n");
+    }
+
+    #[test]
+    fn test_yank_block_basic() {
+        let vm = VisualMode::new(VisualType::Block, (0, 1));
+        let buf = make_buffer("abcde\nfghij\nklmno");
+        let yanked = vm.yank_selection(&buf, (2, 3));
+        // Columns 1..3 inclusive (display cols 1..3)
+        assert_eq!(yanked, "bcd\nghi\nlmn");
+    }
+
+    // ---- delete_selection ----
+
+    #[test]
+    fn test_delete_character_single_line() {
+        let vm = VisualMode::new(VisualType::Character, (0, 1));
+        let mut buf = make_buffer("hello");
+        let deleted = vm.delete_selection(&mut buf, (0, 3));
+        assert_eq!(deleted, "ell");
+        assert_eq!(buf.to_string(), "ho");
+    }
+
+    #[test]
+    fn test_delete_character_multiline() {
+        let vm = VisualMode::new(VisualType::Character, (0, 3));
+        let mut buf = make_buffer("hello\nworld");
+        let deleted = vm.delete_selection(&mut buf, (1, 2));
+        assert_eq!(deleted, "lo\nwor");
+        assert_eq!(buf.to_string(), "helld");
+    }
+
+    #[test]
+    fn test_delete_line_single() {
+        let vm = VisualMode::new(VisualType::Line, (1, 0));
+        let mut buf = make_buffer("aaa\nbbb\nccc");
+        let deleted = vm.delete_selection(&mut buf, (1, 2));
+        assert_eq!(deleted, "bbb\n");
+        assert_eq!(buf.to_string(), "aaa\nccc");
+    }
+
+    #[test]
+    fn test_delete_line_multi() {
+        let vm = VisualMode::new(VisualType::Line, (0, 0));
+        let mut buf = make_buffer("aaa\nbbb\nccc");
+        let deleted = vm.delete_selection(&mut buf, (1, 0));
+        assert_eq!(deleted, "aaa\nbbb\n");
+        assert_eq!(buf.to_string(), "ccc");
+    }
+
+    #[test]
+    fn test_delete_block_basic() {
+        let vm = VisualMode::new(VisualType::Block, (0, 1));
+        let mut buf = make_buffer("abcde\nfghij");
+        let _deleted = vm.delete_selection(&mut buf, (1, 3));
+        assert_eq!(buf.content()[0], "ae");
+        assert_eq!(buf.content()[1], "fj");
+    }
+
+    // ---- indent / dedent ----
+
+    #[test]
+    fn test_indent_selection_line_mode() {
+        let vm = VisualMode::new(VisualType::Line, (0, 0));
+        let mut buf = make_buffer("aaa\nbbb");
+        vm.indent_selection(&mut buf, (1, 0), 4);
+        assert!(buf.content()[0].starts_with("    "));
+        assert!(buf.content()[1].starts_with("    "));
+    }
+
+    #[test]
+    fn test_indent_selection_character_mode() {
+        let vm = VisualMode::new(VisualType::Character, (0, 0));
+        let mut buf = make_buffer("aaa\nbbb");
+        vm.indent_selection(&mut buf, (1, 0), 2);
+        assert!(buf.content()[0].starts_with("  "));
+        assert!(buf.content()[1].starts_with("  "));
+    }
+
+    #[test]
+    fn test_dedent_selection_line_mode() {
+        let vm = VisualMode::new(VisualType::Line, (0, 0));
+        let mut buf = make_buffer("    aaa\n    bbb");
+        vm.dedent_selection(&mut buf, (1, 4), 4);
+        assert_eq!(buf.content()[0], "aaa");
+        assert_eq!(buf.content()[1], "bbb");
+    }
+
+    #[test]
+    fn test_dedent_selection_partial() {
+        let vm = VisualMode::new(VisualType::Line, (0, 0));
+        let mut buf = make_buffer("  aaa\n  bbb");
+        vm.dedent_selection(&mut buf, (1, 2), 4);
+        assert_eq!(buf.content()[0], "aaa");
+        assert_eq!(buf.content()[1], "bbb");
+    }
+
+    // ---- toggle_comment ----
+
+    #[test]
+    fn test_toggle_comment_range() {
+        let vm = VisualMode::new(VisualType::Character, (0, 0));
+        let mut buf = make_buffer("hello\nworld");
+        vm.toggle_comment(&mut buf, (1, 0));
+        assert_eq!(buf.content()[0], "<!-- hello -->");
+        assert_eq!(buf.content()[1], "<!-- world -->");
+    }
+
+    // ---- prepare_insert_start / prepare_insert_end ----
+
+    #[test]
+    fn test_prepare_insert_start_block() {
+        let mut vm = VisualMode::new(VisualType::Block, (0, 1));
+        let mut buf = make_buffer("abcde\nfghij\nklmno");
+        let positions = vm.prepare_insert_start(&mut buf, (2, 3));
+        assert_eq!(positions.len(), 3);
+        // All should be at grapheme index for display col 1
+        assert_eq!(positions[0].1, 1);
+        assert_eq!(positions[1].1, 1);
+        assert_eq!(positions[2].1, 1);
+    }
+
+    #[test]
+    fn test_prepare_insert_end_block() {
+        let mut vm = VisualMode::new(VisualType::Block, (0, 1));
+        let mut buf = make_buffer("abcde\nfghij\nklmno");
+        let positions = vm.prepare_insert_end(&mut buf, (2, 3));
+        assert_eq!(positions.len(), 3);
+    }
+
+    #[test]
+    fn test_prepare_insert_start_non_block_returns_empty() {
+        let mut vm = VisualMode::new(VisualType::Character, (0, 0));
+        let mut buf = make_buffer("hello");
+        let positions = vm.prepare_insert_start(&mut buf, (0, 3));
+        assert!(positions.is_empty());
+    }
+
+    #[test]
+    fn test_prepare_insert_end_non_block_returns_empty() {
+        let mut vm = VisualMode::new(VisualType::Line, (0, 0));
+        let mut buf = make_buffer("hello");
+        let positions = vm.prepare_insert_end(&mut buf, (0, 3));
+        assert!(positions.is_empty());
+    }
+
+    // ---- CJK-specific tests ----
+
+    #[test]
+    fn test_yank_character_cjk() {
+        let vm = VisualMode::new(VisualType::Character, (0, 0));
+        let buf = make_buffer("你好世界");
+        let yanked = vm.yank_selection(&buf, (0, 2));
+        assert_eq!(yanked, "你好世");
+    }
+
+    #[test]
+    fn test_delete_character_cjk() {
+        let vm = VisualMode::new(VisualType::Character, (0, 1));
+        let mut buf = make_buffer("你好世界");
+        let deleted = vm.delete_selection(&mut buf, (0, 2));
+        assert_eq!(deleted, "好世");
+        assert_eq!(buf.to_string(), "你界");
     }
 }

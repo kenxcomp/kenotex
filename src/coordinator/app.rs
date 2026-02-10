@@ -205,33 +205,35 @@ impl App {
 
     pub fn archive_selected_note(&mut self) -> Result<()> {
         if self.view == View::DraftList
-            && let Some(mut note) = self.draft_list.remove_selected() {
-                note.is_archived = true;
-                let old_id = note.id.clone();
-                delete_draft(&self.data_dir, &old_id, false)?;
-                save_draft(&self.data_dir, &note)?;
+            && let Some(mut note) = self.draft_list.remove_selected()
+        {
+            note.is_archived = true;
+            let old_id = note.id.clone();
+            delete_draft(&self.data_dir, &old_id, false)?;
+            save_draft(&self.data_dir, &note)?;
 
-                let archives = load_all_drafts(&self.data_dir, true)?;
-                self.archive_list.update_notes(archives);
+            let archives = load_all_drafts(&self.data_dir, true)?;
+            self.archive_list.update_notes(archives);
 
-                self.set_message("Note archived");
-            }
+            self.set_message("Note archived");
+        }
         Ok(())
     }
 
     pub fn restore_selected_note(&mut self) -> Result<()> {
         if self.view == View::ArchiveList
-            && let Some(mut note) = self.archive_list.remove_selected() {
-                note.is_archived = false;
-                let old_id = note.id.clone();
-                delete_draft(&self.data_dir, &old_id, true)?;
-                save_draft(&self.data_dir, &note)?;
+            && let Some(mut note) = self.archive_list.remove_selected()
+        {
+            note.is_archived = false;
+            let old_id = note.id.clone();
+            delete_draft(&self.data_dir, &old_id, true)?;
+            save_draft(&self.data_dir, &note)?;
 
-                let drafts = load_all_drafts(&self.data_dir, false)?;
-                self.draft_list.update_notes(drafts);
+            let drafts = load_all_drafts(&self.data_dir, false)?;
+            self.draft_list.update_notes(drafts);
 
-                self.set_message("Note restored");
-            }
+            self.set_message("Note restored");
+        }
         Ok(())
     }
 
@@ -512,8 +514,7 @@ impl App {
 
         // Initialize target display column for Visual Block mode
         if visual_type == VisualType::Block {
-            self.visual_target_display_col =
-                Some(self.buffer.display_col_at(cursor.0, cursor.1));
+            self.visual_target_display_col = Some(self.buffer.display_col_at(cursor.0, cursor.1));
         }
     }
 

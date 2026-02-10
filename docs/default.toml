@@ -103,8 +103,10 @@ paste_before = "P"   # Paste before cursor / 在光标前粘贴
 # Mode Switching / 模式切换
 # -----------------------------------------------------------------------------
 
-visual_mode = "v"    # Enter visual mode / 进入可视模式
-search = "/"         # Enter search mode (also 'f') / 进入搜索模式
+visual_mode = "v"         # Enter visual mode / 进入可视模式
+visual_line_mode = "V"    # Enter visual line mode / 进入可视行模式
+visual_block_mode = "ctrl+v"  # Enter visual block mode / 进入可视块模式
+search = "/"              # Enter search mode (also 'f') / 进入搜索模式
 search_next = "n"    # Jump to next search match / 跳转到下一个搜索匹配
 search_prev = "N"    # Jump to previous search match / 跳转到上一个搜索匹配
 
@@ -120,8 +122,22 @@ cycle_theme = "T"    # Cycle through themes / 切换主题
 
 leader_process = "s"  # Process and distribute blocks / 处理并分发内容块
 leader_list = "l"     # Open draft list / 打开草稿列表
-leader_new = "n"      # Create new note / 新建笔记
+leader_new = "nn"     # Create new note / 新建笔记
 leader_quit = "q"     # Quit application / 退出应用
+leader_comment = "c"  # Toggle comment on current line / 切换当前行注释
+
+# Comment toggling in Visual mode / 可视模式下的注释切换
+visual_comment = "gc"  # Toggle comment on selected lines / 切换选中行注释
+
+# -----------------------------------------------------------------------------
+# Formatting Leader Commands (Space + key) / 格式化 Leader 命令（空格 + 按键）
+# -----------------------------------------------------------------------------
+
+leader_bold = "b"              # Toggle bold / 切换粗体
+leader_italic = "i"            # Toggle italic / 切换斜体
+leader_strikethrough = "x"     # Toggle strikethrough / 切换删除线
+leader_code = "c"              # Toggle inline code / 切换行内代码
+leader_code_block = "C"        # Toggle code block / 切换代码块
 
 # =============================================================================
 # Destinations - Where content gets distributed / 目标应用设置

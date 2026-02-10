@@ -76,3 +76,114 @@ impl SmartBlock {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_block_type_as_str() {
+        assert_eq!(BlockType::Reminder.as_str(), "REMINDER");
+        assert_eq!(BlockType::Calendar.as_str(), "CALENDAR");
+        assert_eq!(BlockType::Note.as_str(), "NOTE");
+    }
+
+    #[test]
+    fn test_block_type_target_app() {
+        assert_eq!(BlockType::Reminder.target_app(), "Apple Reminders");
+        assert_eq!(BlockType::Calendar.target_app(), "Apple Calendar");
+        assert_eq!(BlockType::Note.target_app(), "Apple Notes");
+    }
+
+    #[test]
+    fn test_smart_block_new() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            "Buy milk".to_string(),
+            BlockType::Reminder,
+        );
+        assert_eq!(block.id, "b1");
+        assert_eq!(block.content, "Buy milk");
+        assert_eq!(block.block_type, BlockType::Reminder);
+        assert_eq!(block.status, ProcessingStatus::Pending);
+        assert!(block.original_range.is_none());
+    }
+
+    #[test]
+    fn test_smart_block_with_range() {
+        let block = SmartBlock::new("b1".to_string(), "content".to_string(), BlockType::Calendar)
+            .with_range(5, 10);
+        assert_eq!(block.original_range, Some((5, 10)));
+    }
+
+    #[test]
+    fn test_smart_block_preview_short() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            "Buy milk".to_string(),
+            BlockType::Reminder,
+        );
+        assert_eq!(block.preview(50), "Buy milk");
+    }
+
+    #[test]
+    fn test_smart_block_preview_truncated() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            "This is a very long reminder text".to_string(),
+            BlockType::Reminder,
+        );
+        let preview = block.preview(10);
+        assert_eq!(preview, "This is a ...");
+    }
+
+    #[test]
+    fn test_smart_block_preview_strips_tag() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            ":::td Buy milk".to_string(),
+            BlockType::Reminder,
+        );
+        assert_eq!(block.preview(50), "Buy milk");
+    }
+
+    #[test]
+    fn test_smart_block_preview_strips_cal_tag() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            ":::cal Team meeting".to_string(),
+            BlockType::Calendar,
+        );
+        assert_eq!(block.preview(50), "Team meeting");
+    }
+
+    #[test]
+    fn test_smart_block_preview_strips_note_tag() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            ":::note Random thought".to_string(),
+            BlockType::Note,
+        );
+        assert_eq!(block.preview(50), "Random thought");
+    }
+
+    #[test]
+    fn test_processing_status_values() {
+        let block = SmartBlock::new("b1".to_string(), "c".to_string(), BlockType::Reminder);
+        assert_eq!(block.status, ProcessingStatus::Pending);
+    }
+
+    #[test]
+    fn test_smart_block_with_range_chaining() {
+        let block = SmartBlock::new(
+            "b1".to_string(),
+            "Buy milk".to_string(),
+            BlockType::Reminder,
+        )
+        .with_range(1, 3);
+        assert_eq!(block.id, "b1");
+        assert_eq!(block.block_type, BlockType::Reminder);
+        assert_eq!(block.original_range, Some((1, 3)));
+        assert_eq!(block.status, ProcessingStatus::Pending);
+    }
+}

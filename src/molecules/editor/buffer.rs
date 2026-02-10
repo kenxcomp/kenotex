@@ -710,8 +710,7 @@ impl TextBuffer {
 
         // Middle segments become their own lines
         for (i, segment) in pasted.iter().enumerate().take(last_idx).skip(1) {
-            self.lines
-                .insert(self.cursor_row + i, segment.to_string());
+            self.lines.insert(self.cursor_row + i, segment.to_string());
         }
 
         // Last segment joins with text after cursor
@@ -1017,10 +1016,7 @@ impl TextBuffer {
     pub fn grapheme_display_width(&self, row: usize, col: usize) -> usize {
         let line = self.lines.get(row).map(|s| s.as_str()).unwrap_or("");
         let graphemes: Vec<&str> = line.graphemes(true).collect();
-        graphemes
-            .get(col)
-            .map(|g| g.width().max(1))
-            .unwrap_or(1)
+        graphemes.get(col).map(|g| g.width().max(1)).unwrap_or(1)
     }
 
     /// Find the grapheme index range `[start, end)` that overlaps with

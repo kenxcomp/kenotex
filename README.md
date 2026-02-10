@@ -2,27 +2,82 @@
 
 A Vim-style TUI note-taking application that intelligently distributes content to Apple Reminders, Calendar, and Notes apps.
 
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Keybindings](#keybindings)
+- [Configuration](#configuration)
+- [Architecture](#architecture)
+- [Dependencies](#dependencies)
+- [License](#license)
+
 ## Features
 
-- **Vim-style Modal Editing**: Full support for Normal, Insert, Visual, and Search modes
-- **Smart Block Detection**: Automatically identifies content type based on tags and patterns
-- **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian with real dispatch
-- **Destination Skip**: Set `app = ""` to disable any destination; skipped blocks show "-" in the processing overlay
-- **Comment on Success**: Successfully dispatched blocks are wrapped with `<!-- -->` in the editor buffer
-- **Idempotent Dispatch**: Already-commented blocks are automatically skipped on re-dispatch, preventing duplicates
-- **Theme Support**: Tokyo Night, Gruvbox, Nord, and Catppuccin (Mocha/Macchiato/Frappé/Latte) themes
-- **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
-- **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
-- **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
+### Editor
+
+- **Vim-style Modal Editing**: Full support for Normal, Insert, Visual (Character/Line/Block), and Search modes
 - **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
 - **Editor Search**: Case-insensitive forward/backward search with wrap-around, incremental match highlighting (`/` to search, `n`/`N` to navigate matches)
-- **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
 - **Comment Toggle**: Toggle HTML comments (`<!-- -->`) per-line with `gcc` in Normal mode or `gc` on visual selection
 - **Markdown Formatting**: Toggle bold, italic, strikethrough, inline code, and code block formatting via `Space+key` in Normal and Visual modes
 - **Syntax Highlighting**: Real-time visual highlighting for inline code, bold, italic, strikethrough, code blocks, and list markers in the editor
 - **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
-- **Auto-save**: Configurable auto-save interval
+- **List Continuation**: Auto-continue list prefixes (`- [ ]`, `-`, `1.`, `1)`) when pressing `o` or `Enter`
 - **CJK/Wide-Character Support**: Full support for Chinese, Japanese, and Korean characters in all editing modes — Visual Block selection uses display-column alignment so selections remain rectangular across mixed-width lines, cursor movement tracks display columns correctly, and soft-wrap never splits a wide character
+
+### Content Distribution
+
+- **Smart Block Detection**: Identifies content type based on explicit tags (`:::td`, `:::cal`, `:::note`)
+- **Multi-app Distribution**: Send content to Apple Reminders, Calendar, Notes, Bear, or Obsidian with real dispatch
+- **Destination Skip**: Set `app = ""` to disable any destination; skipped blocks show "-" in the processing overlay
+- **Comment on Success**: Successfully dispatched blocks are wrapped with `<!-- -->` in the editor buffer
+- **Idempotent Dispatch**: Already-commented blocks are automatically skipped on re-dispatch, preventing duplicates
+
+### Notes Management
+
+- **Markdown Storage**: All notes stored as markdown files in `~/.config/kenotex/drafts/`
+- **Configurable Data Directory**: Store notes anywhere with `data_dir` config option (supports `~` expansion)
+- **Live Reload**: Detects external file changes and reloads notes automatically with conflict resolution
+- **Delete Confirmation**: Centered overlay dialog confirms before deleting notes in list views
+- **Auto-save**: Configurable auto-save interval
+
+### Customization
+
+- **Theme Support**: Tokyo Night, Gruvbox, Nord, and Catppuccin (Mocha/Macchiato/Frappé/Latte) themes
+- **Configurable Keybindings**: Full keyboard remapping via `config.toml` (see [docs/default.toml](docs/default.toml))
+
+## Quick Start
+
+1. **Install** via Homebrew:
+   ```bash
+   brew tap kenxcomp/tap && brew install kenotex
+   ```
+
+2. **Run** the application:
+   ```bash
+   kenotex
+   ```
+
+3. **Create a note**: Press `Space + nn` to create a new note.
+
+4. **Write content**: Press `i` to enter Insert mode and start typing.
+
+5. **Use tags** to mark content for distribution:
+   ```
+   :::td
+   - Buy groceries @tomorrow
+   - Call dentist @3pm
+   :::
+
+   :::cal
+   Team meeting @Monday 10am
+   :::
+   ```
+
+6. **Distribute**: Press `Esc` to return to Normal mode, then `Space + s` to process and send blocks to their destination apps.
 
 ## Installation
 
@@ -43,17 +98,87 @@ cargo build --release
 ./target/release/kenotex
 ```
 
+## Usage
+
+### Smart Block Syntax
+
+Kenotex uses a **strict tag-only system**. Only content wrapped in explicit tag pairs is processed. Content outside tags is ignored.
+
+**Tag format:**
+- Opening tag: `:::td`, `:::cal`, or `:::note` on its own line
+- Closing tag: `:::` on its own line
+- Content between tags is processed
+
+**Block types:**
+- `:::td ... :::` — Reminders
+- `:::cal ... :::` — Calendar events
+- `:::note ... :::` — Notes (Apple Notes / Bear / Obsidian)
+
+**Example:**
+
+```markdown
+# Meeting Notes
+
+:::td
+- Prepare presentation slides @Friday
+- Review PR #123
+- Update documentation
+:::
+
+:::cal
+Team standup tomorrow at 10am
+Room 301
+:::
+
+:::note
+Remember to ask about Q2 roadmap
+:::
+```
+
+**List handling** (within `:::td` blocks):
+- Detects: `-`, `*`, `- [ ]`, `- []` at line start
+- Creates a separate reminder for each list item
+- Strips list prefix before creating the reminder
+
+**Time expressions:**
+- `@time` syntax: `@tomorrow`, `@9pm`, `@Monday`, `@明天早上8点`, `@下周一`
+- Works in both `:::td` and `:::cal` blocks
+- Editor highlights `@time` in bold accent color for visual feedback
+
+**Warnings:**
+- Unclosed tags show a warning with line number
+- Empty blocks (no content between tags) are ignored
+
+### List Continuation
+
+When pressing `o` (Normal mode) or `Enter` (Insert mode) on a list line, the list prefix is automatically continued on the new line:
+
+- `- [ ] ` / `- [x] ` / `- [X] ` → new line with `- [ ] ` (always unchecked)
+- `- ` → new line with `- `
+- `1. ` → new line with `2. ` (auto-incrementing)
+- `1) ` → new line with `2) ` (auto-incrementing)
+
+**Bullet.vim behavior:** If the current line contains only a list prefix with no text after it, pressing `o` or `Enter` removes the prefix and inserts a blank line instead.
+
+Indentation (leading whitespace) is preserved.
+
 ## Keybindings
+
+All keybindings are fully customizable. See [docs/default.toml](docs/default.toml) for the complete reference with default values.
 
 ### Normal Mode
 
 | Key | Action |
 |-----|--------|
 | `i` | Enter Insert mode |
+| `I` | Enter Insert mode at line start |
 | `a` | Enter Insert mode (append) |
+| `A` | Enter Insert mode at line end |
 | `o` | Insert line below (auto-continues list prefixes) |
 | `O` | Insert line above |
 | `v` | Enter Visual mode |
+| `V` | Enter Visual Line mode |
+| `Ctrl+V` | Enter Visual Block mode |
 | `h/j/k/l` | Navigation (left/down/up/right) |
 | `w/b` | Word forward/backward |
 | `0/$` | Line start/end |
@@ -136,53 +261,11 @@ cargo build --release
 | `Space` | Toggle selection |
 | `Esc` | Back to editor |
 
-## List Continuation
-
-When pressing `o` (Normal mode) or `Enter` (Insert mode) on a list line, the list prefix is automatically continued on the new line:
-
-- `- [ ] ` / `- [x] ` / `- [X] ` → new line with `- [ ] ` (always unchecked)
-- `- ` → new line with `- `
-- `1. ` → new line with `2. ` (auto-incrementing)
-- `1) ` → new line with `2) ` (auto-incrementing)
-
-**Bullet.vim behavior:** If the current line contains only a list prefix with no text after it, pressing `o` or `Enter` removes the prefix and inserts a blank line instead.
-
-Indentation (leading whitespace) is preserved.
-
-## Smart Block Syntax
-
-Kenotex automatically detects block types using these patterns:
-
-### Explicit Tags (Highest Priority)
-- `:::td` - Force block to Reminders
-- `:::cal` - Force block to Calendar
-- `:::note` - Force block to Notes
-
-### Automatic Detection
-- `- [ ]` checkbox items -> Reminders
-- Time expressions (tomorrow, Monday, 10am, etc.) -> Calendar
-- Chinese time (明天, 下周, etc.) -> Calendar
-- Everything else -> Notes
-
-### Example
-
-```markdown
-# Meeting Notes
-
-:::cal Team standup tomorrow at 10am
-
-- [ ] Prepare presentation slides
-- [ ] Review PR #123
-- [ ] Update documentation
-
-:::note Remember to ask about Q2 roadmap
-```
-
 ## Configuration
 
 Config file location: `~/.config/kenotex/config.toml`
 
-See [docs/default.toml](docs/default.toml) for a complete configuration reference with comments.
+See [docs/default.toml](docs/default.toml) for the complete configuration reference with all options and comments.
 
 ```toml
 [general]
@@ -194,55 +277,13 @@ show_hints = true      # Show shortcut hints bar
 file_watch = true       # Detect external file changes
 file_watch_debounce_ms = 300
 tab_width = 4           # Number of spaces inserted when pressing Tab
+```
 
-[keyboard]
-layout = "qwerty"
-# Navigation
-move_left = "h"
-move_down = "j"
-move_up = "k"
-move_right = "l"
-word_forward = "w"
-word_backward = "b"
-line_start = "0"
-line_end = "$"
-file_start = "g"
-file_end = "G"
-# Insert mode
-insert = "i"
-insert_append = "a"
-insert_line_start = "I"
-insert_line_end = "A"
-insert_line_below = "o"
-insert_line_above = "O"
-# Editing
-delete_char = "x"
-delete_line = "d"
-undo = "u"
-redo = "ctrl+r"
-yank = "y"
-paste_after = "p"
-paste_before = "P"
-# Modes
-visual_mode = "v"
-search = "/"
-search_next = "n"
-search_prev = "N"
-cycle_theme = "T"
-# Leader commands
-leader_process = "s"
-leader_list = "l"
-leader_new = "nn"
-leader_quit = "q"
-leader_comment = "c"
-visual_comment = "gc"
-# Formatting leader keys
-leader_bold = "b"
-leader_italic = "i"
-leader_strikethrough = "x"
-leader_code = "c"
-leader_code_block = "C"
+### Destinations
 
+Configure where content gets distributed in `config.toml`:
+
+```toml
 [destinations.reminders]
 app = "apple"          # Set to "" to skip reminders
 # list = "Work"

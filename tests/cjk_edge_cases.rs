@@ -455,10 +455,7 @@ fn test_block_selection_all_cjk_lines() {
             // "好" display 2 (width 2→cols 2-3), "玄" display 4 (width 2→cols 4-5)
             // Block: display cols [2, 5]
             assert_eq!(left_col, 2, "left should be display col 2");
-            assert_eq!(
-                right_col, 5,
-                "right should be display col 5 (end of 玄)"
-            );
+            assert_eq!(right_col, 5, "right should be display col 5 (end of 玄)");
         }
         _ => panic!("Expected BlockRegion"),
     }

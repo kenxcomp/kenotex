@@ -1,7 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -10,7 +9,6 @@ pub struct Config {
     #[serde(default)]
     pub destinations: Destinations,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
@@ -379,8 +377,7 @@ impl KeyboardConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Destinations {
     #[serde(default)]
     pub reminders: DestinationApp,
@@ -389,7 +386,6 @@ pub struct Destinations {
     #[serde(default)]
     pub notes: NotesDestination,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DestinationApp {
@@ -484,5 +480,151 @@ impl NotesApp {
             NotesApp::Bear => "Bear",
             NotesApp::Obsidian => "Obsidian",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+        assert_eq!(config.general.theme, "tokyo_night");
+        assert_eq!(config.general.leader_key, " ");
+        assert_eq!(config.general.auto_save_interval_ms, 5000);
+        assert!(config.general.show_hints);
+        assert!(config.general.data_dir.is_none());
+        assert!(config.general.file_watch);
+        assert_eq!(config.general.file_watch_debounce_ms, 300);
+        assert_eq!(config.general.tab_width, 4);
+    }
+
+    #[test]
+    fn test_default_keyboard_config() {
+        let kb = KeyboardConfig::default();
+        assert_eq!(kb.layout, "qwerty");
+        assert_eq!(kb.move_left, "h");
+        assert_eq!(kb.move_down, "j");
+        assert_eq!(kb.move_up, "k");
+        assert_eq!(kb.move_right, "l");
+        assert_eq!(kb.word_forward, "w");
+        assert_eq!(kb.word_backward, "b");
+        assert_eq!(kb.line_start, "0");
+        assert_eq!(kb.line_end, "$");
+    }
+
+    #[test]
+    fn test_keyboard_config_insert_defaults() {
+        let kb = KeyboardConfig::default();
+        assert_eq!(kb.insert, "i");
+        assert_eq!(kb.insert_append, "a");
+        assert_eq!(kb.insert_line_start, "I");
+        assert_eq!(kb.insert_line_end, "A");
+        assert_eq!(kb.insert_line_below, "o");
+        assert_eq!(kb.insert_line_above, "O");
+    }
+
+    #[test]
+    fn test_keyboard_config_editing_defaults() {
+        let kb = KeyboardConfig::default();
+        assert_eq!(kb.delete_char, "x");
+        assert_eq!(kb.delete_line, "d");
+        assert_eq!(kb.undo, "u");
+        assert_eq!(kb.redo, "ctrl+r");
+        assert_eq!(kb.yank, "y");
+        assert_eq!(kb.paste_after, "p");
+        assert_eq!(kb.paste_before, "P");
+    }
+
+    #[test]
+    fn test_keyboard_config_mode_defaults() {
+        let kb = KeyboardConfig::default();
+        assert_eq!(kb.visual_mode, "v");
+        assert_eq!(kb.visual_line_mode, "V");
+        assert_eq!(kb.visual_block_mode, "ctrl+v");
+        assert_eq!(kb.search, "/");
+        assert_eq!(kb.search_next, "n");
+        assert_eq!(kb.search_prev, "N");
+    }
+
+    #[test]
+    fn test_keyboard_config_leader_defaults() {
+        let kb = KeyboardConfig::default();
+        assert_eq!(kb.leader_process, "s");
+        assert_eq!(kb.leader_list, "l");
+        assert_eq!(kb.leader_new, "nn");
+        assert_eq!(kb.leader_quit, "q");
+        assert_eq!(kb.leader_comment, "c");
+        assert_eq!(kb.visual_comment, "gc");
+    }
+
+    #[test]
+    fn test_keyboard_config_format_defaults() {
+        let kb = KeyboardConfig::default();
+        assert_eq!(kb.leader_bold, "b");
+        assert_eq!(kb.leader_italic, "i");
+        assert_eq!(kb.leader_strikethrough, "x");
+        assert_eq!(kb.leader_code, "c");
+        assert_eq!(kb.leader_code_block, "C");
+    }
+
+    #[test]
+    fn test_colemak_keyboard() {
+        let kb = KeyboardConfig::colemak();
+        assert_eq!(kb.layout, "colemak");
+        assert_eq!(kb.move_up, "u");
+        assert_eq!(kb.move_down, "e");
+        assert_eq!(kb.undo, "z");
+        // Other keys should remain default
+        assert_eq!(kb.move_left, "h");
+        assert_eq!(kb.move_right, "l");
+    }
+
+    #[test]
+    fn test_default_destinations() {
+        let dest = Destinations::default();
+        assert_eq!(dest.reminders.app, "apple");
+        assert!(dest.reminders.list.is_none());
+        assert_eq!(dest.calendar.app, "apple");
+        assert!(dest.calendar.calendar_name.is_none());
+        assert_eq!(dest.notes.app, Some(NotesApp::AppleNotes));
+        assert!(dest.notes.folder.is_none());
+        assert!(dest.notes.vault.is_none());
+    }
+
+    #[test]
+    fn test_notes_app_as_str() {
+        assert_eq!(NotesApp::AppleNotes.as_str(), "Apple Notes");
+        assert_eq!(NotesApp::Bear.as_str(), "Bear");
+        assert_eq!(NotesApp::Obsidian.as_str(), "Obsidian");
+    }
+
+    #[test]
+    fn test_config_toml_roundtrip() {
+        let config = Config::default();
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        let parsed: Config = toml::from_str(&toml_str).unwrap();
+        assert_eq!(parsed.general.theme, "tokyo_night");
+        assert_eq!(parsed.keyboard.layout, "qwerty");
+    }
+
+    #[test]
+    fn test_config_deserialize_partial_toml() {
+        let toml_str = r#"
+[general]
+theme = "gruvbox"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.general.theme, "gruvbox");
+        // All other fields should be defaults
+        assert_eq!(config.general.leader_key, " ");
+        assert_eq!(config.keyboard.layout, "qwerty");
+    }
+
+    #[test]
+    fn test_config_deserialize_empty_toml() {
+        let config: Config = toml::from_str("").unwrap();
+        assert_eq!(config.general.theme, "tokyo_night");
     }
 }

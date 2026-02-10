@@ -146,82 +146,90 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
         }
 
         // Try italic (single *)
-        if !handled && chars[i] == '*'
-            && let Some((content, end)) = scan_delimited(&chars, i, "*") {
-                if !plain_buffer.is_empty() {
-                    tokens.push(MdToken {
-                        text: plain_buffer.clone(),
-                        kind: MdTokenKind::Plain,
-                    });
-                    plain_buffer.clear();
-                }
+        if !handled
+            && chars[i] == '*'
+            && let Some((content, end)) = scan_delimited(&chars, i, "*")
+        {
+            if !plain_buffer.is_empty() {
                 tokens.push(MdToken {
-                    text: "*".to_string(),
-                    kind: MdTokenKind::Delimiter,
+                    text: plain_buffer.clone(),
+                    kind: MdTokenKind::Plain,
                 });
-                tokens.push(MdToken {
-                    text: content,
-                    kind: MdTokenKind::Italic,
-                });
-                tokens.push(MdToken {
-                    text: "*".to_string(),
-                    kind: MdTokenKind::Delimiter,
-                });
-                i = end;
-                handled = true;
+                plain_buffer.clear();
             }
+            tokens.push(MdToken {
+                text: "*".to_string(),
+                kind: MdTokenKind::Delimiter,
+            });
+            tokens.push(MdToken {
+                text: content,
+                kind: MdTokenKind::Italic,
+            });
+            tokens.push(MdToken {
+                text: "*".to_string(),
+                kind: MdTokenKind::Delimiter,
+            });
+            i = end;
+            handled = true;
+        }
 
         // Try inline code
-        if !handled && chars[i] == '`'
-            && let Some((content, end)) = scan_delimited(&chars, i, "`") {
-                if !plain_buffer.is_empty() {
-                    tokens.push(MdToken {
-                        text: plain_buffer.clone(),
-                        kind: MdTokenKind::Plain,
-                    });
-                    plain_buffer.clear();
-                }
+        if !handled
+            && chars[i] == '`'
+            && let Some((content, end)) = scan_delimited(&chars, i, "`")
+        {
+            if !plain_buffer.is_empty() {
                 tokens.push(MdToken {
-                    text: "`".to_string(),
-                    kind: MdTokenKind::Delimiter,
+                    text: plain_buffer.clone(),
+                    kind: MdTokenKind::Plain,
                 });
-                tokens.push(MdToken {
-                    text: content,
-                    kind: MdTokenKind::InlineCode,
-                });
-                tokens.push(MdToken {
-                    text: "`".to_string(),
-                    kind: MdTokenKind::Delimiter,
-                });
-                i = end;
-                handled = true;
+                plain_buffer.clear();
             }
+            tokens.push(MdToken {
+                text: "`".to_string(),
+                kind: MdTokenKind::Delimiter,
+            });
+            tokens.push(MdToken {
+                text: content,
+                kind: MdTokenKind::InlineCode,
+            });
+            tokens.push(MdToken {
+                text: "`".to_string(),
+                kind: MdTokenKind::Delimiter,
+            });
+            i = end;
+            handled = true;
+        }
 
         // Try strikethrough
-        if !handled && i + 1 < chars.len() && chars[i] == '~' && chars[i + 1] == '~'
-            && let Some((content, end)) = scan_delimited(&chars, i, "~~") {
-                if !plain_buffer.is_empty() {
-                    tokens.push(MdToken {
-                        text: plain_buffer.clone(),
-                        kind: MdTokenKind::Plain,
-                    });
-                    plain_buffer.clear();
-                }
+        if !handled
+            && i + 1 < chars.len()
+            && chars[i] == '~'
+            && chars[i + 1] == '~'
+            && let Some((content, end)) = scan_delimited(&chars, i, "~~")
+        {
+            if !plain_buffer.is_empty() {
                 tokens.push(MdToken {
-                    text: "~~".to_string(),
-                    kind: MdTokenKind::Delimiter,
+                    text: plain_buffer.clone(),
+                    kind: MdTokenKind::Plain,
                 });
-                tokens.push(MdToken {
-                    text: content,
-                    kind: MdTokenKind::Strikethrough,
-                });
-                tokens.push(MdToken {
-                    text: "~~".to_string(),
-                    kind: MdTokenKind::Delimiter,
-                });
-                i = end;
-                handled = true;
+                plain_buffer.clear();
             }
+            tokens.push(MdToken {
+                text: "~~".to_string(),
+                kind: MdTokenKind::Delimiter,
+            });
+            tokens.push(MdToken {
+                text: content,
+                kind: MdTokenKind::Strikethrough,
+            });
+            tokens.push(MdToken {
+                text: "~~".to_string(),
+                kind: MdTokenKind::Delimiter,
+            });
+            i = end;
+            handled = true;
+        }
 
         // Plain character (if no delimiter matched)
         if !handled {
@@ -329,9 +337,30 @@ fn scan_time_expression(chars: &[char], start: usize) -> Option<(String, usize)>
     // Simple heuristic: contains digits OR known keywords
     let has_digit = time_text.chars().any(|c| c.is_ascii_digit());
     let keywords = [
-        "明天", "今天", "后天", "下周", "周", "早上", "上午", "下午", "晚上", "中午", "tomorrow",
-        "today", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-        "morning", "evening", "afternoon", "am", "pm",
+        "明天",
+        "今天",
+        "后天",
+        "下周",
+        "周",
+        "早上",
+        "上午",
+        "下午",
+        "晚上",
+        "中午",
+        "tomorrow",
+        "today",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "morning",
+        "evening",
+        "afternoon",
+        "am",
+        "pm",
     ];
     let has_keyword = keywords.iter().any(|kw| time_text.contains(kw));
 

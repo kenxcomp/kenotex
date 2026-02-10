@@ -122,9 +122,10 @@ fn run_app(
                     if matches!(app.view, View::DraftList | View::ArchiveList)
                         && app.mode == AppMode::Normal
                         && !app.vim_mode.is_leader_pending()
-                        && EventDispatcher::handle_list_key(app, key)? {
-                            continue;
-                        }
+                        && EventDispatcher::handle_list_key(app, key)?
+                    {
+                        continue;
+                    }
 
                     EventDispatcher::handle_key(app, key)?;
 

@@ -137,9 +137,10 @@ impl DraftList {
 
     pub fn toggle_selected(&mut self) {
         if let Some(&real_idx) = self.filtered_indices.get(self.selected_index)
-            && let Some(note) = self.notes.get_mut(real_idx) {
-                note.selected = !note.selected;
-            }
+            && let Some(note) = self.notes.get_mut(real_idx)
+        {
+            note.selected = !note.selected;
+        }
     }
 
     pub fn get_selected_notes(&self) -> Vec<&Note> {
@@ -196,5 +197,266 @@ mod tests {
 
         list.clear_search();
         assert_eq!(list.len(), 3);
+    }
+
+    #[test]
+    fn test_new_empty() {
+        let list = DraftList::new(vec![]);
+        assert!(list.is_empty());
+        assert_eq!(list.len(), 0);
+        assert_eq!(list.total_count(), 0);
+    }
+
+    #[test]
+    fn test_new_with_notes() {
+        let notes = vec![make_note("1", "A", "a"), make_note("2", "B", "b")];
+        let list = DraftList::new(notes);
+        assert_eq!(list.len(), 2);
+        assert_eq!(list.total_count(), 2);
+        assert_eq!(list.selected_index(), 0);
+    }
+
+    #[test]
+    fn test_filtered_notes() {
+        let notes = vec![
+            make_note("1", "Alpha", "content"),
+            make_note("2", "Beta", "content"),
+        ];
+        let list = DraftList::new(notes);
+        let filtered = list.filtered_notes();
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(filtered[0].id, "1");
+    }
+
+    #[test]
+    fn test_selected_note() {
+        let notes = vec![make_note("1", "A", "a"), make_note("2", "B", "b")];
+        let list = DraftList::new(notes);
+        let selected = list.selected_note().unwrap();
+        assert_eq!(selected.id, "1");
+    }
+
+    #[test]
+    fn test_selected_note_empty_list() {
+        let list = DraftList::new(vec![]);
+        assert!(list.selected_note().is_none());
+    }
+
+    #[test]
+    fn test_selected_note_mut() {
+        let notes = vec![make_note("1", "A", "old content")];
+        let mut list = DraftList::new(notes);
+        let note = list.selected_note_mut().unwrap();
+        note.content = "new content".to_string();
+        assert_eq!(list.selected_note().unwrap().content, "new content");
+    }
+
+    #[test]
+    fn test_search_query() {
+        let mut list = DraftList::new(vec![make_note("1", "A", "a")]);
+        assert_eq!(list.search_query(), "");
+        list.set_search_query("test".to_string());
+        assert_eq!(list.search_query(), "test");
+    }
+
+    #[test]
+    fn test_add_search_char() {
+        let notes = vec![
+            make_note("1", "Hello", "content"),
+            make_note("2", "World", "content"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.add_search_char('h');
+        assert_eq!(list.search_query(), "h");
+        assert_eq!(list.len(), 1);
+    }
+
+    #[test]
+    fn test_remove_search_char() {
+        let notes = vec![
+            make_note("1", "Hello", "content"),
+            make_note("2", "World", "content"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.set_search_query("hello".to_string());
+        assert_eq!(list.len(), 1);
+        list.remove_search_char();
+        assert_eq!(list.search_query(), "hell");
+        assert_eq!(list.len(), 1);
+    }
+
+    #[test]
+    fn test_clear_search() {
+        let notes = vec![
+            make_note("1", "Hello", "content"),
+            make_note("2", "World", "content"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.set_search_query("hello".to_string());
+        assert_eq!(list.len(), 1);
+        list.clear_search();
+        assert_eq!(list.len(), 2);
+        assert_eq!(list.search_query(), "");
+    }
+
+    #[test]
+    fn test_move_up_at_top() {
+        let notes = vec![make_note("1", "A", "a"), make_note("2", "B", "b")];
+        let mut list = DraftList::new(notes);
+        assert_eq!(list.selected_index(), 0);
+        list.move_up();
+        assert_eq!(list.selected_index(), 0);
+    }
+
+    #[test]
+    fn test_move_down_and_up() {
+        let notes = vec![
+            make_note("1", "A", "a"),
+            make_note("2", "B", "b"),
+            make_note("3", "C", "c"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.move_down();
+        assert_eq!(list.selected_index(), 1);
+        list.move_down();
+        assert_eq!(list.selected_index(), 2);
+        list.move_down(); // should not go past end
+        assert_eq!(list.selected_index(), 2);
+        list.move_up();
+        assert_eq!(list.selected_index(), 1);
+    }
+
+    #[test]
+    fn test_add_note() {
+        let mut list = DraftList::new(vec![make_note("1", "A", "a")]);
+        list.add_note(make_note("2", "B", "b"));
+        assert_eq!(list.total_count(), 2);
+        assert_eq!(list.selected_index(), 0);
+        assert_eq!(list.selected_note().unwrap().id, "2");
+    }
+
+    #[test]
+    fn test_remove_selected() {
+        let notes = vec![
+            make_note("1", "A", "a"),
+            make_note("2", "B", "b"),
+            make_note("3", "C", "c"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.move_down(); // select "B"
+        let removed = list.remove_selected().unwrap();
+        assert_eq!(removed.id, "2");
+        assert_eq!(list.total_count(), 2);
+    }
+
+    #[test]
+    fn test_remove_selected_empty() {
+        let mut list = DraftList::new(vec![]);
+        assert!(list.remove_selected().is_none());
+    }
+
+    #[test]
+    fn test_update_notes() {
+        let mut list = DraftList::new(vec![make_note("1", "A", "a")]);
+        let new_notes = vec![make_note("2", "B", "b"), make_note("3", "C", "c")];
+        list.update_notes(new_notes);
+        assert_eq!(list.total_count(), 2);
+        assert_eq!(list.notes()[0].id, "2");
+    }
+
+    #[test]
+    fn test_update_note() {
+        let notes = vec![make_note("1", "Old Title", "old content")];
+        let mut list = DraftList::new(notes);
+        let mut updated = make_note("1", "New Title", "new content");
+        updated.updated_at = Utc::now();
+        list.update_note(&updated);
+        assert_eq!(list.notes()[0].title, "New Title");
+        assert_eq!(list.notes()[0].content, "new content");
+    }
+
+    #[test]
+    fn test_toggle_selected() {
+        let notes = vec![make_note("1", "A", "a")];
+        let mut list = DraftList::new(notes);
+        assert!(!list.notes()[0].selected);
+        list.toggle_selected();
+        assert!(list.notes()[0].selected);
+        list.toggle_selected();
+        assert!(!list.notes()[0].selected);
+    }
+
+    #[test]
+    fn test_get_selected_notes() {
+        let notes = vec![
+            make_note("1", "A", "a"),
+            make_note("2", "B", "b"),
+            make_note("3", "C", "c"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.toggle_selected(); // select "A"
+        list.move_down();
+        list.move_down();
+        list.toggle_selected(); // select "C"
+        let selected = list.get_selected_notes();
+        assert_eq!(selected.len(), 2);
+    }
+
+    #[test]
+    fn test_all_note_ids() {
+        let notes = vec![make_note("x", "A", "a"), make_note("y", "B", "b")];
+        let list = DraftList::new(notes);
+        let ids = list.all_note_ids();
+        assert_eq!(ids, vec!["x", "y"]);
+    }
+
+    #[test]
+    fn test_search_case_insensitive() {
+        let notes = vec![
+            make_note("1", "HELLO", "content"),
+            make_note("2", "world", "content"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.set_search_query("hello".to_string());
+        assert_eq!(list.len(), 1);
+        assert_eq!(list.selected_note().unwrap().id, "1");
+    }
+
+    #[test]
+    fn test_search_matches_content() {
+        let notes = vec![
+            make_note("1", "Title", "hello world"),
+            make_note("2", "Other", "nothing here"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.set_search_query("hello".to_string());
+        assert_eq!(list.len(), 1);
+        assert_eq!(list.selected_note().unwrap().id, "1");
+    }
+
+    #[test]
+    fn test_search_cjk() {
+        let notes = vec![
+            make_note("1", "你好世界", "content"),
+            make_note("2", "Hello", "content"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.set_search_query("你好".to_string());
+        assert_eq!(list.len(), 1);
+        assert_eq!(list.selected_note().unwrap().id, "1");
+    }
+
+    #[test]
+    fn test_selected_index_clamped_on_filter() {
+        let notes = vec![
+            make_note("1", "A", "a"),
+            make_note("2", "B", "b"),
+            make_note("3", "C", "c"),
+        ];
+        let mut list = DraftList::new(notes);
+        list.move_down();
+        list.move_down(); // selected_index = 2
+        list.set_search_query("A".to_string()); // only 1 result
+        assert_eq!(list.selected_index(), 0);
     }
 }

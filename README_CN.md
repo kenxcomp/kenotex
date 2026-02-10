@@ -2,27 +2,82 @@
 
 一款 Vim 风格的终端笔记应用，能够智能地将内容分发到 Apple 提醒事项、日历和备忘录应用。
 
+## 目录
+
+- [功能特性](#功能特性)
+- [快速开始](#快速开始)
+- [安装](#安装)
+- [使用方法](#使用方法)
+- [快捷键](#快捷键)
+- [配置](#配置)
+- [架构](#架构)
+- [依赖](#依赖)
+- [许可证](#许可证)
+
 ## 功能特性
 
-- **Vim 风格模态编辑**：完整支持 Normal、Insert、Visual 和 Search 模式
-- **智能块检测**：基于标签和模式自动识别内容类型
-- **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian，支持实际调度
-- **目标跳过**：设置 `app = ""` 可禁用任何目标应用；跳过的块在处理覆盖层中显示 "-"
-- **成功后注释**：成功分发的块会在编辑器缓冲区中用 `<!-- -->` 包裹
-- **幂等分发**：已注释的块在重新分发时会自动跳过，防止重复发送
-- **主题支持**：Tokyo Night、Gruvbox、Nord 和 Catppuccin（Mocha/Macchiato/Frappé/Latte）主题
-- **Markdown 存储**：所有笔记以 markdown 文件形式存储在 `~/.config/kenotex/drafts/`
-- **自定义数据目录**：通过 `data_dir` 配置选项将笔记存储在任意位置（支持 `~` 展开）
-- **实时重载**：自动检测外部文件更改并重新加载笔记，支持冲突解决
+### 编辑器
+
+- **Vim 风格模态编辑**：完整支持 Normal、Insert、Visual（字符/行/块）和 Search 模式
 - **软换行光标**：光标在软换行行上正确跟踪位置，支持 Normal、Insert 和 Visual 模式
 - **编辑器搜索**：不区分大小写的前向/后向搜索，支持循环查找和增量匹配高亮（`/` 搜索，`n`/`N` 跳转匹配项）
-- **删除确认**：在列表视图中删除笔记时显示居中确认对话框
 - **注释切换**：通过 `gcc`（Normal 模式）或 `gc`（Visual 模式选中行）按行切换 HTML 注释（`<!-- -->`）
 - **Markdown 格式化**：通过 `Space+key` 在 Normal 和 Visual 模式下切换加粗、斜体、删除线、行内代码和代码块格式
 - **语法高亮**：编辑器中实时高亮显示行内代码、加粗、斜体、删除线、代码块和列表标记
 - **剪贴板粘贴**：多行剪贴板粘贴通过 `p`/`P`（Normal 模式）和 `Cmd+V`（Insert 模式）正确保留换行符，支持括号粘贴模式
-- **自动保存**：可配置的自动保存间隔
+- **列表续行**：按 `o` 或 `Enter` 时自动续接列表前缀（`- [ ]`、`-`、`1.`、`1)`）
 - **CJK/全角字符支持**：在所有编辑模式中完整支持中文、日文和韩文字符 — Visual Block 选择使用显示列对齐，确保选区在混合宽度行间保持矩形；光标移动正确跟踪显示列；软换行不会拆分全角字符
+
+### 内容分发
+
+- **智能块检测**：基于显式标签（`:::td`、`:::cal`、`:::note`）识别内容类型
+- **多应用分发**：将内容发送到 Apple 提醒事项、日历、备忘录、Bear 或 Obsidian，支持实际调度
+- **目标跳过**：设置 `app = ""` 可禁用任何目标应用；跳过的块在处理覆盖层中显示 "-"
+- **成功后注释**：成功分发的块会在编辑器缓冲区中用 `<!-- -->` 包裹
+- **幂等分发**：已注释的块在重新分发时会自动跳过，防止重复发送
+
+### 笔记管理
+
+- **Markdown 存储**：所有笔记以 markdown 文件形式存储在 `~/.config/kenotex/drafts/`
+- **自定义数据目录**：通过 `data_dir` 配置选项将笔记存储在任意位置（支持 `~` 展开）
+- **实时重载**：自动检测外部文件更改并重新加载笔记，支持冲突解决
+- **删除确认**：在列表视图中删除笔记时显示居中确认对话框
+- **自动保存**：可配置的自动保存间隔
+
+### 自定义
+
+- **主题支持**：Tokyo Night、Gruvbox、Nord 和 Catppuccin（Mocha/Macchiato/Frappé/Latte）主题
+- **可配置快捷键**：通过 `config.toml` 完全自定义键位映射（参见 [docs/default.toml](docs/default.toml)）
+
+## 快速开始
+
+1. **安装**（通过 Homebrew）：
+   ```bash
+   brew tap kenxcomp/tap && brew install kenotex
+   ```
+
+2. **运行**应用：
+   ```bash
+   kenotex
+   ```
+
+3. **创建笔记**：按 `空格 + nn` 创建新笔记。
+
+4. **编写内容**：按 `i` 进入 Insert 模式开始输入。
+
+5. **使用标签**标记需要分发的内容：
+   ```
+   :::td
+   - 明天买菜 @明天
+   - 下午三点打电话给牙医 @3pm
+   :::
+
+   :::cal
+   团队会议 @周一上午10点
+   :::
+   ```
+
+6. **分发**：按 `Esc` 返回 Normal 模式，然后按 `空格 + s` 处理并发送内容块到目标应用。
 
 ## 安装
 
@@ -43,17 +98,87 @@ cargo build --release
 ./target/release/kenotex
 ```
 
+## 使用方法
+
+### 智能块语法
+
+Kenotex 使用**严格的标签系统**。只有被显式标签对包裹的内容才会被处理。标签外的内容会被忽略。
+
+**标签格式：**
+- 开始标签：`:::td`、`:::cal` 或 `:::note`，独占一行
+- 结束标签：`:::`，独占一行
+- 标签之间的内容会被处理
+
+**块类型：**
+- `:::td ... :::` — 提醒事项
+- `:::cal ... :::` — 日历事件
+- `:::note ... :::` — 备忘录（Apple Notes / Bear / Obsidian）
+
+**示例：**
+
+```markdown
+# 会议记录
+
+:::td
+- 准备演示文稿 @周五
+- 审查 PR #123
+- 更新文档
+:::
+
+:::cal
+明天早上10点团队站会
+301 会议室
+:::
+
+:::note
+记得询问 Q2 路线图
+:::
+```
+
+**列表处理**（`:::td` 块内）：
+- 检测行首的 `-`、`*`、`- [ ]`、`- []`
+- 为每个列表项创建单独的提醒
+- 创建提醒前去除列表前缀
+
+**时间表达式：**
+- `@time` 语法：`@tomorrow`、`@9pm`、`@Monday`、`@明天早上8点`、`@下周一`
+- 在 `:::td` 和 `:::cal` 块中均可使用
+- 编辑器以加粗强调色高亮显示 `@time`
+
+**警告：**
+- 未闭合的标签会显示带行号的警告
+- 空块（标签间无内容）会被忽略
+
+### 列表续行
+
+在列表行上按 `o`（Normal 模式）或 `Enter`（Insert 模式）时，列表前缀会自动续接到新行：
+
+- `- [ ] ` / `- [x] ` / `- [X] ` → 新行为 `- [ ] `（始终为未选中）
+- `- ` → 新行为 `- `
+- `1. ` → 新行为 `2. `（自动递增）
+- `1) ` → 新行为 `2) `（自动递增）
+
+**Bullet.vim 行为**：如果当前行仅包含列表前缀而没有文本内容，按 `o` 或 `Enter` 会移除前缀并插入空白行。
+
+缩进（前导空格）会被保留。
+
 ## 快捷键
+
+所有快捷键均可完全自定义。完整参考及默认值请查看 [docs/default.toml](docs/default.toml)。
 
 ### Normal 模式
 
 | 按键 | 操作 |
 |-----|--------|
 | `i` | 进入 Insert 模式 |
+| `I` | 在行首进入 Insert 模式 |
 | `a` | 进入 Insert 模式（追加） |
+| `A` | 在行尾进入 Insert 模式 |
 | `o` | 在下方插入新行（自动续接列表前缀） |
 | `O` | 在上方插入新行 |
 | `v` | 进入 Visual 模式 |
+| `V` | 进入 Visual Line 模式 |
+| `Ctrl+V` | 进入 Visual Block 模式 |
 | `h/j/k/l` | 导航（左/下/上/右） |
 | `w/b` | 向前/向后移动一个单词 |
 | `0/$` | 行首/行尾 |
@@ -136,53 +261,11 @@ cargo build --release
 | `空格` | 切换选择 |
 | `Esc` | 返回编辑器 |
 
-## 列表续行
-
-在列表行上按 `o`（Normal 模式）或 `Enter`（Insert 模式）时，列表前缀会自动续接到新行：
-
-- `- [ ] ` / `- [x] ` / `- [X] ` → 新行为 `- [ ] `（始终为未选中）
-- `- ` → 新行为 `- `
-- `1. ` → 新行为 `2. `（自动递增）
-- `1) ` → 新行为 `2) `（自动递增）
-
-**Bullet.vim 行为**：如果当前行仅包含列表前缀而没有文本内容，按 `o` 或 `Enter` 会移除前缀并插入空白行。
-
-缩进（前导空格）会被保留。
-
-## 智能块语法
-
-Kenotex 使用以下模式自动检测块类型：
-
-### 显式标签（最高优先级）
-- `:::td` - 强制发送到提醒事项
-- `:::cal` - 强制发送到日历
-- `:::note` - 强制发送到备忘录
-
-### 自动检测
-- `- [ ]` 复选框项目 -> 提醒事项
-- 时间表达式（tomorrow、Monday、10am 等）-> 日历
-- 中文时间（明天、下周等）-> 日历
-- 其他内容 -> 备忘录
-
-### 示例
-
-```markdown
-# 会议记录
-
-:::cal 明天早上10点团队站会
-
-- [ ] 准备演示文稿
-- [ ] 审查 PR #123
-- [ ] 更新文档
-
-:::note 记得询问 Q2 路线图
-```
-
 ## 配置
 
 配置文件位置：`~/.config/kenotex/config.toml`
 
-完整配置参考请查看 [docs/default.toml](docs/default.toml)（含中英文注释）。
+完整配置参考及所有选项说明请查看 [docs/default.toml](docs/default.toml)（含中英文注释）。
 
 ```toml
 [general]
@@ -194,55 +277,13 @@ show_hints = true      # 显示快捷键提示栏
 file_watch = true       # 检测外部文件更改
 file_watch_debounce_ms = 300
 tab_width = 4           # 按 Tab 键时插入的空格数
+```
 
-[keyboard]
-layout = "qwerty"
-# 导航键
-move_left = "h"
-move_down = "j"
-move_up = "k"
-move_right = "l"
-word_forward = "w"
-word_backward = "b"
-line_start = "0"
-line_end = "$"
-file_start = "g"
-file_end = "G"
-# 插入模式
-insert = "i"
-insert_append = "a"
-insert_line_start = "I"
-insert_line_end = "A"
-insert_line_below = "o"
-insert_line_above = "O"
-# 编辑操作
-delete_char = "x"
-delete_line = "d"
-undo = "u"
-redo = "ctrl+r"
-yank = "y"
-paste_after = "p"
-paste_before = "P"
-# 模式
-visual_mode = "v"
-search = "/"
-search_next = "n"
-search_prev = "N"
-cycle_theme = "T"
-# Leader 命令
-leader_process = "s"
-leader_list = "l"
-leader_new = "nn"
-leader_quit = "q"
-leader_comment = "c"
-visual_comment = "gc"
-# 格式化 Leader 按键
-leader_bold = "b"
-leader_italic = "i"
-leader_strikethrough = "x"
-leader_code = "c"
-leader_code_block = "C"
+### 目标应用
 
+在 `config.toml` 中配置内容分发目标：
+
+```toml
 [destinations.reminders]
 app = "apple"          # 设为 "" 可跳过提醒事项
 # list = "工作"
