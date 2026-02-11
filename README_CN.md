@@ -3,11 +3,15 @@
 一款 Vim 风格的终端笔记应用，能够智能地将内容分发到 Apple 提醒事项、日历和备忘录应用。
 
 <p align="center">
-  <img src="docs/tokyo-night.jpeg" width="49%" alt="Tokyo Night 主题">
-  <img src="docs/gruvbox.png" width="49%" alt="Gruvbox 主题">
+  <img src="docs/tokyo-night.jpeg" width="80%" alt="Tokyo Night 主题">
+  <br>
+  <em>Tokyo Night</em>
 </p>
+
 <p align="center">
-  <em>Tokyo Night</em> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <em>Gruvbox</em>
+  <img src="docs/gruvbox.png" width="80%" alt="Gruvbox 主题">
+  <br>
+  <em>Gruvbox</em>
 </p>
 
 ## 功能特性

@@ -3,11 +3,15 @@
 A Vim-style TUI note-taking application that intelligently distributes content to Apple Reminders, Calendar, and Notes apps.
 
 <p align="center">
-  <img src="docs/tokyo-night.jpeg" width="49%" alt="Tokyo Night theme">
-  <img src="docs/gruvbox.png" width="49%" alt="Gruvbox theme">
+  <img src="docs/tokyo-night.jpeg" width="80%" alt="Tokyo Night theme">
+  <br>
+  <em>Tokyo Night</em>
 </p>
+
 <p align="center">
-  <em>Tokyo Night</em> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <em>Gruvbox</em>
+  <img src="docs/gruvbox.png" width="80%" alt="Gruvbox theme">
+  <br>
+  <em>Gruvbox</em>
 </p>
 
 ## Features
