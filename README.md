@@ -28,6 +28,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - Soft-wrap with hanging indent for list items
 - CJK / wide-character full support
 - 7 built-in themes (Tokyo Night, Gruvbox, Nord, Catppuccin variants)
+- Checkbox sorting (unchecked up, checked down)
 - Fully customizable keybindings
 - Live reload, auto-save, auto-archive
 

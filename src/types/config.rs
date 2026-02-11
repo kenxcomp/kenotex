@@ -181,6 +181,8 @@ pub struct KeyboardConfig {
     pub leader_code: String,
     #[serde(default = "default_leader_code_block")]
     pub leader_code_block: String,
+    #[serde(default = "default_leader_organize")]
+    pub leader_organize: String,
 }
 
 fn default_layout() -> String {
@@ -335,6 +337,9 @@ fn default_leader_code() -> String {
 fn default_leader_code_block() -> String {
     "C".to_string()
 }
+fn default_leader_organize() -> String {
+    "o".to_string()
+}
 
 impl Default for KeyboardConfig {
     fn default() -> Self {
@@ -385,6 +390,7 @@ impl Default for KeyboardConfig {
             leader_strikethrough: default_leader_strikethrough(),
             leader_code: default_leader_code(),
             leader_code_block: default_leader_code_block(),
+            leader_organize: default_leader_organize(),
         }
     }
 }

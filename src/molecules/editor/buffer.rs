@@ -549,6 +549,59 @@ impl TextBuffer {
         }
     }
 
+    /// Organize checkboxes: move checked items to the bottom within each paragraph.
+    /// Returns `true` if any changes were made.
+    pub fn organize_checkboxes(&mut self) -> bool {
+        use crate::atoms::text::checkbox_sort;
+
+        // Split lines into paragraphs by blank lines
+        let mut paragraphs: Vec<(usize, Vec<String>)> = Vec::new(); // (start_line, lines)
+        let mut current_start = 0;
+        let mut current_para: Vec<String> = Vec::new();
+
+        for (i, line) in self.lines.iter().enumerate() {
+            if line.trim().is_empty() {
+                if !current_para.is_empty() {
+                    paragraphs.push((current_start, current_para));
+                    current_para = Vec::new();
+                }
+                current_start = i + 1;
+            } else {
+                if current_para.is_empty() {
+                    current_start = i;
+                }
+                current_para.push(line.clone());
+            }
+        }
+        if !current_para.is_empty() {
+            paragraphs.push((current_start, current_para));
+        }
+
+        // Sort checkboxes within each paragraph
+        let mut new_lines = self.lines.clone();
+        let mut changed = false;
+
+        for (start, para_lines) in &paragraphs {
+            let sorted = checkbox_sort::sort_paragraph_checkboxes(para_lines);
+            if sorted != *para_lines {
+                changed = true;
+                for (j, sorted_line) in sorted.iter().enumerate() {
+                    new_lines[start + j] = sorted_line.clone();
+                }
+            }
+        }
+
+        if changed {
+            self.lines = new_lines;
+            // Clamp cursor position
+            self.cursor_row = self.cursor_row.min(self.lines.len().saturating_sub(1));
+            let line_len = self.current_line_len();
+            self.cursor_col = self.cursor_col.min(line_len);
+        }
+
+        changed
+    }
+
     /// Toggle HTML comment on the current line.
     pub fn toggle_comment(&mut self) {
         let line = self.current_line().to_string();
@@ -2241,5 +2294,104 @@ mod tests {
         // "你好" is one whitespace-delimited word, word end lands on '好' (grapheme 1),
         // +1 exclusive = grapheme 2
         assert_eq!(yanked, "你好");
+    }
+
+    // ── organize_checkboxes tests ───────────────────────────────────
+
+    #[test]
+    fn test_organize_checkboxes_changes() {
+        let mut buffer = TextBuffer::from_string(
+            "- [x] done task\n- [ ] todo task\n- [x] another done\n- [ ] another todo",
+        );
+        let changed = buffer.organize_checkboxes();
+        assert!(changed);
+        assert_eq!(
+            buffer.to_string(),
+            "- [ ] todo task\n- [ ] another todo\n- [x] done task\n- [x] another done"
+        );
+    }
+
+    #[test]
+    fn test_organize_checkboxes_no_changes() {
+        let mut buffer = TextBuffer::from_string(
+            "- [ ] todo first\n- [ ] todo second\n- [x] done",
+        );
+        let changed = buffer.organize_checkboxes();
+        assert!(!changed);
+    }
+
+    #[test]
+    fn test_organize_checkboxes_multiple_paragraphs() {
+        let mut buffer = TextBuffer::from_string(
+            "- [x] done 1\n- [ ] todo 1\n\n- [x] done 2\n- [ ] todo 2",
+        );
+        let changed = buffer.organize_checkboxes();
+        assert!(changed);
+        assert_eq!(
+            buffer.to_string(),
+            "- [ ] todo 1\n- [x] done 1\n\n- [ ] todo 2\n- [x] done 2"
+        );
+    }
+
+    #[test]
+    fn test_organize_checkboxes_preserves_blank_lines() {
+        let mut buffer = TextBuffer::from_string(
+            "- [x] done\n- [ ] todo\n\nSome text\n\n- [x] done 2\n- [ ] todo 2",
+        );
+        let changed = buffer.organize_checkboxes();
+        assert!(changed);
+        let lines = buffer.content();
+        // Blank lines should still be in place
+        assert_eq!(lines[2], "");
+        assert_eq!(lines[4], "");
+    }
+
+    #[test]
+    fn test_organize_checkboxes_no_checkboxes() {
+        let mut buffer = TextBuffer::from_string("plain text\nmore text");
+        let changed = buffer.organize_checkboxes();
+        assert!(!changed);
+        assert_eq!(buffer.to_string(), "plain text\nmore text");
+    }
+
+    #[test]
+    fn test_organize_checkboxes_with_sub_items() {
+        let mut buffer = TextBuffer::from_string(
+            "- [x] parent done\n  - child 1\n  - child 2\n- [ ] parent todo",
+        );
+        let changed = buffer.organize_checkboxes();
+        assert!(changed);
+        assert_eq!(
+            buffer.to_string(),
+            "- [ ] parent todo\n- [x] parent done\n  - child 1\n  - child 2"
+        );
+    }
+
+    #[test]
+    fn test_organize_checkboxes_cjk_content() {
+        let mut buffer = TextBuffer::from_string(
+            "- [x] 已完成\n- [ ] 待办事项\n- [x] 也完成了\n- [ ] 还没做",
+        );
+        let changed = buffer.organize_checkboxes();
+        assert!(changed);
+        assert_eq!(
+            buffer.to_string(),
+            "- [ ] 待办事项\n- [ ] 还没做\n- [x] 已完成\n- [x] 也完成了"
+        );
+    }
+
+    #[test]
+    fn test_organize_checkboxes_cursor_clamp() {
+        let mut buffer = TextBuffer::from_string(
+            "- [x] done\n- [ ] todo",
+        );
+        buffer.set_cursor(1, 10); // cursor at end of second line
+        let changed = buffer.organize_checkboxes();
+        assert!(changed);
+        // After sorting, line 1 becomes "- [x] done" (10 graphemes), cursor should stay valid
+        let (row, col) = buffer.cursor_position();
+        assert!(row < buffer.line_count());
+        let line_len = buffer.content()[row].chars().count();
+        assert!(col <= line_len);
     }
 }

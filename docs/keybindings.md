@@ -94,6 +94,7 @@ All keybindings are fully customizable. See [default.toml](default.toml) for the
 | `Space + x` | Toggle ~~strikethrough~~ (`~~text~~`) |
 | `Space + c` | Toggle inline code (`` `text` ``) |
 | `Space + C` | Toggle code block (` ``` `) |
+| `Space + o` | Organize checkboxes (unchecked up, checked down) |
 
 ## List View
 

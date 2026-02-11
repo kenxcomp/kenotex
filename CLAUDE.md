@@ -67,6 +67,7 @@ L4 Atoms (atoms/)
 **L4 Atoms** (`atoms/`):
 - `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities with hanging indent support), MdHighlight (markdown inline syntax tokenizer for editor highlighting), SyntaxHighlighter (syntect-based fenced code block syntax highlighting)
 - `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration), clipboard (system clipboard integration), external_editor (external editor launching)
+- `text/` - Pure text manipulation: CheckboxSort (checkbox list sorting by checked/unchecked state)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
 
 ### Config Path vs Data Directory
@@ -129,6 +130,7 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `word_end` - Jump to end of current/next word (default: "e")
 - `scroll_up` - Scroll up 5 lines (default: "ctrl+u")
 - `scroll_down` - Scroll down 5 lines (default: "ctrl+d")
+- `leader_organize` - Organize checkboxes (default: "o")
 
 ### Key Data Types (`types/`)
 
@@ -157,6 +159,7 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `MoveUp5Lines` - Scroll up 5 lines (Ctrl+U in Normal/Visual mode)
 - `MoveDown5Lines` - Scroll down 5 lines (Ctrl+D in Normal/Visual mode)
 - `VisualWrapPair(char, char)` - Wrap visual selection with a character pair (brackets, quotes, or markdown formatting characters in Visual mode)
+- `OrganizeCheckboxes` - Sort checkbox items: unchecked (`- [ ]`) float up, checked (`- [x]`) sink down (Space+o in Normal mode)
 
 ### Visual Mode Keys
 

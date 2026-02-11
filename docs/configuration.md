@@ -84,4 +84,10 @@ Press `T` in Normal mode to cycle through themes.
 
 ## Keybindings
 
-All keybindings can be remapped via the `[keyboard]` section. See the full [Keybindings Reference](keybindings.md) and [default.toml](default.toml) for all available options.
+All keybindings can be remapped via the `[keyboard]` section. Notable options:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `leader_organize` | `"o"` | Organize checkboxes (unchecked up, checked down) |
+
+See the full [Keybindings Reference](keybindings.md) and [default.toml](default.toml) for all available options.

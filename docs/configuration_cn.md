@@ -84,4 +84,10 @@ app = "apple_notes"    # apple_notes, bear, obsidian；设为 "" 可跳过备忘
 
 ## 快捷键
 
-所有快捷键可通过 `[keyboard]` 部分重新映射。请参阅完整的[快捷键参考](keybindings_cn.md)和 [default.toml](default.toml) 了解所有可用选项。
+所有快捷键可通过 `[keyboard]` 部分重新映射。常用选项：
+
+| 选项 | 默认值 | 说明 |
+|--------|---------|-------------|
+| `leader_organize` | `"o"` | 整理复选框（未勾选上移，已勾选下移） |
+
+请参阅完整的[快捷键参考](keybindings_cn.md)和 [default.toml](default.toml) 了解所有可用选项。

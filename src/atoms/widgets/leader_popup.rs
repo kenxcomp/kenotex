@@ -21,6 +21,7 @@ const LEADER_COMMANDS: &[(&str, &str)] = &[
     ("x", "Strikethrough"),
     ("c", "Inline code"),
     ("C", "Code block"),
+    ("o", "Organize checkboxes"),
 ];
 
 const POPUP_WIDTH: u16 = 24;

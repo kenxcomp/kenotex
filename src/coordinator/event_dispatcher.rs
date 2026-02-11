@@ -255,6 +255,15 @@ impl EventDispatcher {
                 app.buffer.toggle_checkbox();
                 app.dirty = true;
             }
+            VimAction::OrganizeCheckboxes => {
+                app.buffer.save_undo_snapshot();
+                if app.buffer.organize_checkboxes() {
+                    app.dirty = true;
+                    app.set_message("Checkboxes organized");
+                } else {
+                    app.set_message("No changes needed");
+                }
+            }
             VimAction::ToggleComment => {
                 app.buffer.save_undo_snapshot();
                 app.buffer.toggle_comment();

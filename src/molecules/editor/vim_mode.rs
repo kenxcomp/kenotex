@@ -93,6 +93,7 @@ pub enum VimAction {
     ToggleFormat(MarkdownFormat),
     VisualToggleFormat(MarkdownFormat),
     VisualWrapPair(char, char),
+    OrganizeCheckboxes,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -273,6 +274,10 @@ impl VimMode {
                     KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_code_block) => {
                         self.leader_state = LeaderState::Inactive;
                         VimAction::ToggleFormat(MarkdownFormat::CodeBlock)
+                    }
+                    KeyCode::Char(c) if self.key_matches(c, &self.keys.leader_organize) => {
+                        self.leader_state = LeaderState::Inactive;
+                        VimAction::OrganizeCheckboxes
                     }
                     KeyCode::Char('n') => {
                         self.leader_state = LeaderState::AwaitingSecond('n');
