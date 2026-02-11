@@ -31,7 +31,15 @@ static CLOSING_TAG_RE: LazyLock<Regex> =
 /// This must match the algorithm in `wrap_calc` exactly so that cursor position
 /// calculations agree with the rendered text. Ratatui's `Wrap { trim: false }` uses
 /// word-boundary wrapping which produces different break points, causing cursor drift.
-fn split_line_by_width(line: Line<'_>, width: u16) -> Vec<Line<'static>> {
+///
+/// When `hanging_indent > 0`, continuation rows are prefixed with `hanging_indent`
+/// spaces (plain style) and text wraps at `width - hanging_indent`.
+fn split_line_by_width(
+    line: Line<'_>,
+    width: u16,
+    hanging_indent: u16,
+    default_style: Style,
+) -> Vec<Line<'static>> {
     if width == 0 {
         let spans: Vec<Span<'static>> = line
             .spans
@@ -41,7 +49,13 @@ fn split_line_by_width(line: Line<'_>, width: u16) -> Vec<Line<'static>> {
         return vec![Line::from(spans)];
     }
 
+    let hi = if hanging_indent >= width {
+        0
+    } else {
+        hanging_indent as usize
+    };
     let max_w = width as usize;
+    let ew = max_w - hi; // effective width for continuation rows
 
     // Flatten spans into (grapheme_string, style, display_width)
     let mut graphemes: Vec<(String, Style, usize)> = Vec::new();
@@ -63,7 +77,8 @@ fn split_line_by_width(line: Line<'_>, width: u16) -> Vec<Line<'static>> {
 
     for i in 0..graphemes.len() {
         let gw = graphemes[i].2;
-        if gw > 0 && col + gw > max_w {
+        let current_max = if result.is_empty() { max_w } else { ew };
+        if gw > 0 && col + gw > current_max {
             result.push(build_display_line(&graphemes[line_start..i]));
             line_start = i;
             col = 0;
@@ -72,9 +87,27 @@ fn split_line_by_width(line: Line<'_>, width: u16) -> Vec<Line<'static>> {
     }
 
     // Last segment
-    result.push(build_display_line(&graphemes[line_start..]));
+    let last_line = build_display_line(&graphemes[line_start..]);
 
-    result
+    // Prepend hanging indent spaces to continuation lines (index >= 1)
+    if hi > 0 && !result.is_empty() {
+        let indent_span = Span::styled(" ".repeat(hi), default_style);
+        let mut new_result = Vec::with_capacity(result.len() + 1);
+        new_result.push(result.remove(0)); // row 0 stays as is
+        for display_line in result {
+            let mut spans = vec![indent_span.clone()];
+            spans.extend(display_line.spans);
+            new_result.push(Line::from(spans));
+        }
+        // Add indent to last line too if it's a continuation
+        let mut last_spans = vec![indent_span];
+        last_spans.extend(last_line.spans);
+        new_result.push(Line::from(last_spans));
+        new_result
+    } else {
+        result.push(last_line);
+        result
+    }
 }
 
 /// Re-merge consecutive same-style graphemes into Spans to form a display Line.
@@ -135,6 +168,7 @@ pub struct EditorWidget<'a> {
     scroll_offset: u16,
     visual_selection: Option<RenderSelection>,
     search_matches: &'a [(usize, usize, usize)],
+    hanging_indents: &'a [u16],
 }
 
 impl<'a> EditorWidget<'a> {
@@ -154,6 +188,7 @@ impl<'a> EditorWidget<'a> {
             scroll_offset: 0,
             visual_selection: None,
             search_matches: &[],
+            hanging_indents: &[],
         }
     }
 
@@ -169,6 +204,11 @@ impl<'a> EditorWidget<'a> {
 
     pub fn search_matches(mut self, matches: &'a [(usize, usize, usize)]) -> Self {
         self.search_matches = matches;
+        self
+    }
+
+    pub fn hanging_indents(mut self, indents: &'a [u16]) -> Self {
+        self.hanging_indents = indents;
         self
     }
 
@@ -404,13 +444,18 @@ impl<'a> EditorWidget<'a> {
 
         let mut rows_before: u16 = content_lines
             .iter()
+            .enumerate()
             .take(sr)
-            .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+            .map(|(i, l)| {
+                let hi = self.hanging_indents.get(i).copied().unwrap_or(0);
+                wrap_calc::display_rows_for_line(l, inner.width, hi)
+            })
             .sum();
 
         for row in sr..=er {
             let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
             let graphemes: Vec<&str> = line.graphemes(true).collect();
+            let hi = self.hanging_indents.get(row).copied().unwrap_or(0);
 
             let col_start = if row == sr { sc } else { 0 };
             let col_end = if row == er {
@@ -421,7 +466,7 @@ impl<'a> EditorWidget<'a> {
             let col_end = col_end.min(graphemes.len() + 1);
 
             let positions =
-                wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width);
+                wrap_calc::visual_positions_in_range(line, col_start, col_end, inner.width, hi);
 
             for (wrap_row, col, gw) in positions {
                 let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
@@ -442,7 +487,7 @@ impl<'a> EditorWidget<'a> {
                 }
             }
 
-            rows_before += wrap_calc::display_rows_for_line(line, inner.width);
+            rows_before += wrap_calc::display_rows_for_line(line, inner.width, hi);
         }
     }
 
@@ -459,13 +504,18 @@ impl<'a> EditorWidget<'a> {
 
         let mut rows_before: u16 = content_lines
             .iter()
+            .enumerate()
             .take(start_row)
-            .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+            .map(|(i, l)| {
+                let hi = self.hanging_indents.get(i).copied().unwrap_or(0);
+                wrap_calc::display_rows_for_line(l, inner.width, hi)
+            })
             .sum();
 
         for row in start_row..=end_row {
             let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
-            let num_display_rows = wrap_calc::display_rows_for_line(line, inner.width);
+            let hi = self.hanging_indents.get(row).copied().unwrap_or(0);
+            let num_display_rows = wrap_calc::display_rows_for_line(line, inner.width, hi);
 
             for wrap_row in 0..num_display_rows {
                 let screen_y = inner.y + rows_before + wrap_row - self.scroll_offset;
@@ -515,13 +565,18 @@ impl<'a> EditorWidget<'a> {
 
         let mut rows_before: u16 = content_lines
             .iter()
+            .enumerate()
             .take(top_row)
-            .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+            .map(|(i, l)| {
+                let hi = self.hanging_indents.get(i).copied().unwrap_or(0);
+                wrap_calc::display_rows_for_line(l, inner.width, hi)
+            })
             .sum();
 
         for row in top_row..=bottom_row {
             let line = content_lines.get(row).map(|s| s.as_str()).unwrap_or("");
             let graphemes: Vec<&str> = line.graphemes(true).collect();
+            let hi = self.hanging_indents.get(row).copied().unwrap_or(0);
 
             // Walk graphemes, tracking display position and wrap state,
             // highlighting cells that overlap [left_col, right_col].
@@ -589,7 +644,7 @@ impl<'a> EditorWidget<'a> {
                 }
             }
 
-            rows_before += wrap_calc::display_rows_for_line(line, inner.width);
+            rows_before += wrap_calc::display_rows_for_line(line, inner.width, hi);
         }
     }
 }
@@ -608,6 +663,8 @@ impl Widget for EditorWidget<'_> {
         // Pre-compute code block flags
         let code_block_flags = compute_code_block_flags(self.content);
 
+        let default_style = Style::default().bg(self.theme.bg_color());
+
         // Pre-split styled lines using character-level wrapping so that
         // the rendered text matches wrap_calc's cursor position calculations.
         let display_lines: Vec<Line> = self
@@ -618,7 +675,11 @@ impl Widget for EditorWidget<'_> {
                 let in_code_block = code_block_flags.get(idx).copied().unwrap_or(false);
                 self.highlight_line(line, idx, in_code_block)
             })
-            .flat_map(|line| split_line_by_width(line, inner.width))
+            .enumerate()
+            .flat_map(|(idx, line)| {
+                let hi = self.hanging_indents.get(idx).copied().unwrap_or(0);
+                split_line_by_width(line, inner.width, hi, default_style)
+            })
             .collect();
 
         let paragraph = Paragraph::new(display_lines)
@@ -645,16 +706,22 @@ impl Widget for EditorWidget<'_> {
 
                 let rows_before: u16 = content_lines
                     .iter()
+                    .enumerate()
                     .take(match_row)
-                    .map(|l| wrap_calc::display_rows_for_line(l, inner.width))
+                    .map(|(i, l)| {
+                        let hi = self.hanging_indents.get(i).copied().unwrap_or(0);
+                        wrap_calc::display_rows_for_line(l, inner.width, hi)
+                    })
                     .sum();
 
                 let line = &content_lines[match_row];
+                let hi = self.hanging_indents.get(match_row).copied().unwrap_or(0);
                 let positions = wrap_calc::visual_positions_in_range(
                     line,
                     match_col,
                     match_col + match_len,
                     inner.width,
+                    hi,
                 );
 
                 for (wrap_row, col, gw) in positions {
@@ -692,6 +759,7 @@ impl Widget for EditorWidget<'_> {
                 cursor_row,
                 cursor_col,
                 inner.width,
+                self.hanging_indents,
             );
 
             let cursor_x = inner.x + vpos.col;

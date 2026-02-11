@@ -206,8 +206,8 @@ fn test_vertical_movement_maintains_display_col() {
 /// A wide char that would be split at boundary wraps to the next line.
 #[test]
 fn test_soft_wrap_no_split_wide_char_at_boundary() {
-    assert_eq!(wrap_calc::display_rows_for_line("ab你", 3), 2);
-    assert_eq!(wrap_calc::display_rows_for_line("ab你", 4), 1);
+    assert_eq!(wrap_calc::display_rows_for_line("ab你", 3, 0), 2);
+    assert_eq!(wrap_calc::display_rows_for_line("ab你", 4, 0), 1);
 }
 
 /// Cursor position after a wide char wraps.
@@ -216,7 +216,7 @@ fn test_cursor_position_after_wide_char_wrap() {
     let lines = vec!["ab你好".to_string()];
     // Width 3: "ab"(2 cols) row 0, "你"(2) wraps→row 1, "好"(2) wraps→row 2
     // Each CJK char needs 2 cols but only 1 col remains after the previous, so each wraps.
-    let vpos = wrap_calc::visual_cursor_position(&lines, 0, 3, 3); // grapheme 3 = "好"
+    let vpos = wrap_calc::visual_cursor_position(&lines, 0, 3, 3, &[]); // grapheme 3 = "好"
     assert_eq!(vpos.wrap_row, 2, "好 should be on wrap row 2");
     assert_eq!(vpos.col, 0, "好 should be at display col 0 on its wrap row");
 }
@@ -225,7 +225,7 @@ fn test_cursor_position_after_wide_char_wrap() {
 #[test]
 fn test_soft_wrap_cjk_sequence_odd_width() {
     // Each CJK char width 2, width 3: each char on its own row
-    assert_eq!(wrap_calc::display_rows_for_line("你好世界", 3), 4);
+    assert_eq!(wrap_calc::display_rows_for_line("你好世界", 3, 0), 4);
 }
 
 /// Mixed content soft-wrap.
@@ -233,7 +233,7 @@ fn test_soft_wrap_cjk_sequence_odd_width() {
 fn test_soft_wrap_mixed_content() {
     // "Hi你好AB" = H(1)+i(1)+你(2)+好(2)+A(1)+B(1) = 8
     // Width 5: "Hi你"(4), "好AB" wraps: 好(2)+A(1)+B(1)=4 → 2 rows
-    assert_eq!(wrap_calc::display_rows_for_line("Hi你好AB", 5), 2);
+    assert_eq!(wrap_calc::display_rows_for_line("Hi你好AB", 5, 0), 2);
 }
 
 // ============================================================================
@@ -487,7 +487,7 @@ fn test_block_yank_all_cjk() {
 /// visual_positions_in_range reports correct display widths for CJK chars.
 #[test]
 fn test_visual_positions_cjk_chars() {
-    let positions = wrap_calc::visual_positions_in_range("A你B", 0, 3, 10);
+    let positions = wrap_calc::visual_positions_in_range("A你B", 0, 3, 10, 0);
     assert_eq!(positions.len(), 3);
     assert_eq!(positions[0], (0, 0, 1), "A: row 0, col 0, width 1");
     assert_eq!(positions[1], (0, 1, 2), "你: row 0, col 1, width 2");
@@ -497,7 +497,7 @@ fn test_visual_positions_cjk_chars() {
 /// CJK char at wrap boundary moves to next row.
 #[test]
 fn test_visual_positions_cjk_wrap_boundary() {
-    let positions = wrap_calc::visual_positions_in_range("abc你", 0, 4, 4);
+    let positions = wrap_calc::visual_positions_in_range("abc你", 0, 4, 4, 0);
     assert_eq!(positions.len(), 4);
     assert_eq!(positions[0], (0, 0, 1));
     assert_eq!(positions[1], (0, 1, 1));

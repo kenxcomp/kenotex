@@ -475,8 +475,13 @@ impl EventDispatcher {
                 app.dirty = true;
             }
             VimAction::InsertTab => {
+                let line = app.buffer.current_line_content().to_string();
                 let tab_width = app.config.general.tab_width;
-                app.buffer.insert_tab(tab_width);
+                if list_prefix::detect_list_prefix(&line).is_some() {
+                    app.buffer.indent_line(tab_width);
+                } else {
+                    app.buffer.insert_tab(tab_width);
+                }
                 app.dirty = true;
             }
             VimAction::Dedent => {

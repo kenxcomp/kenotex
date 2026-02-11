@@ -29,7 +29,8 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
     // Check for list prefix at line start
     let remaining = if let Some(prefix_end) = check_list_prefix(line) {
         let (prefix, rest) = line.split_at(prefix_end);
-        let kind = if prefix.trim_start().starts_with('-') {
+        let trimmed_prefix = prefix.trim_start();
+        let kind = if trimmed_prefix.starts_with('-') || trimmed_prefix.starts_with('*') {
             MdTokenKind::UnorderedListPrefix
         } else {
             MdTokenKind::OrderedListPrefix
@@ -259,6 +260,11 @@ fn check_list_prefix(line: &str) -> Option<usize> {
         return Some(indent_len + 2);
     }
 
+    // Unordered: "* " (must check before bold/italic * handling)
+    if trimmed.starts_with("* ") {
+        return Some(indent_len + 2);
+    }
+
     // Ordered: "N. " or "N) "
     let mut digit_count = 0;
     for ch in trimmed.chars() {
@@ -473,6 +479,21 @@ mod tests {
         assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
         assert_eq!(tokens[2].kind, MdTokenKind::Bold);
         assert_eq!(tokens[2].text, "Bold");
+    }
+
+    #[test]
+    fn test_asterisk_list_prefix() {
+        let tokens = tokenize_inline("* List item");
+        assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
+        assert_eq!(tokens[0].text, "* ");
+        assert_eq!(tokens[1].text, "List item");
+    }
+
+    #[test]
+    fn test_indented_asterisk_list_prefix() {
+        let tokens = tokenize_inline("  * Nested item");
+        assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
+        assert_eq!(tokens[0].text, "  * ");
     }
 
     #[test]

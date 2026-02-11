@@ -276,6 +276,8 @@ fn ui(f: &mut Frame, app: &App) {
 }
 
 fn render_editor(f: &mut Frame, app: &App, area: Rect) {
+    use kenotex::molecules::editor::list_prefix;
+
     let theme = app.theme();
     let title = app
         .current_note
@@ -284,6 +286,12 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         .unwrap_or("Untitled");
 
     let content = app.buffer.to_string();
+    let content_lines: Vec<String> = content.lines().map(String::from).collect();
+    let hanging_indents: Vec<u16> = content_lines
+        .iter()
+        .map(|l| list_prefix::hanging_indent_width(l) as u16)
+        .collect();
+
     let search_matches = app.buffer.find_all(&app.search_query);
     let editor = EditorWidget::new(
         &content,
@@ -294,7 +302,8 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
     )
     .scroll_offset(app.scroll_offset(area.width, area.height))
     .visual_selection(app.get_visual_selection())
-    .search_matches(&search_matches);
+    .search_matches(&search_matches)
+    .hanging_indents(&hanging_indents);
 
     f.render_widget(editor, area);
 
@@ -307,9 +316,13 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         let inner_y = area.y + 1;
         let inner_width = area.width.saturating_sub(2);
 
-        let content_lines: Vec<String> = content.lines().map(String::from).collect();
-        let vpos =
-            wrap_calc::visual_cursor_position(&content_lines, cursor_row, cursor_col, inner_width);
+        let vpos = wrap_calc::visual_cursor_position(
+            &content_lines,
+            cursor_row,
+            cursor_col,
+            inner_width,
+            &hanging_indents,
+        );
 
         let cursor_x = inner_x + vpos.col;
         let scroll = app.scroll_offset(area.width, area.height);

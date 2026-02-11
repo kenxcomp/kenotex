@@ -519,6 +519,7 @@ impl App {
 
     pub fn scroll_offset(&self, area_width: u16, area_height: u16) -> u16 {
         use crate::atoms::widgets::wrap_calc;
+        use crate::molecules::editor::list_prefix;
 
         let (cursor_row, cursor_col) = self.buffer.cursor_position();
         let inner_width = area_width.saturating_sub(2);
@@ -526,7 +527,17 @@ impl App {
 
         let content = self.buffer.to_string();
         let lines: Vec<String> = content.lines().map(String::from).collect();
-        let vpos = wrap_calc::visual_cursor_position(&lines, cursor_row, cursor_col, inner_width);
+        let hanging_indents: Vec<u16> = lines
+            .iter()
+            .map(|l| list_prefix::hanging_indent_width(l) as u16)
+            .collect();
+        let vpos = wrap_calc::visual_cursor_position(
+            &lines,
+            cursor_row,
+            cursor_col,
+            inner_width,
+            &hanging_indents,
+        );
         let cursor_display_row = vpos.rows_before + vpos.wrap_row;
 
         if inner_height == 0 {

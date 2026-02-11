@@ -20,6 +20,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 
 - **Vim-style Modal Editing**: Full support for Normal, Insert, Visual (Character/Line/Block), and Search modes
 - **Soft-Wrap Cursor**: Cursor correctly tracks position on soft-wrapped lines in Normal, Insert, and Visual modes
+- **Soft-Wrap Hanging Indent**: Wrapped list lines align continuation text with the content after the prefix (e.g., `- [ ] long text...` wraps indented to match `long`)
 - **Editor Search**: Case-insensitive forward/backward search with wrap-around, incremental match highlighting (`/` to search, `n`/`N` to navigate matches)
 - **Comment Toggle**: Toggle HTML comments (`<!-- -->`) per-line with `gcc` in Normal mode or `gc` on visual selection
 - **Markdown Formatting**: Toggle bold, italic, strikethrough, inline code, and code block formatting via `Space+key` in Normal and Visual modes
@@ -27,7 +28,8 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 - **Auto-Pair Insertion**: Automatically inserts matching pairs in Insert mode — brackets (`()`, `[]`, `{}`), quotes (`''`, `""`), markdown formatting (`**`, `~~`, `` ` ``), and closing `:::` tags after opening tag lines. Typing a closing character skips over it if already present; backspace between a pair deletes both
 - **Visual Selection Wrapping**: In Visual mode, typing a bracket, quote, or formatting character wraps the selection with the matching pair
 - **Clipboard Paste**: Multi-line clipboard paste with `p`/`P` (Normal mode) and `Cmd+V` (Insert mode) correctly preserves line breaks via bracketed paste support
-- **List Continuation**: Auto-continue list prefixes (`- [ ]`, `-`, `1.`, `1)`) when pressing `o` or `Enter`
+- **List Continuation**: Auto-continue list prefixes (`- [ ]`, `-`, `* `, `1.`, `1)`) when pressing `o` or `Enter`
+- **Smart Tab Indent**: Pressing `Tab` on a list item line indents the entire line instead of inserting spaces at cursor
 - **CJK/Wide-Character Support**: Full support for Chinese, Japanese, and Korean characters in all editing modes — Visual Block selection uses display-column alignment so selections remain rectangular across mixed-width lines, cursor movement tracks display columns correctly, and soft-wrap never splits a wide character
 
 ### Content Distribution
@@ -158,6 +160,7 @@ When pressing `o` (Normal mode) or `Enter` (Insert mode) on a list line, the lis
 
 - `- [ ] ` / `- [x] ` / `- [X] ` → new line with `- [ ] ` (always unchecked)
 - `- ` → new line with `- `
+- `* ` → new line with `* `
 - `1. ` → new line with `2. ` (auto-incrementing)
 - `1) ` → new line with `2) ` (auto-incrementing)
 
@@ -239,7 +242,7 @@ All keybindings are fully customizable. See [docs/default.toml](docs/default.tom
 | Closing char | Skip over if already present after cursor |
 | `Enter` after `:::tag` | Auto-insert closing `:::` on next line |
 | `Backspace` in pair | Delete both opening and closing characters |
-| `Tab` | Insert spaces (tab_width) |
+| `Tab` | Insert spaces (tab_width), or indent entire line on list items |
 | `Shift+Tab` | Dedent current line |
 | `Esc` | Return to Normal mode |
 
