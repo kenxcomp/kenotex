@@ -3,6 +3,10 @@
 一款 Vim 风格的终端笔记应用，能够智能地将内容分发到 Apple 提醒事项、日历和备忘录应用。
 
 <p align="center">
+  <img src="docs/demo.gif" width="80%" alt="Kenotex 演示">
+</p>
+
+<p align="center">
   <img src="docs/tokyo-night.png" width="80%" alt="Tokyo Night 主题">
   <br>
   <em>Tokyo Night</em>

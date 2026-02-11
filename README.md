@@ -3,6 +3,10 @@
 A Vim-style TUI note-taking application that intelligently distributes content to Apple Reminders, Calendar, and Notes apps.
 
 <p align="center">
+  <img src="docs/demo.gif" width="80%" alt="Kenotex Demo">
+</p>
+
+<p align="center">
   <img src="docs/tokyo-night.png" width="80%" alt="Tokyo Night theme">
   <br>
   <em>Tokyo Night</em>
