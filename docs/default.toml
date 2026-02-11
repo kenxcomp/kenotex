@@ -144,6 +144,7 @@ leader_italic = "i"            # Toggle italic / 切换斜体
 leader_strikethrough = "x"     # Toggle strikethrough / 切换删除线
 leader_code = "c"              # Toggle inline code / 切换行内代码
 leader_code_block = "C"        # Toggle code block / 切换代码块
+leader_organize = "o"          # Organize checkboxes / 整理复选框
 
 # =============================================================================
 # Destinations - Where content gets distributed / 目标应用设置
