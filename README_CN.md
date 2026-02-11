@@ -3,7 +3,7 @@
 一款 Vim 风格的终端笔记应用，能够智能地将内容分发到 Apple 提醒事项、日历和备忘录应用。
 
 <p align="center">
-  <img src="docs/tokyo-night.jpeg" width="80%" alt="Tokyo Night 主题">
+  <img src="docs/tokyo-night.png" width="80%" alt="Tokyo Night 主题">
   <br>
   <em>Tokyo Night</em>
 </p>
@@ -17,7 +17,7 @@
 ## 功能特性
 
 - Vim 风格模态编辑（Normal / Insert / Visual / Search）
-- Markdown、`:::` 标签和 `@time` 表达式语法高亮
+- Markdown、`:::` 标签、`@time` 表达式和围栏代码块语法高亮
 - 智能内容分发到 Apple 提醒事项、日历、备忘录、Bear、Obsidian
 - 自动配对插入、Visual 选区包裹
 - 列表续行和智能 Tab 缩进

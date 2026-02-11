@@ -5,6 +5,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use crate::atoms::storage::file_watcher::FileEvent;
+use crate::atoms::widgets::SyntaxHighlighter;
 use crate::atoms::storage::{
     archive_draft, delete_draft, ensure_config_dir, ensure_data_dirs, load_all_drafts, load_config,
     load_draft, resolve_data_dir, save_draft,
@@ -24,6 +25,7 @@ pub struct App {
     pub config: Config,
     pub theme_manager: ThemeManager,
     pub vim_mode: VimMode,
+    pub syntax_highlighter: SyntaxHighlighter,
 
     pub buffer: TextBuffer,
     pub current_note: Option<Note>,
@@ -65,6 +67,7 @@ impl App {
         let theme_manager = ThemeManager::with_theme(&config.general.theme);
 
         let vim_mode = VimMode::with_config(config.keyboard.clone());
+        let syntax_highlighter = SyntaxHighlighter::new();
 
         let drafts = load_all_drafts(&data_dir, false)?;
         let archives = load_all_drafts(&data_dir, true)?;
@@ -86,6 +89,7 @@ impl App {
             config,
             theme_manager,
             vim_mode,
+            syntax_highlighter,
             buffer,
             current_note,
             draft_list,

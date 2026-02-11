@@ -40,7 +40,7 @@ Terminal setup, main event loop, UI rendering. Routes events to EventDispatcher.
 
 ### L4 Atoms (`atoms/`)
 
-- **widgets/** — Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay, HintBar, LeaderPopup, ListItemWidget, WrapCalc, MdHighlight
+- **widgets/** — Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay, HintBar, LeaderPopup, ListItemWidget, WrapCalc, MdHighlight, SyntaxHighlighter
 - **storage/** — File I/O for config and drafts, file watcher, clipboard, external editor
 - **applescript/** — macOS integrations: reminders, calendar, notes, bear, obsidian
 
@@ -54,3 +54,4 @@ Terminal setup, main event loop, UI rendering. Routes events to EventDispatcher.
 - **notify** + **notify-debouncer-mini** — File system watching for live reload
 - **regex** — Pattern matching
 - **uuid** — Note IDs
+- **syntect** — Syntax highlighting for fenced code blocks

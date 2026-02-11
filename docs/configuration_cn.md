@@ -78,6 +78,8 @@ app = "apple_notes"    # apple_notes, bear, obsidian；设为 "" 可跳过备忘
 - **Catppuccin Frappe** — `catppuccin_frappe`
 - **Catppuccin Latte** — `catppuccin_latte`
 
+每个主题包含语法配色方案（comment、keyword、string、type、function、constant），用于围栏代码块高亮和编辑器语法着色。
+
 在 Normal 模式下按 `T` 可循环切换主题。
 
 ## 快捷键

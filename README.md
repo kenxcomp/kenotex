@@ -3,7 +3,7 @@
 A Vim-style TUI note-taking application that intelligently distributes content to Apple Reminders, Calendar, and Notes apps.
 
 <p align="center">
-  <img src="docs/tokyo-night.jpeg" width="80%" alt="Tokyo Night theme">
+  <img src="docs/tokyo-night.png" width="80%" alt="Tokyo Night theme">
   <br>
   <em>Tokyo Night</em>
 </p>
@@ -17,7 +17,7 @@ A Vim-style TUI note-taking application that intelligently distributes content t
 ## Features
 
 - Vim-style modal editing (Normal / Insert / Visual / Search)
-- Syntax highlighting for Markdown, `:::` tags, and `@time` expressions
+- Syntax highlighting for Markdown, `:::` tags, `@time` expressions, and fenced code blocks
 - Smart content distribution to Apple Reminders, Calendar, Notes, Bear, Obsidian
 - Auto-pair insertion, visual selection wrapping
 - List continuation and smart Tab indentation

@@ -65,7 +65,7 @@ L4 Atoms (atoms/)
 - `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations)
 
 **L4 Atoms** (`atoms/`):
-- `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities with hanging indent support), MdHighlight (markdown inline syntax tokenizer for editor highlighting)
+- `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities with hanging indent support), MdHighlight (markdown inline syntax tokenizer for editor highlighting), SyntaxHighlighter (syntect-based fenced code block syntax highlighting)
 - `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration), clipboard (system clipboard integration), external_editor (external editor launching)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
 
@@ -136,7 +136,7 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `View` - Editor, DraftList, ArchiveList
 - `SmartBlock` - Parsed content block with detected BlockType (Reminder/Calendar/Note) and ProcessingStatus (Pending/Sent/Failed/Skipped)
 - `BlockType` - Reminder, Calendar, Note (in `types/block.rs`)
-- `Theme` - Color theme struct with bg/fg/cursor/selection/border/accent/success/warning/error/panel fields (in `types/theme.rs`)
+- `Theme` - Color theme struct with bg/fg/cursor/selection/border/accent/success/warning/error/panel fields plus 6 syntax color fields: comment, keyword, string, type_name, function, constant (in `types/theme.rs`)
 - `Note` - Draft/archive with id, title, content, timestamps
 
 ### Event Flow

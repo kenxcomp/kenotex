@@ -303,7 +303,8 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
     .scroll_offset(app.scroll_offset(area.width, area.height))
     .visual_selection(app.get_visual_selection())
     .search_matches(&search_matches)
-    .hanging_indents(&hanging_indents);
+    .hanging_indents(&hanging_indents)
+    .syntax_highlighter(&app.syntax_highlighter);
 
     f.render_widget(editor, area);
 

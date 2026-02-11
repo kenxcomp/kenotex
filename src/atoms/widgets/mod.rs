@@ -6,6 +6,7 @@ mod list_item;
 pub mod md_highlight;
 mod processing_overlay;
 mod status_bar;
+pub mod syntax_highlight;
 pub mod wrap_calc;
 
 pub use confirm_overlay::ConfirmOverlay;
@@ -15,4 +16,5 @@ pub use leader_popup::LeaderPopup;
 pub use list_item::ListItemWidget;
 pub use processing_overlay::ProcessingOverlay;
 pub use status_bar::StatusBar;
+pub use syntax_highlight::SyntaxHighlighter;
 pub use wrap_calc::{VisualPosition, display_rows_for_line, visual_cursor_position};

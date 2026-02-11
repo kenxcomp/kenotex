@@ -40,7 +40,7 @@ src/
 
 ### L4 原子层 (`atoms/`)
 
-- **widgets/** — 纯 UI 组件：EditorWidget、StatusBar、ProcessingOverlay、ConfirmOverlay、HintBar、LeaderPopup、ListItemWidget、WrapCalc、MdHighlight
+- **widgets/** — 纯 UI 组件：EditorWidget、StatusBar、ProcessingOverlay、ConfirmOverlay、HintBar、LeaderPopup、ListItemWidget、WrapCalc、MdHighlight、SyntaxHighlighter
 - **storage/** — 配置和草稿的文件 I/O、文件监视器、剪贴板、外部编辑器
 - **applescript/** — macOS 集成：提醒事项、日历、备忘录、Bear、Obsidian
 
@@ -54,3 +54,4 @@ src/
 - **notify** + **notify-debouncer-mini** — 文件系统监视（实时重载）
 - **regex** — 模式匹配
 - **uuid** — 笔记 ID
+- **syntect** — 围栏代码块语法高亮

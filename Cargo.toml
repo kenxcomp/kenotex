@@ -23,6 +23,7 @@ unicode-width = "0.2"
 unicode-segmentation = "1.12"
 notify = "7"
 notify-debouncer-mini = "0.5"
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
 
 [profile.release]
 lto = true

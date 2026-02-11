@@ -78,6 +78,8 @@ Available themes:
 - **Catppuccin Frappe** — `catppuccin_frappe`
 - **Catppuccin Latte** — `catppuccin_latte`
 
+Each theme includes a syntax color palette (comment, keyword, string, type, function, constant) used for fenced code block highlighting and editor syntax coloring.
+
 Press `T` in Normal mode to cycle through themes.
 
 ## Keybindings

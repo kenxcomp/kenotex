@@ -14,6 +14,7 @@ use crate::molecules::editor::RenderSelection;
 use crate::types::{AppMode, Theme};
 
 use super::md_highlight::{MdTokenKind, tokenize_inline};
+use super::syntax_highlight::{CodeParseState, SyntaxHighlighter, SyntaxTokenKind};
 
 // Cached regex patterns for syntax highlighting
 static HEADING_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^#{1,6}\s").unwrap());
@@ -140,23 +141,56 @@ fn build_display_line(graphemes: &[(String, Style, usize)]) -> Line<'static> {
     Line::from(spans)
 }
 
-/// Pre-scan all lines to determine which are inside code block fences (```).
-fn compute_code_block_flags(content: &str) -> Vec<bool> {
-    let lines: Vec<&str> = content.lines().collect();
-    let mut flags = vec![false; lines.len()];
-    let mut in_code_block = false;
+struct CodeBlockInfo {
+    in_code_block: bool,
+    language: Option<String>,
+}
 
-    for (idx, line) in lines.iter().enumerate() {
+/// Pre-scan all lines to determine which are inside code block fences (```).
+/// Also extracts language identifier from opening fences.
+fn compute_code_block_info(content: &str) -> Vec<CodeBlockInfo> {
+    let lines: Vec<&str> = content.lines().collect();
+    let mut infos = Vec::with_capacity(lines.len());
+    let mut in_code_block = false;
+    let mut current_lang: Option<String> = None;
+
+    for line in &lines {
         let trimmed = line.trim();
         if trimmed.starts_with("```") {
-            flags[idx] = true; // fence line itself is marked
-            in_code_block = !in_code_block;
+            if in_code_block {
+                // Closing fence
+                infos.push(CodeBlockInfo {
+                    in_code_block: true,
+                    language: current_lang.clone(),
+                });
+                in_code_block = false;
+                current_lang = None;
+            } else {
+                // Opening fence - extract language
+                let after_backticks = trimmed.trim_start_matches('`');
+                let lang = after_backticks.split_whitespace().next();
+                let lang = lang.filter(|l| !l.is_empty()).map(|l| l.to_string());
+                current_lang = lang.clone();
+                infos.push(CodeBlockInfo {
+                    in_code_block: true,
+                    language: lang,
+                });
+                in_code_block = true;
+            }
         } else if in_code_block {
-            flags[idx] = true;
+            infos.push(CodeBlockInfo {
+                in_code_block: true,
+                language: current_lang.clone(),
+            });
+        } else {
+            infos.push(CodeBlockInfo {
+                in_code_block: false,
+                language: None,
+            });
         }
     }
 
-    flags
+    infos
 }
 
 pub struct EditorWidget<'a> {
@@ -169,6 +203,7 @@ pub struct EditorWidget<'a> {
     visual_selection: Option<RenderSelection>,
     search_matches: &'a [(usize, usize, usize)],
     hanging_indents: &'a [u16],
+    syntax_highlighter: Option<&'a SyntaxHighlighter>,
 }
 
 impl<'a> EditorWidget<'a> {
@@ -189,6 +224,7 @@ impl<'a> EditorWidget<'a> {
             visual_selection: None,
             search_matches: &[],
             hanging_indents: &[],
+            syntax_highlighter: None,
         }
     }
 
@@ -209,6 +245,11 @@ impl<'a> EditorWidget<'a> {
 
     pub fn hanging_indents(mut self, indents: &'a [u16]) -> Self {
         self.hanging_indents = indents;
+        self
+    }
+
+    pub fn syntax_highlighter(mut self, highlighter: &'a SyntaxHighlighter) -> Self {
+        self.syntax_highlighter = Some(highlighter);
         self
     }
 
@@ -266,19 +307,44 @@ impl<'a> EditorWidget<'a> {
                 base_style.add_modifier(Modifier::DIM | Modifier::CROSSED_OUT)
             }
             MdTokenKind::InlineCode => base_style
-                .fg(self.theme.warning_color())
+                .fg(self.theme.string_color())
                 .bg(self.theme.panel_color()),
-            MdTokenKind::Delimiter => base_style.add_modifier(Modifier::DIM),
+            MdTokenKind::Delimiter => base_style.fg(self.theme.comment_color()),
             MdTokenKind::OrderedListPrefix | MdTokenKind::UnorderedListPrefix => {
                 base_style.fg(self.theme.border_color())
             }
             MdTokenKind::TimeExpression => base_style
-                .fg(self.theme.accent_color())
+                .fg(self.theme.constant_color())
                 .add_modifier(Modifier::BOLD),
         }
     }
 
-    fn highlight_line(&self, line: &str, line_idx: usize, in_code_block: bool) -> Line<'a> {
+    /// Map SyntaxTokenKind to ratatui Style based on theme colors.
+    fn syntax_token_style(&self, kind: &SyntaxTokenKind, base_style: Style) -> Style {
+        match kind {
+            SyntaxTokenKind::Comment => base_style
+                .fg(self.theme.comment_color())
+                .add_modifier(Modifier::ITALIC),
+            SyntaxTokenKind::Keyword => base_style.fg(self.theme.keyword_color()),
+            SyntaxTokenKind::StringLiteral => base_style.fg(self.theme.string_color()),
+            SyntaxTokenKind::TypeName => base_style.fg(self.theme.type_name_color()),
+            SyntaxTokenKind::Function => base_style.fg(self.theme.function_color()),
+            SyntaxTokenKind::Constant => base_style.fg(self.theme.constant_color()),
+            SyntaxTokenKind::Operator => base_style.fg(self.theme.fg_color()),
+            SyntaxTokenKind::Punctuation => base_style.fg(self.theme.comment_color()),
+            SyntaxTokenKind::Variable => base_style.fg(self.theme.fg_color()),
+            SyntaxTokenKind::Plain => base_style,
+        }
+    }
+
+    fn highlight_line(
+        &self,
+        line: &str,
+        line_idx: usize,
+        in_code_block: bool,
+        parse_state: &mut Option<CodeParseState>,
+        language: Option<&str>,
+    ) -> Line<'a> {
         let mut spans = Vec::new();
 
         let is_cursor_line = line_idx == self.cursor_pos.0;
@@ -302,8 +368,30 @@ impl<'a> EditorWidget<'a> {
                         .bg(self.theme.panel_color())
                         .add_modifier(Modifier::DIM),
                 ));
+            } else if let Some(state) = parse_state {
+                // Syntax-highlighted code block content
+                if let Some(highlighter) = self.syntax_highlighter {
+                    let code_base = base_style.bg(self.theme.panel_color());
+                    let tokens = highlighter.tokenize_line(line, state);
+                    for token in tokens {
+                        let style = self.syntax_token_style(&token.kind, code_base);
+                        spans.push(Span::styled(token.text, style));
+                    }
+                } else {
+                    // No highlighter available: plain panel bg
+                    spans.push(Span::styled(
+                        line.to_string(),
+                        base_style.bg(self.theme.panel_color()),
+                    ));
+                }
+            } else if language.is_some() {
+                // Language specified but no parse state (shouldn't happen normally)
+                spans.push(Span::styled(
+                    line.to_string(),
+                    base_style.bg(self.theme.panel_color()),
+                ));
             } else {
-                // Code block content: panel background
+                // Unknown language: plain panel bg
                 spans.push(Span::styled(
                     line.to_string(),
                     base_style.bg(self.theme.panel_color()),
@@ -312,22 +400,34 @@ impl<'a> EditorWidget<'a> {
             return Line::from(spans);
         }
 
+        // HTML comment lines: entire line in comment color + italic
+        let trimmed = line.trim();
+        if trimmed.starts_with("<!--") {
+            spans.push(Span::styled(
+                line.to_string(),
+                base_style
+                    .fg(self.theme.comment_color())
+                    .add_modifier(Modifier::ITALIC),
+            ));
+            return Line::from(spans);
+        }
+
         // Line-level patterns (heading, checkbox, smart tag)
         if let Some(m) = HEADING_RE.find(line) {
             let prefix = &line[..m.end()];
             let rest = &line[m.end()..];
 
-            // Heading prefix with accent + bold
+            // Heading prefix with keyword + bold
             spans.push(Span::styled(
                 prefix.to_string(),
                 base_style
-                    .fg(self.theme.accent_color())
+                    .fg(self.theme.keyword_color())
                     .add_modifier(Modifier::BOLD),
             ));
 
-            // Rest portion: tokenize inline with accent + bold as base
+            // Rest portion: tokenize inline with keyword + bold as base
             let heading_base = base_style
-                .fg(self.theme.accent_color())
+                .fg(self.theme.keyword_color())
                 .add_modifier(Modifier::BOLD);
             for token in tokenize_inline(rest) {
                 let token_style = self.style_for_token(&token.kind, heading_base);
@@ -660,21 +760,55 @@ impl Widget for EditorWidget<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        // Pre-compute code block flags
-        let code_block_flags = compute_code_block_flags(self.content);
+        // Pre-compute code block info (with language detection)
+        let code_block_info = compute_code_block_info(self.content);
 
         let default_style = Style::default().bg(self.theme.bg_color());
 
         // Pre-split styled lines using character-level wrapping so that
         // the rendered text matches wrap_calc's cursor position calculations.
-        let display_lines: Vec<Line> = self
-            .content
-            .lines()
-            .enumerate()
-            .map(|(idx, line)| {
-                let in_code_block = code_block_flags.get(idx).copied().unwrap_or(false);
-                self.highlight_line(line, idx, in_code_block)
-            })
+        // Track ParseState across lines within each code block.
+        let mut parse_state: Option<CodeParseState> = None;
+
+        let source_lines: Vec<&str> = self.content.lines().collect();
+        let mut highlighted_lines: Vec<Line> = Vec::with_capacity(source_lines.len());
+
+        for (idx, line) in source_lines.iter().enumerate() {
+            let info = code_block_info.get(idx);
+            let in_code_block = info.map(|i| i.in_code_block).unwrap_or(false);
+            let language = info.and_then(|i| i.language.as_deref());
+
+            let trimmed = line.trim();
+
+            // Manage parse state transitions
+            if in_code_block && trimmed.starts_with("```") {
+                if parse_state.is_some() {
+                    // Closing fence: render with current state, then reset
+                    let styled = self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
+                    highlighted_lines.push(styled);
+                    parse_state = None;
+                    continue;
+                } else {
+                    // Opening fence: create parse state for known language
+                    if let Some(lang) = language {
+                        if let Some(highlighter) = self.syntax_highlighter {
+                            if let Some(syntax) = highlighter.find_syntax(lang) {
+                                parse_state = Some(highlighter.create_parse_state(syntax));
+                            }
+                        }
+                    }
+                    let styled = self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
+                    highlighted_lines.push(styled);
+                    continue;
+                }
+            }
+
+            let styled = self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
+            highlighted_lines.push(styled);
+        }
+
+        let display_lines: Vec<Line> = highlighted_lines
+            .into_iter()
             .enumerate()
             .flat_map(|(idx, line)| {
                 let hi = self.hanging_indents.get(idx).copied().unwrap_or(0);
@@ -787,5 +921,148 @@ impl Widget for EditorWidget<'_> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_code_block_info_with_language() {
+        let content = "hello\n```rust\nlet x = 1;\n```\nworld";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 5);
+        // Line 0: "hello" - not in code block
+        assert!(!info[0].in_code_block);
+        assert!(info[0].language.is_none());
+        // Line 1: "```rust" - opening fence, in code block with language
+        assert!(info[1].in_code_block);
+        assert_eq!(info[1].language.as_deref(), Some("rust"));
+        // Line 2: "let x = 1;" - code content, inherits language
+        assert!(info[2].in_code_block);
+        assert_eq!(info[2].language.as_deref(), Some("rust"));
+        // Line 3: "```" - closing fence
+        assert!(info[3].in_code_block);
+        // Line 4: "world" - not in code block
+        assert!(!info[4].in_code_block);
+        assert!(info[4].language.is_none());
+    }
+
+    #[test]
+    fn test_code_block_info_no_language() {
+        let content = "```\ncode\n```";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 3);
+        assert!(info[0].in_code_block);
+        assert!(info[0].language.is_none());
+        assert!(info[1].in_code_block);
+        assert!(info[1].language.is_none());
+        assert!(info[2].in_code_block);
+    }
+
+    #[test]
+    fn test_code_block_info_no_code_blocks() {
+        let content = "no code blocks here";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 1);
+        assert!(!info[0].in_code_block);
+        assert!(info[0].language.is_none());
+    }
+
+    #[test]
+    fn test_code_block_info_empty_content() {
+        let content = "";
+        let info = compute_code_block_info(content);
+        assert!(info.is_empty());
+    }
+
+    #[test]
+    fn test_code_block_info_multiple_blocks() {
+        let content = "text\n```python\nprint('hi')\n```\nmiddle\n```js\nconsole.log('hi');\n```\nend";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 9);
+
+        // First block: python
+        assert!(!info[0].in_code_block); // "text"
+        assert!(info[1].in_code_block); // ```python
+        assert_eq!(info[1].language.as_deref(), Some("python"));
+        assert!(info[2].in_code_block); // print('hi')
+        assert_eq!(info[2].language.as_deref(), Some("python"));
+        assert!(info[3].in_code_block); // ```
+
+        // Between blocks
+        assert!(!info[4].in_code_block); // "middle"
+
+        // Second block: js
+        assert!(info[5].in_code_block); // ```js
+        assert_eq!(info[5].language.as_deref(), Some("js"));
+        assert!(info[6].in_code_block); // console.log('hi');
+        assert_eq!(info[6].language.as_deref(), Some("js"));
+        assert!(info[7].in_code_block); // ```
+
+        // After blocks
+        assert!(!info[8].in_code_block); // "end"
+    }
+
+    #[test]
+    fn test_code_block_info_language_with_extra_text() {
+        // e.g. ```rust,no_run or ```python3 some_flag
+        let content = "```rust,no_run\ncode\n```";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 3);
+        assert!(info[0].in_code_block);
+        // First word after ``` should be the language
+        // "rust,no_run" is the first word (no space)
+        assert!(info[0].language.is_some());
+    }
+
+    #[test]
+    fn test_code_block_info_unclosed_block() {
+        let content = "```rust\nlet x = 1;\nno closing fence";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 3);
+        assert!(info[0].in_code_block);
+        assert_eq!(info[0].language.as_deref(), Some("rust"));
+        assert!(info[1].in_code_block);
+        assert!(info[2].in_code_block); // still in code block since no closing fence
+    }
+
+    #[test]
+    fn test_code_block_info_indented_fence() {
+        // Indented code fences (common in lists)
+        let content = "  ```python\n  code\n  ```";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 3);
+        // The function uses trimmed line, so indented fences should work
+        assert!(info[0].in_code_block);
+        assert_eq!(info[0].language.as_deref(), Some("python"));
+    }
+
+    #[test]
+    fn test_code_block_info_only_fence_lines() {
+        let content = "```\n```";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 2);
+        assert!(info[0].in_code_block);
+        assert!(info[0].language.is_none());
+        assert!(info[1].in_code_block); // closing fence is also in code block
+    }
+
+    #[test]
+    fn test_code_block_info_multiline_content() {
+        let content = "# Header\n\n```toml\n[package]\nname = \"test\"\nversion = \"0.1\"\n```\n\nMore text";
+        let info = compute_code_block_info(content);
+        assert_eq!(info.len(), 9);
+        assert!(!info[0].in_code_block); // # Header
+        assert!(!info[1].in_code_block); // empty line
+        assert!(info[2].in_code_block); // ```toml
+        assert_eq!(info[2].language.as_deref(), Some("toml"));
+        assert!(info[3].in_code_block); // [package]
+        assert!(info[4].in_code_block); // name = "test"
+        assert!(info[5].in_code_block); // version = "0.1"
+        assert!(info[6].in_code_block); // ```
+        assert!(!info[7].in_code_block); // empty line
+        assert!(!info[8].in_code_block); // More text
     }
 }
