@@ -82,7 +82,9 @@ pub enum VimAction {
     Delete(Motion),
     Yank(Motion),
     VisualDelete,
+    VisualChange,
     VisualYank,
+    VisualPaste,
     PasteAfter,
     PasteBefore,
     ReloadBuffer,
@@ -620,7 +622,14 @@ impl VimMode {
             KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_line) => {
                 VimAction::VisualDelete
             }
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.delete_char) => {
+                VimAction::VisualDelete
+            }
+            KeyCode::Char('c') | KeyCode::Char('s') => VimAction::VisualChange,
             KeyCode::Char(c) if self.key_matches(c, &self.keys.yank) => VimAction::VisualYank,
+            KeyCode::Char(c) if self.key_matches(c, &self.keys.paste_after) => {
+                VimAction::VisualPaste
+            }
             KeyCode::Char('>') => VimAction::VisualIndent,
             KeyCode::Char('<') => VimAction::VisualDedent,
 

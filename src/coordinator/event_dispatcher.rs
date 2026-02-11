@@ -668,20 +668,58 @@ impl EventDispatcher {
             // Visual operations
             VimAction::VisualDelete => {
                 app.buffer.save_undo_snapshot();
+                let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
                 if let Some(deleted) = app.visual_delete() {
                     let _ = clipboard_copy(&deleted);
-                    app.last_yank_linewise = false;
+                    app.last_yank_linewise = was_line_mode;
                 }
                 app.clear_message();
             }
 
+            VimAction::VisualChange => {
+                app.buffer.save_undo_snapshot();
+                let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
+                if let Some(deleted) = app.visual_delete() {
+                    let _ = clipboard_copy(&deleted);
+                    app.last_yank_linewise = was_line_mode;
+                }
+                if was_line_mode
+                    && !(app.buffer.content().len() == 1 && app.buffer.current_line_content().is_empty())
+                {
+                    app.buffer.insert_line_above();
+                }
+                app.mode = AppMode::Insert;
+                app.set_message("-- INSERT --");
+            }
+
             VimAction::VisualYank => {
+                let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
                 if let Some(yanked) = app.visual_yank() {
                     let _ = clipboard_copy(&yanked);
-                    app.last_yank_linewise = false;
+                    app.last_yank_linewise = was_line_mode;
                     app.set_message("Yanked");
                 }
                 app.exit_visual_mode();
+            }
+
+            VimAction::VisualPaste => {
+                if let Ok(paste_text) = clipboard_paste()
+                    && !paste_text.is_empty()
+                {
+                    app.buffer.save_undo_snapshot();
+                    let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
+                    if let Some(deleted) = app.visual_delete() {
+                        if was_line_mode {
+                            app.buffer.paste_line_below(&paste_text);
+                        } else {
+                            app.buffer.paste_before_cursor(&paste_text);
+                        }
+                        let _ = clipboard_copy(&deleted);
+                        app.last_yank_linewise = was_line_mode;
+                    }
+                }
+                app.exit_visual_mode();
+                app.clear_message();
             }
 
             VimAction::VisualIndent => {

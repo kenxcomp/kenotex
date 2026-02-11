@@ -52,8 +52,10 @@ All keybindings are fully customizable. See [default.toml](default.toml) for the
 | `^` | Extend to first non-blank character |
 | `G` | Extend to file end |
 | `Ctrl+U/Ctrl+D` | Extend selection 5 lines up/down |
-| `d` | Delete selection (copies to clipboard) |
+| `d` / `x` | Cut selection (delete + copy to clipboard) |
 | `y` | Yank (copy) selection to clipboard |
+| `c` / `s` | Change selection (cut + enter Insert mode) |
+| `p` | Paste-replace (replace selection with clipboard, old selection goes to clipboard) |
 | `gc` | Toggle HTML comment on selected lines |
 | `Space + b/i/x/c/C` | Toggle bold/italic/strikethrough/code/code-block on selection |
 | `(` `)` `[` `]` `{` `}` `'` `"` `` ` `` `*` `~` | Wrap selection with matching pair |

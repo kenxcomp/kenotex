@@ -36,8 +36,10 @@ impl<'a> HintBar<'a> {
             (View::Editor, AppMode::Insert) => vec![("Esc", "Normal"), ("^G", "ExtEdit")],
             (View::Editor, AppMode::Visual(_)) => vec![
                 ("Esc", "Normal"),
-                ("d", "Delete"),
+                ("d/x", "Cut"),
                 ("y", "Yank"),
+                ("c", "Change"),
+                ("p", "Paste"),
                 ("gc", "Comment"),
                 ("Space", "Format"),
                 ("hjkl", "Move"),
