@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use std::process::Command;
 
 pub fn create_reminder(
@@ -11,9 +11,12 @@ pub fn create_reminder(
     let escaped_title = escape_applescript_string(title);
     let escaped_notes = notes.map(escape_applescript_string).unwrap_or_default();
 
-    let date_clause = if let Some(date) = due_date {
-        let formatted = date.format("%B %d, %Y at %I:%M %p").to_string();
-        format!(" with properties {{due date:date \"{}\"}}", formatted)
+    let date_property = if let Some(date) = due_date {
+        let formatted = date
+            .with_timezone(&Local)
+            .format("%B %d, %Y at %I:%M %p")
+            .to_string();
+        format!(", due date:date \"{}\"", formatted)
     } else {
         String::new()
     };
@@ -27,10 +30,10 @@ pub fn create_reminder(
     let script = format!(
         r#"tell application "Reminders"
     tell {}
-        make new reminder with properties {{name:"{}", body:"{}"}}{}
+        make new reminder with properties {{name:"{}", body:"{}"{}}}
     end tell
 end tell"#,
-        list_clause, escaped_title, escaped_notes, date_clause
+        list_clause, escaped_title, escaped_notes, date_property
     );
 
     run_applescript(&script).context("Failed to create reminder")

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, Local, Utc};
 use std::process::Command;
 
 pub fn create_calendar_event(
@@ -12,9 +12,15 @@ pub fn create_calendar_event(
     let escaped_title = escape_applescript_string(title);
     let escaped_notes = notes.map(escape_applescript_string).unwrap_or_default();
 
-    let start_formatted = start_date.format("%B %d, %Y at %I:%M %p").to_string();
+    let start_formatted = start_date
+        .with_timezone(&Local)
+        .format("%B %d, %Y at %I:%M %p")
+        .to_string();
     let end_date = end_date.unwrap_or_else(|| start_date + Duration::hours(1));
-    let end_formatted = end_date.format("%B %d, %Y at %I:%M %p").to_string();
+    let end_formatted = end_date
+        .with_timezone(&Local)
+        .format("%B %d, %Y at %I:%M %p")
+        .to_string();
 
     let calendar_clause = if let Some(cal) = calendar_name {
         format!("calendar \"{}\"", escape_applescript_string(cal))

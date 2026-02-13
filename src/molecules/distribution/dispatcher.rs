@@ -59,8 +59,9 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
 
             // Parse @time from the line
             let due_date = parse_at_time_expression(title);
+            let title = strip_at_time(title);
 
-            if let Err(e) = create_reminder(title, None, due_date, list_name) {
+            if let Err(e) = create_reminder(&title, None, due_date, list_name) {
                 return DispatchResult::Failed(format!("Reminder failed: {}", e));
             }
         }
@@ -77,6 +78,8 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
 
     // Parse @time from content
     let due_date = parse_at_time_expression(&content);
+
+    let title = strip_at_time(&title);
 
     match create_reminder(&title, body_ref, due_date, list_name) {
         Ok(()) => DispatchResult::Sent,
@@ -107,6 +110,8 @@ fn dispatch_calendar(block: &SmartBlock, destinations: &Destinations) -> Dispatc
     };
 
     let calendar_name = destinations.calendar.calendar_name.as_deref();
+
+    let title = strip_at_time(&title);
 
     match create_calendar_event(&title, body_ref, start_date, None, calendar_name) {
         Ok(()) => DispatchResult::Sent,
@@ -163,6 +168,28 @@ fn extract_title_body(content: &str) -> (String, String) {
     let title = lines.next().unwrap_or("").trim().to_string();
     let body: String = lines.collect::<Vec<&str>>().join("\n").trim().to_string();
     (title, body)
+}
+
+/// Strip the `@time` expression from text, returning only the descriptive content.
+fn strip_at_time(text: &str) -> String {
+    if let Some(at_pos) = text.find('@') {
+        let before = text[..at_pos].trim_end();
+        let remaining = &text[at_pos + 1..];
+        let mut end_pos = 0;
+        for (i, ch) in remaining.char_indices() {
+            if ch.is_whitespace() {
+                break;
+            }
+            if ch.is_ascii_punctuation() && ch != ':' {
+                break;
+            }
+            end_pos = i + ch.len_utf8();
+        }
+        let after = &remaining[end_pos..];
+        format!("{}{}", before, after).trim().to_string()
+    } else {
+        text.to_string()
+    }
 }
 
 #[cfg(test)]
@@ -267,5 +294,32 @@ mod tests {
 
         let result = dispatch_block(&block, &destinations);
         assert!(matches!(result, DispatchResult::Skipped));
+    }
+
+    // --- strip_at_time tests ---
+
+    #[test]
+    fn test_strip_at_time_simple() {
+        assert_eq!(strip_at_time("buy cake @3pm"), "buy cake");
+    }
+
+    #[test]
+    fn test_strip_at_time_chinese() {
+        assert_eq!(strip_at_time("买蛋糕 @明天下午3点"), "买蛋糕");
+    }
+
+    #[test]
+    fn test_strip_at_time_no_at() {
+        assert_eq!(strip_at_time("buy cake"), "buy cake");
+    }
+
+    #[test]
+    fn test_strip_at_time_middle() {
+        assert_eq!(strip_at_time("buy @3pm cake"), "buy cake");
+    }
+
+    #[test]
+    fn test_strip_at_time_with_colon() {
+        assert_eq!(strip_at_time("meeting @3:30pm"), "meeting");
     }
 }
