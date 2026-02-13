@@ -243,3 +243,12 @@ When blocks are processed via `Space+s`, successfully sent blocks are wrapped in
 - `is_all_commented()` in `comment.rs` (L3) detects whether the entire buffer is wrapped in multi-line HTML comment blocks
 - `archive_current_note()` in `app.rs` (L2) handles the archive operation
 - `finish_processing()` checks for auto-archive after processing completes
+
+### Release Checklist
+
+When creating a new version tag (e.g., `git tag -a v1.2.0`), **always** do all of the following:
+
+1. **Update `Cargo.toml`** — bump `version` to match the tag (e.g., `"1.2.0"`)
+2. **Commit and push** the version bump **before** tagging
+3. **Create and push the tag** — `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
+4. **Update Homebrew formula** — after CI builds the release assets, update `~/Repo/homebrew-tap/Formula/kenotex.rb` with new version, URLs, and SHA256 hashes (or verify CI did it automatically)
