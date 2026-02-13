@@ -104,7 +104,7 @@ Maps time-of-day keywords to default `"HH:MM"` values:
 
 ```toml
 [periods]
-早上 = "09:00"
+"早上" = "09:00"
 morning = "09:00"
 afternoon = "14:00"
 ```
@@ -117,10 +117,10 @@ Maps relative date keywords to day offsets from today:
 
 ```toml
 [offsets]
-明天 = 1
+"明天" = 1
 tomorrow = 1
-后天 = 2
-下周 = 7
+"后天" = 2
+"下周" = 7
 ```
 
 ### Weekdays
@@ -129,8 +129,8 @@ Maps weekday aliases to standard English weekday names:
 
 ```toml
 [weekdays]
-周一 = "monday"
-星期一 = "monday"
+"周一" = "monday"
+"星期一" = "monday"
 ```
 
 ### Hours
@@ -139,10 +139,10 @@ Maps Chinese numeral keywords to hour numbers (0–23), enabling expressions lik
 
 ```toml
 [hours]
-一 = 1
-二 = 2
-七 = 7
-十二 = 12
+"一" = 1
+"二" = 2
+"七" = 7
+"十二" = 12
 ```
 
 ### Minutes
@@ -151,9 +151,9 @@ Maps Chinese numeral keywords to minute numbers (0–59), enabling expressions l
 
 ```toml
 [minutes]
-十五 = 15
-三十 = 30
-四十五 = 45
+"十五" = 15
+"三十" = 30
+"四十五" = 45
 ```
 
 Chinese numeral hours and minutes can be mixed freely with ASCII digits: `七点30分`, `7点三十分`, and `七点三十分` all work.
@@ -181,7 +181,7 @@ Change morning default to 8:00 AM:
 ```toml
 [periods]
 morning = "08:00"
-早上 = "08:00"
+"早上" = "08:00"
 ```
 
 Add a custom keyword:

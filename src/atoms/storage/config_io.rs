@@ -103,70 +103,70 @@ fn save_default_time_config(path: &Path) -> Result<()> {
 #            (monday, tuesday, wednesday, thursday, friday, saturday, sunday).
 
 [periods]
-早上 = "09:00"
-上午 = "09:00"
-中午 = "12:00"
-下午 = "14:00"
-晚上 = "19:00"
+"早上" = "09:00"
+"上午" = "09:00"
+"中午" = "12:00"
+"下午" = "14:00"
+"晚上" = "19:00"
 morning = "09:00"
 afternoon = "14:00"
 evening = "19:00"
 
 [offsets]
-今天 = 0
-明天 = 1
-后天 = 2
-大后天 = 3
-下周 = 7
+"今天" = 0
+"明天" = 1
+"后天" = 2
+"大后天" = 3
+"下周" = 7
 today = 0
 tomorrow = 1
 
 [weekdays]
-周一 = "monday"
-周二 = "tuesday"
-周三 = "wednesday"
-周四 = "thursday"
-周五 = "friday"
-周六 = "saturday"
-周日 = "sunday"
-星期一 = "monday"
-星期二 = "tuesday"
-星期三 = "wednesday"
-星期四 = "thursday"
-星期五 = "friday"
-星期六 = "saturday"
-星期日 = "sunday"
+"周一" = "monday"
+"周二" = "tuesday"
+"周三" = "wednesday"
+"周四" = "thursday"
+"周五" = "friday"
+"周六" = "saturday"
+"周日" = "sunday"
+"星期一" = "monday"
+"星期二" = "tuesday"
+"星期三" = "wednesday"
+"星期四" = "thursday"
+"星期五" = "friday"
+"星期六" = "saturday"
+"星期日" = "sunday"
 
 # Hour keywords — keyword → hour number (0-23)
 # 小时关键词 — 关键词 → 小时数 (0-23)
 [hours]
-一 = 1
-二 = 2
-三 = 3
-四 = 4
-五 = 5
-六 = 6
-七 = 7
-八 = 8
-九 = 9
-十 = 10
-十一 = 11
-十二 = 12
+"一" = 1
+"二" = 2
+"三" = 3
+"四" = 4
+"五" = 5
+"六" = 6
+"七" = 7
+"八" = 8
+"九" = 9
+"十" = 10
+"十一" = 11
+"十二" = 12
 
 # Minute keywords — keyword → minute number (0-59)
 # 分钟关键词 — 关键词 → 分钟数 (0-59)
 [minutes]
-五 = 5
-十 = 10
-十五 = 15
-二十 = 20
-二十五 = 25
-三十 = 30
-三十五 = 35
-四十 = 40
-四十五 = 45
-五十 = 50
-五十五 = 55
+"五" = 5
+"十" = 10
+"十五" = 15
+"二十" = 20
+"二十五" = 25
+"三十" = 30
+"三十五" = 35
+"四十" = 40
+"四十五" = 45
+"五十" = 50
+"五十五" = 55
 "#;
 
     fs::write(path, template)
