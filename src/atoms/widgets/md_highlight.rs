@@ -363,6 +363,11 @@ fn scan_time_expression(
     while i < chars.len() {
         let ch = chars[i];
         if ch.is_whitespace() {
+            if chars.get(i + 1).is_some_and(|&nc| nc.is_ascii_digit()) {
+                time_text.push(ch);
+                i += 1;
+                continue;
+            }
             break;
         }
         // Stop at ASCII punctuation except colon

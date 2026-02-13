@@ -29,6 +29,11 @@ fn extract_at_time(text: &str) -> Option<String> {
     let mut end_pos = 0;
     for (i, ch) in remaining.char_indices() {
         if ch.is_whitespace() {
+            let rest = &remaining[i + ch.len_utf8()..];
+            if rest.chars().next().is_some_and(|nc| nc.is_ascii_digit()) {
+                end_pos = i + ch.len_utf8();
+                continue;
+            }
             break;
         }
         // Stop at ASCII punctuation except colon (for time like "3:30")
@@ -155,7 +160,7 @@ fn parse_english_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
     }
 
     // AM/PM with optional minutes: "3pm", "3:30pm", "10:15am"
-    let time_re = Regex::new(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)").ok()?;
+    let time_re = Regex::new(r"(\d{1,2})(?:[:\x{ff1a}](\d{2}))?\s*(am|pm)").ok()?;
     if let Some(caps) = time_re.captures(&text_lower) {
         let hour: u32 = caps.get(1)?.as_str().parse().ok()?;
         let minute: u32 = caps
@@ -178,7 +183,7 @@ fn parse_english_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
         return Some(Local.from_local_datetime(&dt).single()?.with_timezone(&Utc));
     }
 
-    let at_time_re = Regex::new(r"at\s+(\d{1,2})(?::(\d{2}))?").ok()?;
+    let at_time_re = Regex::new(r"at\s+(\d{1,2})(?:[:\x{ff1a}](\d{2}))?").ok()?;
     if let Some(caps) = at_time_re.captures(&text_lower) {
         let hour: u32 = caps.get(1)?.as_str().parse().ok()?;
         let minute: u32 = caps
@@ -202,6 +207,8 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
     let mut date = today;
     let mut hour: u32 = 9;
     let mut minute: u32 = 0;
+    let mut found_date = false;
+    let mut found_time = false;
 
     // Check offsets (sort by key length descending for longest-match-first)
     let mut offset_keys: Vec<_> = config.offsets.keys().collect();
@@ -210,6 +217,7 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
         if text.contains(key.as_str()) {
             let days = config.offsets[key.as_str()];
             date = today + Duration::days(days);
+            found_date = true;
             break;
         }
     }
@@ -226,7 +234,39 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
                 + 7)
                 % 7;
             date = today + Duration::days(if days_until == 0 { 7 } else { days_until });
+            found_date = true;
             break;
+        }
+    }
+
+    // Parse X年Y月Z日 or X月Y日 absolute date
+    let date_re = Regex::new(r"(?:(\d{4})年)?(\d{1,2})月(\d{1,2})[日号]").ok()?;
+    if let Some(caps) = date_re.captures(text) {
+        let year = caps
+            .get(1)
+            .and_then(|y| y.as_str().parse::<i32>().ok());
+        let month: u32 = caps.get(2).unwrap().as_str().parse().ok()?;
+        let day: u32 = caps.get(3).unwrap().as_str().parse().ok()?;
+
+        let target_year = if let Some(y) = year {
+            y
+        } else {
+            let this_year = today.year();
+            let candidate = chrono::NaiveDate::from_ymd_opt(this_year, month, day);
+            if let Some(d) = candidate {
+                if d < today {
+                    this_year + 1
+                } else {
+                    this_year
+                }
+            } else {
+                this_year
+            }
+        };
+
+        if let Some(d) = chrono::NaiveDate::from_ymd_opt(target_year, month, day) {
+            date = d;
+            found_date = true;
         }
     }
 
@@ -239,6 +279,7 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
         {
             hour = h;
             minute = m;
+            found_time = true;
             break;
         }
     }
@@ -249,6 +290,7 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
     if let Some(caps) = hour_re.captures(text) {
         hour = caps.get(1).unwrap().as_str().parse().ok()?;
         found_explicit_hour = true;
+        found_time = true;
     } else {
         // Config lookup for Chinese numeral hours
         let mut hour_keys: Vec<_> = config.hours.keys().collect();
@@ -258,6 +300,7 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
                 if text.contains(&format!("{}{}", key, suffix)) {
                     hour = config.hours[key.as_str()];
                     found_explicit_hour = true;
+                    found_time = true;
                     break;
                 }
             }
@@ -280,6 +323,24 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
                 break;
             }
         }
+    }
+
+    // Step C: Parse HH:MM or HH：MM colon-separated time (e.g., 16:50, 16：50)
+    if !found_explicit_hour {
+        let colon_re = Regex::new(r"(\d{1,2})[:\x{ff1a}](\d{2})").ok()?;
+        if let Some(caps) = colon_re.captures(text) {
+            let match_start = caps.get(0).unwrap().start();
+            let before = &text[..match_start];
+            if !before.ends_with('月') {
+                hour = caps.get(1).unwrap().as_str().parse().ok()?;
+                minute = caps.get(2).unwrap().as_str().parse().unwrap_or(0);
+                found_time = true;
+            }
+        }
+    }
+
+    if !found_date && !found_time {
+        return None;
     }
 
     let time = NaiveTime::from_hms_opt(hour, minute, 0)?;
@@ -566,6 +627,185 @@ mod tests {
         );
         let dt = result.unwrap();
         let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%M").to_string(), "30");
+    }
+
+    // === Month-Day Date Tests ===
+
+    #[test]
+    fn test_month_day_date() {
+        let config = TimeConfig::default();
+        // 2月15日16:50 should parse to Feb 15 at 16:50
+        let result = parse_time_expression("2月15日16:50", &config);
+        assert!(result.is_some(), "should parse '2月15日16:50'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%m").to_string(), "02");
+        assert_eq!(local.format("%d").to_string(), "15");
+        assert_eq!(local.format("%H").to_string(), "16");
+        assert_eq!(local.format("%M").to_string(), "50");
+    }
+
+    #[test]
+    fn test_month_day_with_period() {
+        let config = TimeConfig::default();
+        // 2月15日下午3点 should parse to Feb 15 at 15:00 (下午 period + 3点 hour)
+        let result = parse_time_expression("2月15日下午3点", &config);
+        assert!(result.is_some(), "should parse '2月15日下午3点'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%m").to_string(), "02");
+        assert_eq!(local.format("%d").to_string(), "15");
+        // Note: 下午 sets baseline hour, but 3点 overrides — verify parsing succeeds
+    }
+
+    #[test]
+    fn test_month_day_year_rollover() {
+        let config = TimeConfig::default();
+        let today = Local::now().date_naive();
+        // Use a date that's definitely in the past this year (Jan 1)
+        let result = parse_time_expression("1月1日", &config);
+        assert!(result.is_some(), "should parse '1月1日'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        let parsed_date = local.date_naive();
+        // If Jan 1 has passed this year, it should roll to next year
+        if chrono::NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap() < today {
+            assert_eq!(parsed_date.year(), today.year() + 1);
+        } else {
+            assert_eq!(parsed_date.year(), today.year());
+        }
+    }
+
+    #[test]
+    fn test_year_month_day() {
+        let config = TimeConfig::default();
+        // 2026年3月1日 → explicit year
+        let result = parse_time_expression("2026年3月1日", &config);
+        assert!(result.is_some(), "should parse '2026年3月1日'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%Y").to_string(), "2026");
+        assert_eq!(local.format("%m").to_string(), "03");
+        assert_eq!(local.format("%d").to_string(), "01");
+    }
+
+    #[test]
+    fn test_month_day_with_hao() {
+        let config = TimeConfig::default();
+        // 3月1号16:50 → 号 also accepted as day suffix
+        let result = parse_time_expression("3月1号16:50", &config);
+        assert!(result.is_some(), "should parse '3月1号16:50'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "16");
+        assert_eq!(local.format("%M").to_string(), "50");
+    }
+
+    // === Chinese Colon Tests ===
+
+    #[test]
+    fn test_chinese_colon_time() {
+        let config = TimeConfig::default();
+        // 明天16：50 → full-width colon should work
+        let result = parse_time_expression("明天16：50", &config);
+        assert!(result.is_some(), "should parse '明天16：50'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "16");
+        assert_eq!(local.format("%M").to_string(), "50");
+    }
+
+    #[test]
+    fn test_month_day_chinese_colon() {
+        let config = TimeConfig::default();
+        // 2月15日16：50 → month-day + full-width colon time
+        let result = parse_time_expression("2月15日16：50", &config);
+        assert!(result.is_some(), "should parse '2月15日16：50'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%m").to_string(), "02");
+        assert_eq!(local.format("%d").to_string(), "15");
+        assert_eq!(local.format("%H").to_string(), "16");
+        assert_eq!(local.format("%M").to_string(), "50");
+    }
+
+    #[test]
+    fn test_english_chinese_colon_am_pm() {
+        let config = TimeConfig::default();
+        // 3：30pm → full-width colon in English AM/PM
+        let result = parse_time_expression("3：30pm", &config);
+        assert!(result.is_some(), "should parse '3：30pm'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "15");
+        assert_eq!(local.format("%M").to_string(), "30");
+    }
+
+    // === Space Handling Tests ===
+
+    #[test]
+    fn test_extract_at_time_greedy() {
+        // @2月15日 16:50 → greedy scan should include "16:50" after space
+        assert_eq!(
+            extract_at_time("Task @2月15日 16:50"),
+            Some("2月15日 16:50".to_string())
+        );
+    }
+
+    #[test]
+    fn test_month_day_space_time() {
+        let config = TimeConfig::default();
+        // @2月15日 16:50 → space between date and time should work
+        let result = parse_at_time_expression("Task @2月15日 16:50", &config);
+        assert!(result.is_some(), "should parse '@2月15日 16:50'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%m").to_string(), "02");
+        assert_eq!(local.format("%d").to_string(), "15");
+        assert_eq!(local.format("%H").to_string(), "16");
+        assert_eq!(local.format("%M").to_string(), "50");
+    }
+
+    #[test]
+    fn test_extract_no_greedy_text() {
+        // @明天 meeting → should NOT greedily include "meeting" (starts with non-digit)
+        assert_eq!(
+            extract_at_time("Task @明天 meeting"),
+            Some("明天".to_string())
+        );
+    }
+
+    // === Guard Test ===
+
+    #[test]
+    fn test_parse_chinese_no_match() {
+        let config = TimeConfig::default();
+        // "买菜" has no time-related content → should return None
+        let result = parse_time_expression("买菜", &config);
+        assert!(result.is_none(), "'买菜' should not parse as a time expression");
+    }
+
+    // === Regression Tests ===
+
+    #[test]
+    fn test_regression_chinese_numeral_still_works() {
+        let config = TimeConfig::default();
+        let result = parse_at_time_expression("买牛奶 @明天下午七点三十分", &config);
+        assert!(result.is_some(), "regression: '@明天下午七点三十分' should still work");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%M").to_string(), "30");
+    }
+
+    #[test]
+    fn test_regression_english_am_pm() {
+        let config = TimeConfig::default();
+        let result = parse_at_time_expression("Meeting @3:30pm", &config);
+        assert!(result.is_some(), "regression: '@3:30pm' should still work");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "15");
         assert_eq!(local.format("%M").to_string(), "30");
     }
 }

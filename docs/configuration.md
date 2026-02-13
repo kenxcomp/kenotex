@@ -158,6 +158,23 @@ Maps Chinese numeral keywords to minute numbers (0–59), enabling expressions l
 
 Chinese numeral hours and minutes can be mixed freely with ASCII digits: `七点30分`, `7点三十分`, and `七点三十分` all work.
 
+### Absolute Dates
+
+`X月Y日` format is supported for specifying exact dates:
+
+- `@2月15日16:50` — February 15th at 16:50
+- `@2026年3月1日下午3点` — March 1st, 2026 at 3pm
+- `@3月1号` — March 1st (号 also accepted as day suffix)
+- `@1月5日` — January 5th (auto-rolls to next year if date has passed)
+
+### Colon Time Format
+
+`HH:MM` notation is supported alongside Chinese `点/分` notation:
+
+- `@明天16:50` — Tomorrow at 16:50
+- `@2月15日 16:50` — February 15th at 16:50 (space between date and time is allowed)
+- `@3：30pm` — 3:30 PM (Chinese full-width colon `：` also accepted)
+
 ### Customization Examples
 
 Change morning default to 8:00 AM:

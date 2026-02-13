@@ -119,7 +119,7 @@ show_hints = true
 tab_width = 4
 ```
 
-Time pattern keywords (`@time` expressions) can be customized via `~/.config/kenotex/time_patterns.toml`, including Chinese numeral hours/minutes (e.g., `@下午七点三十分`).
+Time pattern keywords (`@time` expressions) can be customized via `~/.config/kenotex/time_patterns.toml`, including Chinese numeral hours/minutes (e.g., `@下午七点三十分`), absolute dates (`@2月15日16:50`), and `HH:MM` colon time format.
 
 For destinations, keybindings, and all options, see the [Configuration Guide](docs/configuration.md).
 

@@ -115,6 +115,10 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `[weekdays]` - Weekday alias → English name (e.g., `周一 = "monday"`, `星期一 = "monday"`)
 - `[hours]` - Chinese numeral keyword → hour number 0-23 (e.g., `七 = 7`, `十二 = 12`). Enables `@下午七点` alongside `@下午7点`
 - `[minutes]` - Chinese numeral keyword → minute number 0-59 (e.g., `三十 = 30`, `四十五 = 45`). Enables `@七点三十分` alongside `@7点30分`
+- Supports `X月Y日` absolute dates: `@2月15日16:50`, `@2026年3月1日`, auto year rollover for past dates
+- Supports `HH:MM`/`HH：MM` colon time in Chinese context alongside `点/分` notation
+- Space between date and time is tolerated: `@2月15日 16:50`
+- Chinese full-width colon `：` (U+FF1A) accepted in both Chinese and English time expressions
 - Overriding a section replaces all defaults for that section; omitted sections keep defaults
 
 ### Destinations Config
@@ -221,6 +225,8 @@ Random thought
 
 **Time expressions**:
 - `@time` syntax: `@明天早上8点`, `@tomorrow`, `@9pm`, `@下周一`
+- `@X月Y日` absolute dates: `@2月15日16:50`, `@2026年3月1日下午3点`
+- `HH:MM` / `HH：MM` colon time format and space tolerance between date and time
 - Works in both `:::td` and `:::cal` blocks
 - Provides explicit time specification
 - Editor highlights `@time` in bold accent color for visual feedback

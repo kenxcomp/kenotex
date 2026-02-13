@@ -119,7 +119,7 @@ show_hints = true
 tab_width = 4
 ```
 
-时间模式关键词（`@time` 表达式）可通过 `~/.config/kenotex/time_patterns.toml` 自定义，支持中文数字小时/分钟（如 `@下午七点三十分`）。
+时间模式关键词（`@time` 表达式）可通过 `~/.config/kenotex/time_patterns.toml` 自定义，支持中文数字小时/分钟（如 `@下午七点三十分`）、绝对日期（如 `@2月15日16:50`）和 `HH:MM` 冒号时间格式。
 
 目标应用、快捷键及所有选项，请参阅[配置指南](docs/configuration_cn.md)。
 
