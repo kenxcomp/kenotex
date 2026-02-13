@@ -91,3 +91,63 @@ app = "apple_notes"    # apple_notes, bear, obsidian；设为 "" 可跳过备忘
 | `leader_organize` | `"o"` | 整理复选框（未勾选上移，已勾选下移） |
 
 请参阅完整的[快捷键参考](keybindings_cn.md)和 [default.toml](default.toml) 了解所有可用选项。
+
+## 时间模式
+
+配置文件位置：`~/.config/kenotex/time_patterns.toml`（首次运行时自动创建）
+
+此文件控制 `:::td` 和 `:::cal` 块中 `@time` 表达式的识别和解析方式。包含三个部分：
+
+### 时间段
+
+将时段关键词映射为默认的 `"HH:MM"` 值：
+
+```toml
+[periods]
+早上 = "09:00"
+morning = "09:00"
+afternoon = "14:00"
+```
+
+例如 `@明天早上`（解析为 09:00）或 `@tomorrow morning`。
+
+### 日期偏移
+
+将相对日期关键词映射为距今天的天数：
+
+```toml
+[offsets]
+明天 = 1
+tomorrow = 1
+后天 = 2
+下周 = 7
+```
+
+### 星期别名
+
+将星期别名映射为标准英文星期名：
+
+```toml
+[weekdays]
+周一 = "monday"
+星期一 = "monday"
+```
+
+### 自定义示例
+
+将早上默认时间改为 8:00：
+```toml
+[periods]
+morning = "08:00"
+早上 = "08:00"
+```
+
+添加自定义关键词：
+```toml
+[offsets]
+next_week = 7
+```
+
+**注意**：如果覆盖某个部分（如 `[periods]`），则只有你指定的键会生效 — 该部分的默认值会被完全替换。未指定的部分将保留默认值。
+
+完整默认值参考请查看 [default_time_patterns.toml](default_time_patterns.toml)。

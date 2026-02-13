@@ -91,3 +91,63 @@ All keybindings can be remapped via the `[keyboard]` section. Notable options:
 | `leader_organize` | `"o"` | Organize checkboxes (unchecked up, checked down) |
 
 See the full [Keybindings Reference](keybindings.md) and [default.toml](default.toml) for all available options.
+
+## Time Patterns
+
+Config file location: `~/.config/kenotex/time_patterns.toml` (auto-created on first run)
+
+This file controls how `@time` expressions in `:::td` and `:::cal` blocks are recognized and parsed. It has three sections:
+
+### Periods
+
+Maps time-of-day keywords to default `"HH:MM"` values:
+
+```toml
+[periods]
+早上 = "09:00"
+morning = "09:00"
+afternoon = "14:00"
+```
+
+Used when writing `@明天早上` (resolves to 09:00) or `@tomorrow morning`.
+
+### Offsets
+
+Maps relative date keywords to day offsets from today:
+
+```toml
+[offsets]
+明天 = 1
+tomorrow = 1
+后天 = 2
+下周 = 7
+```
+
+### Weekdays
+
+Maps weekday aliases to standard English weekday names:
+
+```toml
+[weekdays]
+周一 = "monday"
+星期一 = "monday"
+```
+
+### Customization Examples
+
+Change morning default to 8:00 AM:
+```toml
+[periods]
+morning = "08:00"
+早上 = "08:00"
+```
+
+Add a custom keyword:
+```toml
+[offsets]
+next_week = 7
+```
+
+**Note**: If you override a section (e.g., `[periods]`), only the keys you specify will be active — defaults for that section are replaced entirely. Sections you omit will keep their defaults.
+
+See [default_time_patterns.toml](default_time_patterns.toml) for the complete reference with all defaults.

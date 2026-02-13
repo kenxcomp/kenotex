@@ -3,6 +3,7 @@ mod config;
 mod mode;
 mod note;
 mod theme;
+mod time_config;
 
 pub use block::{BlockType, ProcessingStatus, SmartBlock};
 pub use config::{
@@ -11,3 +12,4 @@ pub use config::{
 pub use mode::{AppMode, View};
 pub use note::Note;
 pub use theme::Theme;
+pub use time_config::TimeConfig;

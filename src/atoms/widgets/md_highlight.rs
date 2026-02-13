@@ -23,7 +23,10 @@ pub struct MdToken {
 
 /// Tokenizes a line of text into markdown inline elements.
 /// Single left-to-right pass with delimiter priority: ` > ~~ > *** > ** > *
-pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
+///
+/// When `time_keywords` is Some, those keywords are used for @time validation.
+/// When None, a built-in default keyword list is used.
+pub fn tokenize_inline(line: &str, time_keywords: Option<&[String]>) -> Vec<MdToken> {
     let mut tokens = Vec::new();
 
     // Check for list prefix at line start
@@ -53,22 +56,22 @@ pub fn tokenize_inline(line: &str) -> Vec<MdToken> {
         let mut handled = false;
 
         // Try @time expression FIRST (highest priority after list prefix)
-        if chars[i] == '@' {
-            if let Some((time_text, end)) = scan_time_expression(&chars, i) {
-                if !plain_buffer.is_empty() {
-                    tokens.push(MdToken {
-                        text: plain_buffer.clone(),
-                        kind: MdTokenKind::Plain,
-                    });
-                    plain_buffer.clear();
-                }
+        if chars[i] == '@'
+            && let Some((time_text, end)) = scan_time_expression(&chars, i, time_keywords)
+        {
+            if !plain_buffer.is_empty() {
                 tokens.push(MdToken {
-                    text: format!("@{}", time_text),
-                    kind: MdTokenKind::TimeExpression,
+                    text: plain_buffer.clone(),
+                    kind: MdTokenKind::Plain,
                 });
-                i = end;
-                handled = true;
+                plain_buffer.clear();
             }
+            tokens.push(MdToken {
+                text: format!("@{}", time_text),
+                kind: MdTokenKind::TimeExpression,
+            });
+            i = end;
+            handled = true;
         }
 
         // Try bold italic first (longest * sequence)
@@ -311,9 +314,44 @@ fn scan_delimited(chars: &[char], start: usize, delim: &str) -> Option<(String, 
     None
 }
 
+/// Default time keywords used when no custom keywords are provided.
+const DEFAULT_TIME_KEYWORDS: &[&str] = &[
+    "明天",
+    "今天",
+    "后天",
+    "下周",
+    "周",
+    "早上",
+    "上午",
+    "下午",
+    "晚上",
+    "中午",
+    "tomorrow",
+    "today",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "morning",
+    "evening",
+    "afternoon",
+    "am",
+    "pm",
+];
+
 /// Scans for @-prefixed time expression.
 /// Returns (time_text, next_index) if valid time found.
-fn scan_time_expression(chars: &[char], start: usize) -> Option<(String, usize)> {
+///
+/// When `time_keywords` is Some, those keywords are used for validation.
+/// When None, the built-in DEFAULT_TIME_KEYWORDS list is used.
+fn scan_time_expression(
+    chars: &[char],
+    start: usize,
+    time_keywords: Option<&[String]>,
+) -> Option<(String, usize)> {
     if start >= chars.len() || chars[start] != '@' {
         return None;
     }
@@ -342,33 +380,13 @@ fn scan_time_expression(chars: &[char], start: usize) -> Option<(String, usize)>
     // Validate: must look like a time expression
     // Simple heuristic: contains digits OR known keywords
     let has_digit = time_text.chars().any(|c| c.is_ascii_digit());
-    let keywords = [
-        "明天",
-        "今天",
-        "后天",
-        "下周",
-        "周",
-        "早上",
-        "上午",
-        "下午",
-        "晚上",
-        "中午",
-        "tomorrow",
-        "today",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday",
-        "morning",
-        "evening",
-        "afternoon",
-        "am",
-        "pm",
-    ];
-    let has_keyword = keywords.iter().any(|kw| time_text.contains(kw));
+    let has_keyword = if let Some(kws) = time_keywords {
+        kws.iter().any(|kw| time_text.contains(kw.as_str()))
+    } else {
+        DEFAULT_TIME_KEYWORDS
+            .iter()
+            .any(|kw| time_text.contains(kw))
+    };
 
     if has_digit || has_keyword {
         Some((time_text, i))
@@ -381,9 +399,14 @@ fn scan_time_expression(chars: &[char], start: usize) -> Option<(String, usize)>
 mod tests {
     use super::*;
 
+    /// Convenience wrapper: calls tokenize_inline with no custom keywords.
+    fn tok(line: &str) -> Vec<MdToken> {
+        tokenize_inline(line, None)
+    }
+
     #[test]
     fn test_plain_text() {
-        let tokens = tokenize_inline("Hello world");
+        let tokens = tok("Hello world");
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].kind, MdTokenKind::Plain);
         assert_eq!(tokens[0].text, "Hello world");
@@ -391,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_bold() {
-        let tokens = tokenize_inline("This is **bold** text");
+        let tokens = tok("This is **bold** text");
         assert_eq!(tokens.len(), 5);
         assert_eq!(tokens[0].text, "This is ");
         assert_eq!(tokens[1].kind, MdTokenKind::Delimiter);
@@ -403,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_italic() {
-        let tokens = tokenize_inline("This is *italic* text");
+        let tokens = tok("This is *italic* text");
         assert_eq!(tokens.len(), 5);
         assert_eq!(tokens[2].kind, MdTokenKind::Italic);
         assert_eq!(tokens[2].text, "italic");
@@ -411,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_bold_italic() {
-        let tokens = tokenize_inline("This is ***bold italic*** text");
+        let tokens = tok("This is ***bold italic*** text");
         assert_eq!(tokens.len(), 5);
         assert_eq!(tokens[2].kind, MdTokenKind::BoldItalic);
         assert_eq!(tokens[2].text, "bold italic");
@@ -419,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_strikethrough() {
-        let tokens = tokenize_inline("This is ~~strikethrough~~ text");
+        let tokens = tok("This is ~~strikethrough~~ text");
         assert_eq!(tokens.len(), 5);
         assert_eq!(tokens[2].kind, MdTokenKind::Strikethrough);
         assert_eq!(tokens[2].text, "strikethrough");
@@ -427,7 +450,7 @@ mod tests {
 
     #[test]
     fn test_inline_code() {
-        let tokens = tokenize_inline("Use `code` here");
+        let tokens = tok("Use `code` here");
         assert_eq!(tokens.len(), 5);
         assert_eq!(tokens[2].kind, MdTokenKind::InlineCode);
         assert_eq!(tokens[2].text, "code");
@@ -435,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_code_suppresses_formatting() {
-        let tokens = tokenize_inline("`**not bold**`");
+        let tokens = tok("`**not bold**`");
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].kind, MdTokenKind::Delimiter);
         assert_eq!(tokens[1].kind, MdTokenKind::InlineCode);
@@ -445,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_delimiters() {
-        let tokens = tokenize_inline("This is **unmatched text");
+        let tokens = tok("This is **unmatched text");
         assert_eq!(tokens.len(), 1);
         assert_eq!(tokens[0].kind, MdTokenKind::Plain);
         assert_eq!(tokens[0].text, "This is **unmatched text");
@@ -453,7 +476,7 @@ mod tests {
 
     #[test]
     fn test_unordered_list() {
-        let tokens = tokenize_inline("- List item");
+        let tokens = tok("- List item");
         assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
         assert_eq!(tokens[0].text, "- ");
         assert_eq!(tokens[1].text, "List item");
@@ -461,21 +484,21 @@ mod tests {
 
     #[test]
     fn test_ordered_list_dot() {
-        let tokens = tokenize_inline("1. List item");
+        let tokens = tok("1. List item");
         assert_eq!(tokens[0].kind, MdTokenKind::OrderedListPrefix);
         assert_eq!(tokens[0].text, "1. ");
     }
 
     #[test]
     fn test_ordered_list_paren() {
-        let tokens = tokenize_inline("42) List item");
+        let tokens = tok("42) List item");
         assert_eq!(tokens[0].kind, MdTokenKind::OrderedListPrefix);
         assert_eq!(tokens[0].text, "42) ");
     }
 
     #[test]
     fn test_list_with_formatting() {
-        let tokens = tokenize_inline("- **Bold** item");
+        let tokens = tok("- **Bold** item");
         assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
         assert_eq!(tokens[2].kind, MdTokenKind::Bold);
         assert_eq!(tokens[2].text, "Bold");
@@ -483,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_asterisk_list_prefix() {
-        let tokens = tokenize_inline("* List item");
+        let tokens = tok("* List item");
         assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
         assert_eq!(tokens[0].text, "* ");
         assert_eq!(tokens[1].text, "List item");
@@ -491,14 +514,14 @@ mod tests {
 
     #[test]
     fn test_indented_asterisk_list_prefix() {
-        let tokens = tokenize_inline("  * Nested item");
+        let tokens = tok("  * Nested item");
         assert_eq!(tokens[0].kind, MdTokenKind::UnorderedListPrefix);
         assert_eq!(tokens[0].text, "  * ");
     }
 
     #[test]
     fn test_multiple_formatting() {
-        let tokens = tokenize_inline("**bold** and *italic* and `code`");
+        let tokens = tok("**bold** and *italic* and `code`");
         assert!(tokens.iter().any(|t| t.kind == MdTokenKind::Bold));
         assert!(tokens.iter().any(|t| t.kind == MdTokenKind::Italic));
         assert!(tokens.iter().any(|t| t.kind == MdTokenKind::InlineCode));
@@ -506,7 +529,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_at_time_chinese() {
-        let tokens = tokenize_inline("买牛奶 @明天早上8点");
+        let tokens = tok("买牛奶 @明天早上8点");
 
         assert!(tokens.iter().any(|t| t.kind == MdTokenKind::TimeExpression));
         let time_token = tokens
@@ -518,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_at_time_english() {
-        let tokens = tokenize_inline("Buy milk @tomorrow");
+        let tokens = tok("Buy milk @tomorrow");
 
         let time_token = tokens
             .iter()
@@ -529,7 +552,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_at_time_boundary() {
-        let tokens = tokenize_inline("Meeting @3pm, downtown");
+        let tokens = tok("Meeting @3pm, downtown");
 
         let time_token = tokens
             .iter()
@@ -540,7 +563,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_at_username_not_highlighted() {
-        let tokens = tokenize_inline("Email @john about meeting");
+        let tokens = tok("Email @john about meeting");
 
         // "john" doesn't match time pattern, should be Plain text
         assert!(!tokens.iter().any(|t| t.kind == MdTokenKind::TimeExpression));
@@ -548,7 +571,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_multiple_at_times() {
-        let tokens = tokenize_inline("Task @明天 or @下周一");
+        let tokens = tok("Task @明天 or @下周一");
 
         let time_tokens: Vec<_> = tokens
             .iter()
@@ -559,12 +582,43 @@ mod tests {
 
     #[test]
     fn test_tokenize_at_time_with_colon() {
-        let tokens = tokenize_inline("Meeting @9:30am tomorrow");
+        let tokens = tok("Meeting @9:30am tomorrow");
 
         let time_token = tokens
             .iter()
             .find(|t| t.kind == MdTokenKind::TimeExpression)
             .unwrap();
         assert_eq!(time_token.text, "@9:30am");
+    }
+
+    #[test]
+    fn test_tokenize_with_custom_keywords() {
+        // Pass custom keywords list containing "nextweek"
+        let custom_keywords = vec!["nextweek".to_string()];
+        let tokens = tokenize_inline("Task @nextweek please", Some(&custom_keywords));
+
+        let time_token = tokens
+            .iter()
+            .find(|t| t.kind == MdTokenKind::TimeExpression);
+        assert!(
+            time_token.is_some(),
+            "custom keyword 'nextweek' should be highlighted"
+        );
+        assert_eq!(time_token.unwrap().text, "@nextweek");
+    }
+
+    #[test]
+    fn test_tokenize_with_none_keywords_uses_defaults() {
+        // Passing None should use built-in defaults — @tomorrow should be highlighted
+        let tokens = tokenize_inline("Buy milk @tomorrow", None);
+
+        let time_token = tokens
+            .iter()
+            .find(|t| t.kind == MdTokenKind::TimeExpression);
+        assert!(
+            time_token.is_some(),
+            "@tomorrow should be highlighted with default keywords"
+        );
+        assert_eq!(time_token.unwrap().text, "@tomorrow");
     }
 }

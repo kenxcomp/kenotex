@@ -62,11 +62,11 @@ L4 Atoms (atoms/)
 - `editor/` - TextBuffer (rope-like text storage), VimMode (key sequence handling, action generation), VisualMode (visual selection state with Character/Line/Block types, RenderSelection), Comment (HTML comment `<!-- -->` detection and toggling), ListPrefix (list prefix detection and continuation for `- [ ]`, `-`, `* `, `N.`, `N)`, plus `hanging_indent_width()` for soft-wrap alignment), MarkdownFmt (inline format detection/toggling for bold/italic/strikethrough/code), AutoPair (auto-pair insertion for brackets/quotes/markdown formatting and closing `:::` tags, visual selection wrapping)
 - `list/` - DraftList/ArchiveList (note collection management with filtering/selection), FileChangeHandler (file event classification)
 - `config/` - ThemeManager (tokyo_night/gruvbox/nord/catppuccin_mocha/catppuccin_macchiato/catppuccin_frappe/catppuccin_latte), keybindings
-- `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (chrono-english for natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations)
+- `distribution/` - Block parser (splits content, detects type via tags/patterns), time parser (configurable via TimeConfig, supports CJK and English natural language dates), dispatcher (routes blocks to L4 AppleScript atoms based on config destinations, threads TimeConfig)
 
 **L4 Atoms** (`atoms/`):
 - `widgets/` - Pure UI components: EditorWidget, StatusBar, ProcessingOverlay, ConfirmOverlay (delete confirmation dialog), HintBar (dynamic keyboard shortcut hints), LeaderPopup (visual leader key popup), ListItemWidget (list view item rendering), WrapCalc (soft-wrap cursor positioning utilities with hanging indent support), MdHighlight (markdown inline syntax tokenizer for editor highlighting), SyntaxHighlighter (syntect-based fenced code block syntax highlighting)
-- `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration), clipboard (system clipboard integration), external_editor (external editor launching)
+- `storage/` - File I/O for config and drafts (see Config Path below), file watcher (notify integration), clipboard (system clipboard integration), external_editor (external editor launching), load_time_config (loads `time_patterns.toml` with defaults)
 - `text/` - Pure text manipulation: CheckboxSort (checkbox list sorting by checked/unchecked state)
 - `applescript/` - macOS integrations: reminders.rs, calendar.rs, notes.rs, bear.rs, obsidian.rs
 
@@ -75,7 +75,7 @@ L4 Atoms (atoms/)
 **Config directory** (`config_dir()` in `atoms/storage/config_io.rs`):
 - **Unix (macOS/Linux)**: `~/.config/kenotex/` (XDG-style, preferred)
 - **Fallback**: `dirs::config_dir()/kenotex/`
-- Stores: `config.toml`
+- Stores: `config.toml`, `time_patterns.toml`
 
 **Data directory** (`resolve_data_dir()` in `atoms/storage/config_io.rs`):
 - When `data_dir` is set in config: uses that path (supports `~` expansion)
@@ -106,6 +106,14 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `file_watch` - Enable/disable filesystem watching (default: true)
 - `file_watch_debounce_ms` - File watcher debounce interval (default: 300)
 - `tab_width` - Tab width in spaces (default: 4)
+
+### Time Patterns Config
+
+`time_patterns.toml` (separate file in config directory, auto-created on first run):
+- `[periods]` - Time-of-day keyword → `"HH:MM"` default (e.g., `早上 = "09:00"`, `morning = "09:00"`)
+- `[offsets]` - Relative date keyword → day offset (e.g., `明天 = 1`, `tomorrow = 1`)
+- `[weekdays]` - Weekday alias → English name (e.g., `周一 = "monday"`, `星期一 = "monday"`)
+- Overriding a section replaces all defaults for that section; omitted sections keep defaults
 
 ### Destinations Config
 
@@ -140,6 +148,7 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `BlockType` - Reminder, Calendar, Note (in `types/block.rs`)
 - `Theme` - Color theme struct with bg/fg/cursor/selection/border/accent/success/warning/error/panel fields plus 6 syntax color fields: comment, keyword, string, type_name, function, constant (in `types/theme.rs`)
 - `Note` - Draft/archive with id, title, content, timestamps
+- `TimeConfig` - Configurable time pattern definitions with periods (keyword→"HH:MM"), offsets (keyword→days), weekdays (alias→english name) HashMaps + defaults + helper methods (in `types/time_config.rs`)
 
 ### Event Flow
 

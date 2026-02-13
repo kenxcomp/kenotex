@@ -489,8 +489,7 @@ impl TextBuffer {
 
     /// Insert a new line below cursor's current row without moving cursor.
     pub fn insert_line_below_no_move(&mut self, content: &str) {
-        self.lines
-            .insert(self.cursor_row + 1, content.to_string());
+        self.lines.insert(self.cursor_row + 1, content.to_string());
     }
 
     /// Insert a new line below the current one with a given prefix.
@@ -2313,18 +2312,15 @@ mod tests {
 
     #[test]
     fn test_organize_checkboxes_no_changes() {
-        let mut buffer = TextBuffer::from_string(
-            "- [ ] todo first\n- [ ] todo second\n- [x] done",
-        );
+        let mut buffer = TextBuffer::from_string("- [ ] todo first\n- [ ] todo second\n- [x] done");
         let changed = buffer.organize_checkboxes();
         assert!(!changed);
     }
 
     #[test]
     fn test_organize_checkboxes_multiple_paragraphs() {
-        let mut buffer = TextBuffer::from_string(
-            "- [x] done 1\n- [ ] todo 1\n\n- [x] done 2\n- [ ] todo 2",
-        );
+        let mut buffer =
+            TextBuffer::from_string("- [x] done 1\n- [ ] todo 1\n\n- [x] done 2\n- [ ] todo 2");
         let changed = buffer.organize_checkboxes();
         assert!(changed);
         assert_eq!(
@@ -2369,9 +2365,8 @@ mod tests {
 
     #[test]
     fn test_organize_checkboxes_cjk_content() {
-        let mut buffer = TextBuffer::from_string(
-            "- [x] 已完成\n- [ ] 待办事项\n- [x] 也完成了\n- [ ] 还没做",
-        );
+        let mut buffer =
+            TextBuffer::from_string("- [x] 已完成\n- [ ] 待办事项\n- [x] 也完成了\n- [ ] 还没做");
         let changed = buffer.organize_checkboxes();
         assert!(changed);
         assert_eq!(
@@ -2382,9 +2377,7 @@ mod tests {
 
     #[test]
     fn test_organize_checkboxes_cursor_clamp() {
-        let mut buffer = TextBuffer::from_string(
-            "- [x] done\n- [ ] todo",
-        );
+        let mut buffer = TextBuffer::from_string("- [x] done\n- [ ] todo");
         buffer.set_cursor(1, 10); // cursor at end of second line
         let changed = buffer.organize_checkboxes();
         assert!(changed);

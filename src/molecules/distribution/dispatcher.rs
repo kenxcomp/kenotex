@@ -3,7 +3,7 @@ use crate::atoms::applescript::{
     create_reminder,
 };
 use crate::molecules::distribution::{parse_at_time_expression, parse_time_expression};
-use crate::types::{BlockType, Destinations, NotesApp, SmartBlock};
+use crate::types::{BlockType, Destinations, NotesApp, SmartBlock, TimeConfig};
 
 #[derive(Debug)]
 pub enum DispatchResult {
@@ -12,7 +12,11 @@ pub enum DispatchResult {
     Failed(String),
 }
 
-pub fn dispatch_block(block: &SmartBlock, destinations: &Destinations) -> DispatchResult {
+pub fn dispatch_block(
+    block: &SmartBlock,
+    destinations: &Destinations,
+    time_config: &TimeConfig,
+) -> DispatchResult {
     // Skip blocks already wrapped in HTML comments (previously processed)
     let trimmed = block.content.trim();
     if trimmed.starts_with("<!--") && trimmed.ends_with("-->") {
@@ -20,13 +24,17 @@ pub fn dispatch_block(block: &SmartBlock, destinations: &Destinations) -> Dispat
     }
 
     match block.block_type {
-        BlockType::Reminder => dispatch_reminder(block, destinations),
-        BlockType::Calendar => dispatch_calendar(block, destinations),
+        BlockType::Reminder => dispatch_reminder(block, destinations, time_config),
+        BlockType::Calendar => dispatch_calendar(block, destinations, time_config),
         BlockType::Note => dispatch_note(block, destinations),
     }
 }
 
-fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> DispatchResult {
+fn dispatch_reminder(
+    block: &SmartBlock,
+    destinations: &Destinations,
+    time_config: &TimeConfig,
+) -> DispatchResult {
     if destinations.reminders.app.is_empty() {
         return DispatchResult::Skipped;
     }
@@ -58,7 +66,7 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
                 .trim();
 
             // Parse @time from the line
-            let due_date = parse_at_time_expression(title);
+            let due_date = parse_at_time_expression(title, time_config);
             let title = strip_at_time(title);
 
             if let Err(e) = create_reminder(&title, None, due_date, list_name) {
@@ -77,7 +85,7 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
     };
 
     // Parse @time from content
-    let due_date = parse_at_time_expression(&content);
+    let due_date = parse_at_time_expression(&content, time_config);
 
     let title = strip_at_time(&title);
 
@@ -87,7 +95,11 @@ fn dispatch_reminder(block: &SmartBlock, destinations: &Destinations) -> Dispatc
     }
 }
 
-fn dispatch_calendar(block: &SmartBlock, destinations: &Destinations) -> DispatchResult {
+fn dispatch_calendar(
+    block: &SmartBlock,
+    destinations: &Destinations,
+    time_config: &TimeConfig,
+) -> DispatchResult {
     if destinations.calendar.app.is_empty() {
         return DispatchResult::Skipped;
     }
@@ -101,9 +113,9 @@ fn dispatch_calendar(block: &SmartBlock, destinations: &Destinations) -> Dispatc
     };
 
     // Try @time first, fallback to natural language
-    let start_date = match parse_at_time_expression(&content) {
+    let start_date = match parse_at_time_expression(&content, time_config) {
         Some(dt) => dt,
-        None => match parse_time_expression(&content) {
+        None => match parse_time_expression(&content, time_config) {
             Some(dt) => dt,
             None => return DispatchResult::Failed("Could not parse time".to_string()),
         },
@@ -230,6 +242,7 @@ mod tests {
 
     #[test]
     fn test_dispatch_reminder_skipped_when_empty_app() {
+        let config = TimeConfig::default();
         let block = SmartBlock::new(
             "t1".to_string(),
             "Buy milk".to_string(), // Content no longer includes tags
@@ -238,12 +251,13 @@ mod tests {
         let mut destinations = Destinations::default();
         destinations.reminders.app = String::new();
 
-        let result = dispatch_block(&block, &destinations);
+        let result = dispatch_block(&block, &destinations, &config);
         assert!(matches!(result, DispatchResult::Skipped));
     }
 
     #[test]
     fn test_dispatch_calendar_skipped_when_empty_app() {
+        let config = TimeConfig::default();
         let block = SmartBlock::new(
             "t1".to_string(),
             "Meeting".to_string(), // Content no longer includes tags
@@ -252,12 +266,13 @@ mod tests {
         let mut destinations = Destinations::default();
         destinations.calendar.app = String::new();
 
-        let result = dispatch_block(&block, &destinations);
+        let result = dispatch_block(&block, &destinations, &config);
         assert!(matches!(result, DispatchResult::Skipped));
     }
 
     #[test]
     fn test_dispatch_note_skipped_when_none_app() {
+        let config = TimeConfig::default();
         let block = SmartBlock::new(
             "t1".to_string(),
             "Hello".to_string(), // Content no longer includes tags
@@ -266,12 +281,13 @@ mod tests {
         let mut destinations = Destinations::default();
         destinations.notes.app = None;
 
-        let result = dispatch_block(&block, &destinations);
+        let result = dispatch_block(&block, &destinations, &config);
         assert!(matches!(result, DispatchResult::Skipped));
     }
 
     #[test]
     fn test_dispatch_skips_commented_block() {
+        let config = TimeConfig::default();
         let block = SmartBlock::new(
             "t1".to_string(),
             "<!-- Buy milk -->".to_string(), // Tags removed by parser
@@ -279,12 +295,13 @@ mod tests {
         );
         let destinations = Destinations::default();
 
-        let result = dispatch_block(&block, &destinations);
+        let result = dispatch_block(&block, &destinations, &config);
         assert!(matches!(result, DispatchResult::Skipped));
     }
 
     #[test]
     fn test_dispatch_skips_multiline_commented_block() {
+        let config = TimeConfig::default();
         let block = SmartBlock::new(
             "t1".to_string(),
             "<!-- Meeting tomorrow\nWith team -->".to_string(), // Tags removed by parser
@@ -292,7 +309,7 @@ mod tests {
         );
         let destinations = Destinations::default();
 
-        let result = dispatch_block(&block, &destinations);
+        let result = dispatch_block(&block, &destinations, &config);
         assert!(matches!(result, DispatchResult::Skipped));
     }
 

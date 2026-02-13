@@ -119,6 +119,8 @@ show_hints = true
 tab_width = 4
 ```
 
+时间模式关键词（`@time` 表达式）可通过 `~/.config/kenotex/time_patterns.toml` 自定义。
+
 目标应用、快捷键及所有选项，请参阅[配置指南](docs/configuration_cn.md)。
 
 ## 文档
@@ -130,6 +132,7 @@ tab_width = 4
 | [配置](docs/configuration_cn.md) | 配置选项、目标应用、主题 |
 | [架构](docs/architecture_cn.md) | 分层架构和依赖 |
 | [默认配置](docs/default.toml) | 完整配置参考（含注释） |
+| [时间模式](docs/default_time_patterns.toml) | 时间模式默认值参考 |
 
 ## 许可证
 

@@ -517,10 +517,7 @@ impl EventDispatcher {
             VimAction::Backspace => {
                 let before_1 = app.buffer.grapheme_before_cursor();
                 let after_1 = app.buffer.grapheme_after_cursor();
-                let bs_action = auto_pair::on_backspace(
-                    before_1.as_deref(),
-                    after_1.as_deref(),
-                );
+                let bs_action = auto_pair::on_backspace(before_1.as_deref(), after_1.as_deref());
                 match bs_action {
                     BackspaceAction::DeletePair => {
                         app.buffer.backspace();
@@ -677,7 +674,10 @@ impl EventDispatcher {
             // Visual operations
             VimAction::VisualDelete => {
                 app.buffer.save_undo_snapshot();
-                let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
+                let was_line_mode = matches!(
+                    app.mode,
+                    AppMode::Visual(crate::molecules::editor::VisualType::Line)
+                );
                 if let Some(deleted) = app.visual_delete() {
                     let _ = clipboard_copy(&deleted);
                     app.last_yank_linewise = was_line_mode;
@@ -687,13 +687,17 @@ impl EventDispatcher {
 
             VimAction::VisualChange => {
                 app.buffer.save_undo_snapshot();
-                let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
+                let was_line_mode = matches!(
+                    app.mode,
+                    AppMode::Visual(crate::molecules::editor::VisualType::Line)
+                );
                 if let Some(deleted) = app.visual_delete() {
                     let _ = clipboard_copy(&deleted);
                     app.last_yank_linewise = was_line_mode;
                 }
                 if was_line_mode
-                    && !(app.buffer.content().len() == 1 && app.buffer.current_line_content().is_empty())
+                    && !(app.buffer.content().len() == 1
+                        && app.buffer.current_line_content().is_empty())
                 {
                     app.buffer.insert_line_above();
                 }
@@ -702,7 +706,10 @@ impl EventDispatcher {
             }
 
             VimAction::VisualYank => {
-                let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
+                let was_line_mode = matches!(
+                    app.mode,
+                    AppMode::Visual(crate::molecules::editor::VisualType::Line)
+                );
                 if let Some(yanked) = app.visual_yank() {
                     let _ = clipboard_copy(&yanked);
                     app.last_yank_linewise = was_line_mode;
@@ -716,7 +723,10 @@ impl EventDispatcher {
                     && !paste_text.is_empty()
                 {
                     app.buffer.save_undo_snapshot();
-                    let was_line_mode = matches!(app.mode, AppMode::Visual(crate::molecules::editor::VisualType::Line));
+                    let was_line_mode = matches!(
+                        app.mode,
+                        AppMode::Visual(crate::molecules::editor::VisualType::Line)
+                    );
                     if let Some(deleted) = app.visual_delete() {
                         if was_line_mode {
                             app.buffer.paste_line_below(&paste_text);

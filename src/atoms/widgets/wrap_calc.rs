@@ -104,11 +104,7 @@ pub fn visual_cursor_position(
     }
 
     // Offset col by hanging indent on continuation rows
-    let display_col = if wrap_row > 0 {
-        col + safe_hi
-    } else {
-        col
-    };
+    let display_col = if wrap_row > 0 { col + safe_hi } else { col };
 
     VisualPosition {
         rows_before,

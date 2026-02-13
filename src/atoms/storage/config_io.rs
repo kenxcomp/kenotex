@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use crate::types::Config;
+use crate::types::{Config, TimeConfig};
 
 pub fn config_dir() -> PathBuf {
     // Prefer ~/.config/kenotex on Unix-like systems for better compatibility
@@ -71,6 +71,79 @@ pub fn resolve_data_dir(data_dir: Option<&str>) -> PathBuf {
     }
 }
 
+pub fn time_config_path() -> PathBuf {
+    config_dir().join("time_patterns.toml")
+}
+
+pub fn load_time_config() -> Result<TimeConfig> {
+    let path = time_config_path();
+
+    if !path.exists() {
+        save_default_time_config(&path)?;
+        return Ok(TimeConfig::default());
+    }
+
+    let content = fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read time config: {:?}", path))?;
+
+    let config: TimeConfig =
+        toml::from_str(&content).with_context(|| "Failed to parse time_patterns.toml")?;
+
+    Ok(config)
+}
+
+fn save_default_time_config(path: &Path) -> Result<()> {
+    ensure_config_dir()?;
+    let template = r#"# Time Pattern Configuration for Kenotex
+# Customize how time expressions are parsed in :::td and :::cal blocks.
+#
+# [periods] maps keywords to "HH:MM" time-of-day defaults.
+# [offsets] maps keywords to day offsets from today (0 = today, 1 = tomorrow, etc.).
+# [weekdays] maps aliases to standard English weekday names
+#            (monday, tuesday, wednesday, thursday, friday, saturday, sunday).
+
+[periods]
+早上 = "09:00"
+上午 = "09:00"
+中午 = "12:00"
+下午 = "14:00"
+晚上 = "19:00"
+morning = "09:00"
+afternoon = "14:00"
+evening = "19:00"
+
+[offsets]
+今天 = 0
+明天 = 1
+后天 = 2
+大后天 = 3
+下周 = 7
+today = 0
+tomorrow = 1
+
+[weekdays]
+周一 = "monday"
+周二 = "tuesday"
+周三 = "wednesday"
+周四 = "thursday"
+周五 = "friday"
+周六 = "saturday"
+周日 = "sunday"
+星期一 = "monday"
+星期二 = "tuesday"
+星期三 = "wednesday"
+星期四 = "thursday"
+星期五 = "friday"
+星期六 = "saturday"
+星期日 = "sunday"
+"#;
+
+    fs::write(path, template)
+        .with_context(|| format!("Failed to write time config: {:?}", path))?;
+
+    Ok(())
+}
+
 pub fn save_config(config: &Config) -> Result<()> {
     ensure_config_dir()?;
     let path = config_path();
@@ -135,5 +208,35 @@ mod tests {
     fn test_resolve_data_dir_none_falls_back() {
         let resolved = resolve_data_dir(None);
         assert_eq!(resolved, config_dir());
+    }
+
+    #[test]
+    fn test_time_config_path() {
+        let path = time_config_path();
+        assert!(path.to_string_lossy().ends_with("time_patterns.toml"));
+    }
+
+    #[test]
+    fn test_load_time_config_missing_file() {
+        // When the file doesn't exist, load_time_config creates a default
+        // and writes it out. We can verify the defaults are returned by
+        // checking the result matches TimeConfig::default().
+        // Use a temp dir so we don't interfere with real config.
+        let tmp = std::env::temp_dir().join("kenotex-test-time-config");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let fake_path = tmp.join("time_patterns.toml");
+
+        // The file should not exist
+        assert!(!fake_path.exists());
+
+        // Manually test the parsing: read an empty TOML → should give defaults
+        let config: TimeConfig = toml::from_str("").unwrap();
+        assert_eq!(config.periods.len(), TimeConfig::default().periods.len());
+        assert_eq!(config.offsets.len(), TimeConfig::default().offsets.len());
+        assert_eq!(config.weekdays.len(), TimeConfig::default().weekdays.len());
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

@@ -121,20 +121,20 @@ mod tests {
             "- [ ] another todo".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] todo task",
-            "- [ ] another todo",
-            "- [x] done task",
-            "- [x] another done",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "- [ ] todo task",
+                "- [ ] another todo",
+                "- [x] done task",
+                "- [x] another done",
+            ]
+        );
     }
 
     #[test]
     fn test_sort_already_sorted() {
-        let lines: Vec<String> = vec![
-            "- [ ] todo".into(),
-            "- [x] done".into(),
-        ];
+        let lines: Vec<String> = vec!["- [ ] todo".into(), "- [x] done".into()];
         let result = sort_paragraph_checkboxes(&lines);
         assert_eq!(result, vec!["- [ ] todo", "- [x] done"]);
     }
@@ -148,27 +148,22 @@ mod tests {
             "- [ ] parent todo".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] parent todo",
-            "- [x] parent done",
-            "  - sub item 1",
-            "  - sub item 2",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "- [ ] parent todo",
+                "- [x] parent done",
+                "  - sub item 1",
+                "  - sub item 2",
+            ]
+        );
     }
 
     #[test]
     fn test_sort_non_checkbox_lines_pinned() {
-        let lines: Vec<String> = vec![
-            "# Header".into(),
-            "- [x] done".into(),
-            "- [ ] todo".into(),
-        ];
+        let lines: Vec<String> = vec!["# Header".into(), "- [x] done".into(), "- [ ] todo".into()];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "# Header",
-            "- [ ] todo",
-            "- [x] done",
-        ]);
+        assert_eq!(result, vec!["# Header", "- [ ] todo", "- [x] done",]);
     }
 
     #[test]
@@ -179,30 +174,21 @@ mod tests {
 
     #[test]
     fn test_sort_no_checkboxes() {
-        let lines: Vec<String> = vec![
-            "just text".into(),
-            "more text".into(),
-        ];
+        let lines: Vec<String> = vec!["just text".into(), "more text".into()];
         let result = sort_paragraph_checkboxes(&lines);
         assert_eq!(result, vec!["just text", "more text"]);
     }
 
     #[test]
     fn test_sort_all_unchecked() {
-        let lines: Vec<String> = vec![
-            "- [ ] a".into(),
-            "- [ ] b".into(),
-        ];
+        let lines: Vec<String> = vec!["- [ ] a".into(), "- [ ] b".into()];
         let result = sort_paragraph_checkboxes(&lines);
         assert_eq!(result, vec!["- [ ] a", "- [ ] b"]);
     }
 
     #[test]
     fn test_sort_all_checked() {
-        let lines: Vec<String> = vec![
-            "- [x] a".into(),
-            "- [x] b".into(),
-        ];
+        let lines: Vec<String> = vec!["- [x] a".into(), "- [x] b".into()];
         let result = sort_paragraph_checkboxes(&lines);
         assert_eq!(result, vec!["- [x] a", "- [x] b"]);
     }
@@ -217,13 +203,16 @@ mod tests {
             "- [x] also done".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "## Tasks",
-            "- [ ] pending",
-            "- [x] completed",
-            "  - detail",
-            "- [x] also done",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "## Tasks",
+                "- [ ] pending",
+                "- [x] completed",
+                "  - detail",
+                "- [x] also done",
+            ]
+        );
     }
 
     // ── CJK content ─────────────────────────────────────────────────
@@ -237,12 +226,10 @@ mod tests {
             "- [ ] 读书".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] 遛狗",
-            "- [ ] 读书",
-            "- [x] 买牛奶",
-            "- [x] 写代码",
-        ]);
+        assert_eq!(
+            result,
+            vec!["- [ ] 遛狗", "- [ ] 读书", "- [x] 买牛奶", "- [x] 写代码",]
+        );
     }
 
     #[test]
@@ -254,12 +241,15 @@ mod tests {
             "- [ ] 待办事项".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] 待办事项",
-            "- [x] 完成任务",
-            "  - 子任务一",
-            "  - 子任务二",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "- [ ] 待办事项",
+                "- [x] 完成任务",
+                "  - 子任务一",
+                "  - 子任务二",
+            ]
+        );
     }
 
     // ── Stable order ────────────────────────────────────────────────
@@ -275,12 +265,10 @@ mod tests {
         ];
         let result = sort_paragraph_checkboxes(&lines);
         // alpha, beta, gamma should stay in their original relative order
-        assert_eq!(result, vec![
-            "- [ ] alpha",
-            "- [ ] beta",
-            "- [ ] gamma",
-            "- [x] done",
-        ]);
+        assert_eq!(
+            result,
+            vec!["- [ ] alpha", "- [ ] beta", "- [ ] gamma", "- [x] done",]
+        );
     }
 
     #[test]
@@ -293,12 +281,15 @@ mod tests {
             "- [x] third done".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] todo",
-            "- [x] first done",
-            "- [x] second done",
-            "- [x] third done",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "- [ ] todo",
+                "- [x] first done",
+                "- [x] second done",
+                "- [x] third done",
+            ]
+        );
     }
 
     // ── Case insensitive X ──────────────────────────────────────────
@@ -311,11 +302,10 @@ mod tests {
             "- [x] lowercase done".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] todo",
-            "- [X] uppercase done",
-            "- [x] lowercase done",
-        ]);
+        assert_eq!(
+            result,
+            vec!["- [ ] todo", "- [X] uppercase done", "- [x] lowercase done",]
+        );
     }
 
     // ── Non-checkbox lines retain positions ──────────────────────────
@@ -328,11 +318,7 @@ mod tests {
             "- [ ] todo".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] todo",
-            "Some plain text",
-            "- [x] done",
-        ]);
+        assert_eq!(result, vec!["- [ ] todo", "Some plain text", "- [x] done",]);
     }
 
     #[test]
@@ -345,13 +331,16 @@ mod tests {
             "- [x] done 2".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "# Title",
-            "- [ ] todo 1",
-            "Description text",
-            "- [x] done 1",
-            "- [x] done 2",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "# Title",
+                "- [ ] todo 1",
+                "Description text",
+                "- [x] done 1",
+                "- [x] done 2",
+            ]
+        );
     }
 
     // ── Sub-items edge cases ────────────────────────────────────────
@@ -366,13 +355,16 @@ mod tests {
             "  - child 2a".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] parent 2",
-            "  - child 2a",
-            "- [x] parent 1",
-            "  - child 1a",
-            "  - child 1b",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "- [ ] parent 2",
+                "  - child 2a",
+                "- [x] parent 1",
+                "  - child 1a",
+                "  - child 1b",
+            ]
+        );
     }
 
     #[test]
@@ -384,12 +376,15 @@ mod tests {
             "- [ ] todo task".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [ ] todo task",
-            "- [x] done task",
-            "  - sub level 1",
-            "    - sub level 2",
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "- [ ] todo task",
+                "- [x] done task",
+                "  - sub level 1",
+                "    - sub level 2",
+            ]
+        );
     }
 
     // ── Mixed checkbox formats ──────────────────────────────────────
@@ -403,11 +398,7 @@ mod tests {
             "- [ ] todo".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "- [] also todo",
-            "- [ ] todo",
-            "- [x] done",
-        ]);
+        assert_eq!(result, vec!["- [] also todo", "- [ ] todo", "- [x] done",]);
     }
 
     // ── Single item ─────────────────────────────────────────────────
@@ -435,9 +426,9 @@ mod tests {
             "  - [ ] indented todo".into(),
         ];
         let result = sort_paragraph_checkboxes(&lines);
-        assert_eq!(result, vec![
-            "  - [ ] indented todo",
-            "  - [x] indented done",
-        ]);
+        assert_eq!(
+            result,
+            vec!["  - [ ] indented todo", "  - [x] indented done",]
+        );
     }
 }

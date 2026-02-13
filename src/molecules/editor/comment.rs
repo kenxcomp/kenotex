@@ -231,9 +231,7 @@ mod tests {
 
     #[test]
     fn test_is_all_commented_whitespace_between_blocks() {
-        assert!(is_all_commented(
-            "<!-- block1 -->\n\n  \n\n<!-- block2 -->"
-        ));
+        assert!(is_all_commented("<!-- block1 -->\n\n  \n\n<!-- block2 -->"));
     }
 
     #[test]
@@ -265,7 +263,9 @@ mod tests {
 
     #[test]
     fn test_is_all_commented_cjk_content() {
-        assert!(is_all_commented("<!-- :::td\n- 买牛奶 @明天早上8点\n::: -->"));
+        assert!(is_all_commented(
+            "<!-- :::td\n- 买牛奶 @明天早上8点\n::: -->"
+        ));
     }
 
     #[test]

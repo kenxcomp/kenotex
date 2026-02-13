@@ -293,6 +293,7 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
         .collect();
 
     let search_matches = app.buffer.find_all(&app.search_query);
+    let time_kws = app.time_config.all_keywords();
     let editor = EditorWidget::new(
         &content,
         app.buffer.cursor_position(),
@@ -304,7 +305,8 @@ fn render_editor(f: &mut Frame, app: &App, area: Rect) {
     .visual_selection(app.get_visual_selection())
     .search_matches(&search_matches)
     .hanging_indents(&hanging_indents)
-    .syntax_highlighter(&app.syntax_highlighter);
+    .syntax_highlighter(&app.syntax_highlighter)
+    .time_keywords(&time_kws);
 
     f.render_widget(editor, area);
 

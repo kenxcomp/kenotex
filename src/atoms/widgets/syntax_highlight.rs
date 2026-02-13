@@ -1,5 +1,4 @@
 /// L4 Atom: Syntax highlighter wrapping syntect for fenced code block highlighting.
-
 use syntect::parsing::{ParseState, Scope, ScopeStack, SyntaxReference, SyntaxSet};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,11 +74,7 @@ impl SyntaxHighlighter {
         }
     }
 
-    pub fn tokenize_line(
-        &self,
-        line: &str,
-        code_state: &mut CodeParseState,
-    ) -> Vec<SyntaxToken> {
+    pub fn tokenize_line(&self, line: &str, code_state: &mut CodeParseState) -> Vec<SyntaxToken> {
         let ops = match code_state.parse_state.parse_line(line, &self.syntax_set) {
             Ok(ops) => ops,
             Err(_) => {
@@ -239,9 +234,11 @@ mod tests {
 
         let tokens = highlighter.tokenize_line("let s = \"hello\";", &mut state);
         assert!(!tokens.is_empty());
-        assert!(tokens
-            .iter()
-            .any(|t| t.kind == SyntaxTokenKind::StringLiteral));
+        assert!(
+            tokens
+                .iter()
+                .any(|t| t.kind == SyntaxTokenKind::StringLiteral)
+        );
     }
 
     #[test]
@@ -284,9 +281,11 @@ mod tests {
         assert!(tokens1.iter().any(|t| t.kind == SyntaxTokenKind::Constant));
         // Second line should have keyword and string
         assert!(tokens2.iter().any(|t| t.kind == SyntaxTokenKind::Keyword));
-        assert!(tokens2
-            .iter()
-            .any(|t| t.kind == SyntaxTokenKind::StringLiteral));
+        assert!(
+            tokens2
+                .iter()
+                .any(|t| t.kind == SyntaxTokenKind::StringLiteral)
+        );
     }
 
     #[test]

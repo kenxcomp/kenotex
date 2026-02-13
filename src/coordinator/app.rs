@@ -5,24 +5,25 @@ use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
 use crate::atoms::storage::file_watcher::FileEvent;
-use crate::atoms::widgets::SyntaxHighlighter;
 use crate::atoms::storage::{
     archive_draft, delete_draft, ensure_config_dir, ensure_data_dirs, load_all_drafts, load_config,
-    load_draft, resolve_data_dir, save_draft,
+    load_draft, load_time_config, resolve_data_dir, save_draft,
 };
-use crate::molecules::editor::comment::is_all_commented;
+use crate::atoms::widgets::SyntaxHighlighter;
 use crate::molecules::config::ThemeManager;
 use crate::molecules::distribution::{DispatchResult, dispatch_block, parse_smart_blocks};
+use crate::molecules::editor::comment::is_all_commented;
 use crate::molecules::editor::{RenderSelection, TextBuffer, VimMode, VisualMode};
 use crate::molecules::list::{
     ArchiveList, DraftList, FileChangeAction, FileChangeTracker, classify_event,
 };
-use crate::types::{AppMode, Config, Note, ProcessingStatus, SmartBlock, Theme, View};
+use crate::types::{AppMode, Config, Note, ProcessingStatus, SmartBlock, Theme, TimeConfig, View};
 
 pub struct App {
     pub mode: AppMode,
     pub view: View,
     pub config: Config,
+    pub time_config: TimeConfig,
     pub theme_manager: ThemeManager,
     pub vim_mode: VimMode,
     pub syntax_highlighter: SyntaxHighlighter,
@@ -61,6 +62,7 @@ impl App {
         ensure_config_dir()?;
 
         let config = load_config()?;
+        let time_config = load_time_config()?;
         let data_dir = resolve_data_dir(config.general.data_dir.as_deref());
         ensure_data_dirs(&data_dir)?;
 
@@ -87,6 +89,7 @@ impl App {
             mode: AppMode::Normal,
             view: View::Editor,
             config,
+            time_config,
             theme_manager,
             vim_mode,
             syntax_highlighter,
@@ -317,6 +320,7 @@ impl App {
             let result = dispatch_block(
                 &self.processing_blocks[self.processing_index],
                 &self.config.destinations,
+                &self.time_config,
             );
             self.processing_blocks[self.processing_index].status = match result {
                 DispatchResult::Sent => ProcessingStatus::Sent,

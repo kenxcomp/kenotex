@@ -24,8 +24,7 @@ static CHECKBOX_UNCHECKED_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\s*-\s*\[\s*\]\s?").unwrap());
 static SMART_TAG_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^:::(?:td|cal|note)\s?").unwrap());
-static CLOSING_TAG_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^:::\s*$").unwrap());
+static CLOSING_TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^:::\s*$").unwrap());
 
 /// Split a styled `Line` into multiple display lines using character-level wrapping.
 ///
@@ -204,6 +203,7 @@ pub struct EditorWidget<'a> {
     search_matches: &'a [(usize, usize, usize)],
     hanging_indents: &'a [u16],
     syntax_highlighter: Option<&'a SyntaxHighlighter>,
+    time_keywords: Option<&'a [String]>,
 }
 
 impl<'a> EditorWidget<'a> {
@@ -225,6 +225,7 @@ impl<'a> EditorWidget<'a> {
             search_matches: &[],
             hanging_indents: &[],
             syntax_highlighter: None,
+            time_keywords: None,
         }
     }
 
@@ -250,6 +251,11 @@ impl<'a> EditorWidget<'a> {
 
     pub fn syntax_highlighter(mut self, highlighter: &'a SyntaxHighlighter) -> Self {
         self.syntax_highlighter = Some(highlighter);
+        self
+    }
+
+    pub fn time_keywords(mut self, kws: &'a [String]) -> Self {
+        self.time_keywords = Some(kws);
         self
     }
 
@@ -429,7 +435,7 @@ impl<'a> EditorWidget<'a> {
             let heading_base = base_style
                 .fg(self.theme.keyword_color())
                 .add_modifier(Modifier::BOLD);
-            for token in tokenize_inline(rest) {
+            for token in tokenize_inline(rest, self.time_keywords) {
                 let token_style = self.style_for_token(&token.kind, heading_base);
                 spans.push(Span::styled(token.text, token_style));
             }
@@ -447,7 +453,7 @@ impl<'a> EditorWidget<'a> {
 
             // Rest portion: tokenize inline with dimmed strikethrough as base
             let checkbox_base = base_style.add_modifier(Modifier::DIM | Modifier::CROSSED_OUT);
-            for token in tokenize_inline(rest) {
+            for token in tokenize_inline(rest, self.time_keywords) {
                 let token_style = self.style_for_token(&token.kind, checkbox_base);
                 spans.push(Span::styled(token.text, token_style));
             }
@@ -462,7 +468,7 @@ impl<'a> EditorWidget<'a> {
             ));
 
             // Rest portion: tokenize inline
-            for token in tokenize_inline(rest) {
+            for token in tokenize_inline(rest, self.time_keywords) {
                 let token_style = self.style_for_token(&token.kind, base_style);
                 spans.push(Span::styled(token.text, token_style));
             }
@@ -479,7 +485,7 @@ impl<'a> EditorWidget<'a> {
             ));
 
             // Rest portion: tokenize inline
-            for token in tokenize_inline(rest) {
+            for token in tokenize_inline(rest, self.time_keywords) {
                 let token_style = self.style_for_token(&token.kind, base_style);
                 spans.push(Span::styled(token.text, token_style));
             }
@@ -492,7 +498,7 @@ impl<'a> EditorWidget<'a> {
             ));
         } else {
             // Plain line: tokenize inline
-            for token in tokenize_inline(line) {
+            for token in tokenize_inline(line, self.time_keywords) {
                 let token_style = self.style_for_token(&token.kind, base_style);
                 spans.push(Span::styled(token.text, token_style));
             }
@@ -784,7 +790,8 @@ impl Widget for EditorWidget<'_> {
             if in_code_block && trimmed.starts_with("```") {
                 if parse_state.is_some() {
                     // Closing fence: render with current state, then reset
-                    let styled = self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
+                    let styled =
+                        self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
                     highlighted_lines.push(styled);
                     parse_state = None;
                     continue;
@@ -797,7 +804,8 @@ impl Widget for EditorWidget<'_> {
                             }
                         }
                     }
-                    let styled = self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
+                    let styled =
+                        self.highlight_line(line, idx, in_code_block, &mut parse_state, language);
                     highlighted_lines.push(styled);
                     continue;
                 }
@@ -979,7 +987,8 @@ mod tests {
 
     #[test]
     fn test_code_block_info_multiple_blocks() {
-        let content = "text\n```python\nprint('hi')\n```\nmiddle\n```js\nconsole.log('hi');\n```\nend";
+        let content =
+            "text\n```python\nprint('hi')\n```\nmiddle\n```js\nconsole.log('hi');\n```\nend";
         let info = compute_code_block_info(content);
         assert_eq!(info.len(), 9);
 
@@ -1051,7 +1060,8 @@ mod tests {
 
     #[test]
     fn test_code_block_info_multiline_content() {
-        let content = "# Header\n\n```toml\n[package]\nname = \"test\"\nversion = \"0.1\"\n```\n\nMore text";
+        let content =
+            "# Header\n\n```toml\n[package]\nname = \"test\"\nversion = \"0.1\"\n```\n\nMore text";
         let info = compute_code_block_info(content);
         assert_eq!(info.len(), 9);
         assert!(!info[0].in_code_block); // # Header

@@ -73,7 +73,11 @@ pub fn on_char_insert(
         // Backtick: inline code / code block
         '`' => {
             // Check for code block: `` `|` `` → inserting third backtick
-            if before_2 == Some("`") && before_1 == Some("`") && after_1 == Some("`") && after_2 == Some("`") {
+            if before_2 == Some("`")
+                && before_1 == Some("`")
+                && after_1 == Some("`")
+                && after_2 == Some("`")
+            {
                 PairAction::CodeBlock
             } else if before_1 == Some("`") && after_1 == Some("`") {
                 // Inside a backtick pair: absorb to extend
@@ -581,22 +585,34 @@ mod tests {
 
     #[test]
     fn test_backspace_delete_parens() {
-        assert_eq!(on_backspace(Some("("), Some(")")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("("), Some(")")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]
     fn test_backspace_delete_brackets() {
-        assert_eq!(on_backspace(Some("["), Some("]")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("["), Some("]")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]
     fn test_backspace_delete_braces() {
-        assert_eq!(on_backspace(Some("{"), Some("}")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("{"), Some("}")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]
     fn test_backspace_delete_single_quotes() {
-        assert_eq!(on_backspace(Some("'"), Some("'")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("'"), Some("'")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]
@@ -609,17 +625,26 @@ mod tests {
 
     #[test]
     fn test_backspace_delete_backticks() {
-        assert_eq!(on_backspace(Some("`"), Some("`")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("`"), Some("`")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]
     fn test_backspace_delete_stars() {
-        assert_eq!(on_backspace(Some("*"), Some("*")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("*"), Some("*")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]
     fn test_backspace_delete_tildes() {
-        assert_eq!(on_backspace(Some("~"), Some("~")), BackspaceAction::DeletePair);
+        assert_eq!(
+            on_backspace(Some("~"), Some("~")),
+            BackspaceAction::DeletePair
+        );
     }
 
     #[test]

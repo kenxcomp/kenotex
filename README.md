@@ -119,6 +119,8 @@ show_hints = true
 tab_width = 4
 ```
 
+Time pattern keywords (`@time` expressions) can be customized via `~/.config/kenotex/time_patterns.toml`.
+
 For destinations, keybindings, and all options, see the [Configuration Guide](docs/configuration.md).
 
 ## Documentation
@@ -130,6 +132,7 @@ For destinations, keybindings, and all options, see the [Configuration Guide](do
 | [Configuration](docs/configuration.md) | Config options, destinations, themes |
 | [Architecture](docs/architecture.md) | Layered architecture and dependencies |
 | [Default Config](docs/default.toml) | Complete config reference with comments |
+| [Time Patterns](docs/default_time_patterns.toml) | Time pattern defaults reference |
 
 ## License
 
