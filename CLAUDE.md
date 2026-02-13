@@ -113,6 +113,8 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `[periods]` - Time-of-day keyword → `"HH:MM"` default (e.g., `早上 = "09:00"`, `morning = "09:00"`)
 - `[offsets]` - Relative date keyword → day offset (e.g., `明天 = 1`, `tomorrow = 1`)
 - `[weekdays]` - Weekday alias → English name (e.g., `周一 = "monday"`, `星期一 = "monday"`)
+- `[hours]` - Chinese numeral keyword → hour number 0-23 (e.g., `七 = 7`, `十二 = 12`). Enables `@下午七点` alongside `@下午7点`
+- `[minutes]` - Chinese numeral keyword → minute number 0-59 (e.g., `三十 = 30`, `四十五 = 45`). Enables `@七点三十分` alongside `@7点30分`
 - Overriding a section replaces all defaults for that section; omitted sections keep defaults
 
 ### Destinations Config
@@ -148,7 +150,7 @@ Live reload uses `notify` (v7) + `notify-debouncer-mini` for filesystem watching
 - `BlockType` - Reminder, Calendar, Note (in `types/block.rs`)
 - `Theme` - Color theme struct with bg/fg/cursor/selection/border/accent/success/warning/error/panel fields plus 6 syntax color fields: comment, keyword, string, type_name, function, constant (in `types/theme.rs`)
 - `Note` - Draft/archive with id, title, content, timestamps
-- `TimeConfig` - Configurable time pattern definitions with periods (keyword→"HH:MM"), offsets (keyword→days), weekdays (alias→english name) HashMaps + defaults + helper methods (in `types/time_config.rs`)
+- `TimeConfig` - Configurable time pattern definitions with periods (keyword→"HH:MM"), offsets (keyword→days), weekdays (alias→english name), hours (Chinese numeral→hour number), minutes (Chinese numeral→minute number) HashMaps + defaults + helper methods (in `types/time_config.rs`)
 
 ### Event Flow
 

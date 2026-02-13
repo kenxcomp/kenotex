@@ -9,6 +9,10 @@ pub struct TimeConfig {
     pub offsets: HashMap<String, i64>,
     #[serde(default = "default_weekdays")]
     pub weekdays: HashMap<String, String>,
+    #[serde(default = "default_hours")]
+    pub hours: HashMap<String, u32>,
+    #[serde(default = "default_minutes")]
+    pub minutes: HashMap<String, u32>,
 }
 
 fn default_periods() -> HashMap<String, String> {
@@ -55,6 +59,39 @@ fn default_weekdays() -> HashMap<String, String> {
     m
 }
 
+fn default_hours() -> HashMap<String, u32> {
+    let mut m = HashMap::new();
+    m.insert("一".to_string(), 1);
+    m.insert("二".to_string(), 2);
+    m.insert("三".to_string(), 3);
+    m.insert("四".to_string(), 4);
+    m.insert("五".to_string(), 5);
+    m.insert("六".to_string(), 6);
+    m.insert("七".to_string(), 7);
+    m.insert("八".to_string(), 8);
+    m.insert("九".to_string(), 9);
+    m.insert("十".to_string(), 10);
+    m.insert("十一".to_string(), 11);
+    m.insert("十二".to_string(), 12);
+    m
+}
+
+fn default_minutes() -> HashMap<String, u32> {
+    let mut m = HashMap::new();
+    m.insert("五".to_string(), 5);
+    m.insert("十".to_string(), 10);
+    m.insert("十五".to_string(), 15);
+    m.insert("二十".to_string(), 20);
+    m.insert("二十五".to_string(), 25);
+    m.insert("三十".to_string(), 30);
+    m.insert("三十五".to_string(), 35);
+    m.insert("四十".to_string(), 40);
+    m.insert("四十五".to_string(), 45);
+    m.insert("五十".to_string(), 50);
+    m.insert("五十五".to_string(), 55);
+    m
+}
+
 impl TimeConfig {
     /// Parse a period value ("HH:MM") into (hour, minute).
     pub fn parse_period(&self, key: &str) -> Option<(u32, u32)> {
@@ -68,13 +105,19 @@ impl TimeConfig {
         Some((hour, minute))
     }
 
-    /// Collect all keywords from periods/offsets/weekdays + hardcoded "am"/"pm"
+    /// Collect all keywords from periods/offsets/weekdays/hours/minutes + hardcoded "am"/"pm"
     /// + standard weekday names (monday, tuesday, etc.).
     pub fn all_keywords(&self) -> Vec<String> {
         let mut keywords: Vec<String> = Vec::new();
         keywords.extend(self.periods.keys().cloned());
         keywords.extend(self.offsets.keys().cloned());
         keywords.extend(self.weekdays.keys().cloned());
+        for key in self.hours.keys() {
+            keywords.push(format!("{}点", key));
+        }
+        for key in self.minutes.keys() {
+            keywords.push(format!("{}分", key));
+        }
         keywords.push("am".to_string());
         keywords.push("pm".to_string());
         for name in [
@@ -100,6 +143,8 @@ impl Default for TimeConfig {
             periods: default_periods(),
             offsets: default_offsets(),
             weekdays: default_weekdays(),
+            hours: default_hours(),
+            minutes: default_minutes(),
         }
     }
 }
@@ -109,6 +154,8 @@ impl PartialEq for TimeConfig {
         self.periods == other.periods
             && self.offsets == other.offsets
             && self.weekdays == other.weekdays
+            && self.hours == other.hours
+            && self.minutes == other.minutes
     }
 }
 
@@ -250,5 +297,105 @@ mod tests {
         assert_eq!(config.offsets["tomorrow"], 1);
         assert_eq!(config.weekdays["周一"], "monday");
         assert_eq!(config.weekdays["星期日"], "sunday");
+    }
+
+    #[test]
+    fn test_default_has_all_hours() {
+        let config = TimeConfig::default();
+        let expected: Vec<(&str, u32)> = vec![
+            ("一", 1),
+            ("二", 2),
+            ("三", 3),
+            ("四", 4),
+            ("五", 5),
+            ("六", 6),
+            ("七", 7),
+            ("八", 8),
+            ("九", 9),
+            ("十", 10),
+            ("十一", 11),
+            ("十二", 12),
+        ];
+        for (key, val) in &expected {
+            assert_eq!(
+                config.hours.get(*key),
+                Some(val),
+                "missing or wrong hour: {} → {}",
+                key,
+                val
+            );
+        }
+        assert_eq!(config.hours.len(), expected.len());
+    }
+
+    #[test]
+    fn test_default_has_all_minutes() {
+        let config = TimeConfig::default();
+        let expected: Vec<(&str, u32)> = vec![
+            ("五", 5),
+            ("十", 10),
+            ("十五", 15),
+            ("二十", 20),
+            ("二十五", 25),
+            ("三十", 30),
+            ("三十五", 35),
+            ("四十", 40),
+            ("四十五", 45),
+            ("五十", 50),
+            ("五十五", 55),
+        ];
+        for (key, val) in &expected {
+            assert_eq!(
+                config.minutes.get(*key),
+                Some(val),
+                "missing or wrong minute: {} → {}",
+                key,
+                val
+            );
+        }
+        assert_eq!(config.minutes.len(), expected.len());
+    }
+
+    #[test]
+    fn test_all_keywords_contains_hour_minute() {
+        let config = TimeConfig::default();
+        let keywords = config.all_keywords();
+        // Hour key "七" should produce "七点" in keywords
+        assert!(
+            keywords.iter().any(|k| k == "七点"),
+            "all_keywords() should contain '七点'"
+        );
+        // Minute key "三十" should produce "三十分" in keywords
+        assert!(
+            keywords.iter().any(|k| k == "三十分"),
+            "all_keywords() should contain '三十分'"
+        );
+    }
+
+    #[test]
+    fn test_serde_roundtrip_with_hours_minutes() {
+        let config = TimeConfig::default();
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        let parsed: TimeConfig = toml::from_str(&toml_str).unwrap();
+        // Verify hours and minutes survive roundtrip
+        assert_eq!(config.hours, parsed.hours);
+        assert_eq!(config.minutes, parsed.minutes);
+    }
+
+    #[test]
+    fn test_partial_toml_uses_default_hours_minutes() {
+        // Only specify [periods], hours and minutes should use defaults
+        let toml_str = r#"
+[periods]
+"早上" = "07:00"
+"#;
+        let config: TimeConfig = toml::from_str(toml_str).unwrap();
+        // Periods should only have what we specified
+        assert_eq!(config.periods.len(), 1);
+        // Hours and minutes should be defaults
+        assert_eq!(config.hours.get("七"), Some(&7u32));
+        assert_eq!(config.minutes.get("三十"), Some(&30u32));
+        assert_eq!(config.hours.len(), 12);
+        assert_eq!(config.minutes.len(), 11);
     }
 }

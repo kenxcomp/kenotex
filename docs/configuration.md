@@ -96,7 +96,7 @@ See the full [Keybindings Reference](keybindings.md) and [default.toml](default.
 
 Config file location: `~/.config/kenotex/time_patterns.toml` (auto-created on first run)
 
-This file controls how `@time` expressions in `:::td` and `:::cal` blocks are recognized and parsed. It has three sections:
+This file controls how `@time` expressions in `:::td` and `:::cal` blocks are recognized and parsed. It has five sections:
 
 ### Periods
 
@@ -132,6 +132,31 @@ Maps weekday aliases to standard English weekday names:
 周一 = "monday"
 星期一 = "monday"
 ```
+
+### Hours
+
+Maps Chinese numeral keywords to hour numbers (0–23), enabling expressions like `@下午七点` instead of `@下午7点`:
+
+```toml
+[hours]
+一 = 1
+二 = 2
+七 = 7
+十二 = 12
+```
+
+### Minutes
+
+Maps Chinese numeral keywords to minute numbers (0–59), enabling expressions like `@三十分` instead of `@30分`:
+
+```toml
+[minutes]
+十五 = 15
+三十 = 30
+四十五 = 45
+```
+
+Chinese numeral hours and minutes can be mixed freely with ASCII digits: `七点30分`, `7点三十分`, and `七点三十分` all work.
 
 ### Customization Examples
 

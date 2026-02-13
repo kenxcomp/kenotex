@@ -46,3 +46,34 @@ tomorrow = 1
 星期五 = "friday"
 星期六 = "saturday"
 星期日 = "sunday"
+
+# Hour keywords — Chinese numeral → hour number (0-23)
+# 小时关键词 — 中文数字 → 小时数 (0-23)
+[hours]
+一 = 1
+二 = 2
+三 = 3
+四 = 4
+五 = 5
+六 = 6
+七 = 7
+八 = 8
+九 = 9
+十 = 10
+十一 = 11
+十二 = 12
+
+# Minute keywords — Chinese numeral → minute number (0-59)
+# 分钟关键词 — 中文数字 → 分钟数 (0-59)
+[minutes]
+五 = 5
+十 = 10
+十五 = 15
+二十 = 20
+二十五 = 25
+三十 = 30
+三十五 = 35
+四十 = 40
+四十五 = 45
+五十 = 50
+五十五 = 55

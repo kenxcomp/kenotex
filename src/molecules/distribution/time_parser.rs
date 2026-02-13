@@ -243,14 +243,43 @@ fn parse_chinese_time(text: &str, config: &TimeConfig) -> Option<DateTime<Utc>> 
         }
     }
 
-    // Parse explicit time: e.g., 8点, 8点30分, 8時, 8时5分
-    let time_re = Regex::new(r"(\d{1,2})[点時时](?:(\d{1,2})分?)?").ok()?;
-    if let Some(caps) = time_re.captures(text) {
-        hour = caps.get(1)?.as_str().parse().ok()?;
-        minute = caps
-            .get(2)
-            .and_then(|m| m.as_str().parse().ok())
-            .unwrap_or(0);
+    // Step A: Parse hour — try ASCII regex, then config lookup for Chinese numerals
+    let hour_re = Regex::new(r"(\d{1,2})[点時时]").ok()?;
+    let mut found_explicit_hour = false;
+    if let Some(caps) = hour_re.captures(text) {
+        hour = caps.get(1).unwrap().as_str().parse().ok()?;
+        found_explicit_hour = true;
+    } else {
+        // Config lookup for Chinese numeral hours
+        let mut hour_keys: Vec<_> = config.hours.keys().collect();
+        hour_keys.sort_by_key(|k| std::cmp::Reverse(k.len()));
+        for key in &hour_keys {
+            for suffix in ["点", "時", "时"] {
+                if text.contains(&format!("{}{}", key, suffix)) {
+                    hour = config.hours[key.as_str()];
+                    found_explicit_hour = true;
+                    break;
+                }
+            }
+            if found_explicit_hour {
+                break;
+            }
+        }
+    }
+
+    // Step B: Parse minute — try ASCII regex, then config lookup for Chinese numerals
+    let minute_re = Regex::new(r"[点時时](\d{1,2})分?").ok()?;
+    if let Some(caps) = minute_re.captures(text) {
+        minute = caps.get(1).unwrap().as_str().parse().unwrap_or(0);
+    } else if found_explicit_hour {
+        let mut minute_keys: Vec<_> = config.minutes.keys().collect();
+        minute_keys.sort_by_key(|k| std::cmp::Reverse(k.len()));
+        for key in &minute_keys {
+            if text.contains(&format!("{}分", key)) {
+                minute = config.minutes[key.as_str()];
+                break;
+            }
+        }
     }
 
     let time = NaiveTime::from_hms_opt(hour, minute, 0)?;
@@ -476,5 +505,67 @@ mod tests {
         // Should use config's morning hour (06), not hardcoded 09
         // Note: "tomorrow morning" may be parsed by chrono_english first,
         // so we verify the result exists (parsing succeeded with config)
+    }
+
+    #[test]
+    fn test_chinese_numeral_full() {
+        let config = TimeConfig::default();
+        // 明天下午七点三十分: 下午 sets baseline hour=14, but 七点 overrides to 7
+        let result = parse_time_expression("明天下午七点三十分", &config);
+        assert!(result.is_some(), "should parse '明天下午七点三十分'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "07");
+        assert_eq!(local.format("%M").to_string(), "30");
+    }
+
+    #[test]
+    fn test_chinese_numeral_hour_only() {
+        let config = TimeConfig::default();
+        // 明天七点: hour=7 from Chinese numeral, minute=0
+        let result = parse_time_expression("明天七点", &config);
+        assert!(result.is_some(), "should parse '明天七点'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "07");
+        assert_eq!(local.format("%M").to_string(), "00");
+    }
+
+    #[test]
+    fn test_mixed_arabic_hour_chinese_minute() {
+        let config = TimeConfig::default();
+        // 7点三十分: hour=7 from ASCII regex, minute=30 from Chinese numeral lookup
+        let result = parse_time_expression("7点三十分", &config);
+        assert!(result.is_some(), "should parse '7点三十分'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "07");
+        assert_eq!(local.format("%M").to_string(), "30");
+    }
+
+    #[test]
+    fn test_mixed_chinese_hour_arabic_minute() {
+        let config = TimeConfig::default();
+        // 七点30分: hour=7 from Chinese numeral, minute=30 from ASCII regex
+        let result = parse_time_expression("七点30分", &config);
+        assert!(result.is_some(), "should parse '七点30分'");
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%H").to_string(), "07");
+        assert_eq!(local.format("%M").to_string(), "30");
+    }
+
+    #[test]
+    fn test_chinese_numeral_at_expression() {
+        let config = TimeConfig::default();
+        // @明天下午七点三十分 via at-expression: should parse, minute=30
+        let result = parse_at_time_expression("买牛奶 @明天下午七点三十分", &config);
+        assert!(
+            result.is_some(),
+            "should parse '@明天下午七点三十分'"
+        );
+        let dt = result.unwrap();
+        let local = dt.with_timezone(&Local);
+        assert_eq!(local.format("%M").to_string(), "30");
     }
 }

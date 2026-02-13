@@ -136,6 +136,37 @@ tomorrow = 1
 星期五 = "friday"
 星期六 = "saturday"
 星期日 = "sunday"
+
+# Hour keywords — keyword → hour number (0-23)
+# 小时关键词 — 关键词 → 小时数 (0-23)
+[hours]
+一 = 1
+二 = 2
+三 = 3
+四 = 4
+五 = 5
+六 = 6
+七 = 7
+八 = 8
+九 = 9
+十 = 10
+十一 = 11
+十二 = 12
+
+# Minute keywords — keyword → minute number (0-59)
+# 分钟关键词 — 关键词 → 分钟数 (0-59)
+[minutes]
+五 = 5
+十 = 10
+十五 = 15
+二十 = 20
+二十五 = 25
+三十 = 30
+三十五 = 35
+四十 = 40
+四十五 = 45
+五十 = 50
+五十五 = 55
 "#;
 
     fs::write(path, template)
@@ -235,6 +266,8 @@ mod tests {
         assert_eq!(config.periods.len(), TimeConfig::default().periods.len());
         assert_eq!(config.offsets.len(), TimeConfig::default().offsets.len());
         assert_eq!(config.weekdays.len(), TimeConfig::default().weekdays.len());
+        assert_eq!(config.hours.len(), TimeConfig::default().hours.len());
+        assert_eq!(config.minutes.len(), TimeConfig::default().minutes.len());
 
         // Clean up
         let _ = std::fs::remove_dir_all(&tmp);
