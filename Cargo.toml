@@ -1,6 +1,6 @@
 [package]
 name = "kenotex"
-version = "0.1.0"
+version = "1.1.0"
 edition = "2024"
 description = "A Vim-style TUI note-taking app with smart distribution to Reminders, Calendar, and Notes"
 authors = ["Kenneth X"]
